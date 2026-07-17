@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYS.CNTRL // WEBP to JPG Converter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { mono: ['Roboto Mono', 'monospace'] }, colors: { indBg: '#F9FAFB', indPanel: '#E5E7EB', indText: '#111827', indOrange: '#FF6D00', indGreen: '#16A34A', indDark: '#1F2937' } } } }
+    </script>
+    <style>
+        body { background-color: #F9FAFB; }
+        .module-box { background: #fff; border: 3px solid #111827; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(17,24,39,0.1); transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .module-box:hover { transform: translateY(-2px); box-shadow: 0 15px 35px -5px rgba(17,24,39,0.15); }
+        .clean-input { width: 100%; background: #F9FAFB; border: 2px solid #E5E7EB; border-radius: 0.75rem; padding: 0.75rem; font-weight: bold; font-size: 0.875rem; outline: none; color: #111827; transition: all 0.2s; }
+        .clean-input:focus { border-color: #FF6D00; background: #fff; box-shadow: 0 0 0 3px rgba(255,109,0,0.1); }
+        .action-btn { border-radius: 1rem; box-shadow: 0 6px 0px rgba(17,24,39,1); transition: all 0.1s; }
+        .action-btn:active { transform: translateY(6px); box-shadow: 0 0px 0px rgba(17,24,39,1); }
+        .drop-active { border-color: #FF6D00 !important; background-color: #FFF7ED !important; }
+    </style>
+</head>
+<body class="text-indText font-mono min-h-screen flex flex-col antialiased selection:bg-indOrange selection:text-white">
+    
+    <header class="w-full border-b-2 border-gray-200 bg-white sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-indText text-white flex items-center justify-center font-black rounded-lg">/></div>
+                <span class="text-lg font-black tracking-widest text-indText">SYS.CNTRL</span>
+            </div>
+            <nav class="flex flex-wrap items-center justify-center gap-2 text-xs font-bold">
+                <a href="index.html" class="text-gray-500 hover:text-indOrange px-2 py-1 transition">UNIVERSAL</a>
+                <a href="jpg_to_png.html" class="text-gray-500 hover:text-indOrange px-2 py-1 transition">JPG ➔ PNG</a>
+                <a href="png_to_jpg.html" class="text-gray-500 hover:text-indOrange px-2 py-1 transition">PNG ➔ JPG</a>
+                <a href="webp_to_jpg.html" class="bg-indText text-white px-3 py-1.5 rounded-full shadow-sm">WEBP ➔ JPG</a>
+                <a href="webp_compressor.html" class="text-gray-500 hover:text-indOrange px-2 py-1 transition">WEBP OPTIMIZER</a>
+                <a href="svg_resizer.html" class="text-gray-500 hover:text-indOrange px-2 py-1 transition">SVG RESIZER</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow w-full max-w-5xl mx-auto px-6 py-12 flex flex-col items-center">
+        
+        <div class="text-center max-w-3xl mb-12">
+            <div class="inline-block bg-indText text-white text-[10px] font-black px-3 py-1.5 rounded-full tracking-widest mb-6 border border-gray-600">STRICT FORMAT MODE</div>
+            <h1 class="text-4xl md:text-5xl font-black leading-tight text-indText uppercase mb-6">
+                WEBP to <span class="text-indOrange">JPG.</span>
+            </h1>
+            <p class="text-gray-700 font-bold leading-relaxed text-sm md:text-base">
+                Downloaded a WEBP from the web? Upload it here to instantly unlock and convert it into a standard JPG.
+            </p>
+        </div>
+
+        <div class="w-full grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+            
+            <div class="module-box lg:col-span-1 p-6 flex flex-col relative overflow-hidden">
+                <div class="absolute top-3 left-4 text-[10px] font-black text-gray-300">01_INPUT</div>
+                <div id="drop_zone" class="mt-4 bg-indBg border-2 border-dashed border-gray-400 hover:border-indOrange rounded-xl transition cursor-pointer flex flex-col items-center justify-center flex-grow min-h-[220px] p-6 text-center group" onclick="document.getElementById('image_input').click()">
+                    <div class="w-16 h-16 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center mb-4 group-hover:border-indOrange transition shadow-sm">
+                        <span class="text-2xl text-gray-400 group-hover:text-indOrange">▼</span>
+                    </div>
+                    <p class="font-black text-indText tracking-wide text-sm">DROP WEBP ONLY</p>
+                    
+                    <div id="file_meta" class="mt-4 hidden flex-col gap-1 items-center w-full">
+                        <span id="file_name" class="bg-indText text-white px-3 py-1 text-xs font-bold rounded-md w-full truncate"></span>
+                        <span id="file_size" class="text-indOrange px-2 py-1 text-xs font-black"></span>
+                    </div>
+                    <!-- Frontend Security: Restrict OS file picker to WEBP -->
+                    <input type="file" id="image_input" class="hidden" accept="image/webp">
+                </div>
+            </div>
+
+            <div class="module-box lg:col-span-2 p-6 md:p-8 flex flex-col justify-between relative overflow-hidden">
+                <div class="absolute top-3 right-4 text-[10px] font-black text-gray-300">02_CONFIG</div>
+                
+                <div class="space-y-6 mt-4">
+                    <div class="bg-gray-100 p-4 border-2 border-gray-200 rounded-lg text-sm font-bold text-gray-600 flex items-center gap-3">
+                        <span class="bg-indText text-white px-2 py-1 text-xs rounded">LOCKED</span>
+                        OUTPUT FORMAT WILL BE FORCED TO JPG.
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-black text-gray-400 uppercase tracking-widest block mb-3">Adjustments (Optional)</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div><input type="number" id="width" placeholder="Width (px)" class="clean-input text-center"></div>
+                            <div><input type="number" id="height" placeholder="Height (px)" class="clean-input text-center"></div>
+                            <div><input type="number" id="target_kb" placeholder="Target KB" class="clean-input text-center"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-6 mt-4 border-t-2 border-gray-100 flex flex-col gap-4">
+                    <button onclick="execute()" id="exec_btn" class="action-btn w-full bg-indOrange text-white font-black text-lg tracking-widest py-4 border-2 border-indText flex justify-center items-center gap-3 hover:bg-orange-600">
+                        IGNITE SEQUENCE
+                    </button>
+
+                    <div id="status_bar" class="hidden bg-indBg border-2 border-indGreen text-indGreen rounded-xl p-3 text-xs font-mono font-bold flex justify-center items-center gap-2">
+                        <div id="status_dot" class="w-2 h-2 bg-indGreen rounded-full animate-pulse"></div>
+                        <span id="status_text">PROCESSING INITIATED...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full max-w-3xl flex flex-col md:flex-row justify-center items-center gap-8 pt-8 border-t-2 border-gray-200">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center border border-green-200"><svg class="w-5 h-5 text-indGreen" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg></div>
+                <div class="text-left"><p class="text-sm font-black text-indText">Zero Data Retention</p><p class="text-xs text-gray-500 font-bold">Files are destroyed instantly.</p></div>
+            </div>
+            <div class="hidden md:block w-px h-10 bg-gray-300"></div>
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center border border-green-200"><svg class="w-5 h-5 text-indGreen" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg></div>
+                <div class="text-left"><p class="text-sm font-black text-indText">No Registration Required</p><p class="text-xs text-gray-500 font-bold">Free, unrestricted access.</p></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const imgInput = document.getElementById('image_input');
+        const fileMeta = document.getElementById('file_meta');
+        const statusBar = document.getElementById('status_bar');
+        const statusText = document.getElementById('status_text');
+        const statusDot = document.getElementById('status_dot');
+        
+        function showMessage(msg, isError = false) {
+            statusBar.classList.remove('hidden');
+            if(isError) {
+                statusBar.classList.replace('text-indGreen', 'text-red-500');
+                statusBar.classList.replace('border-indGreen', 'border-red-300');
+                statusDot.classList.replace('bg-indGreen', 'bg-red-500');
+                statusDot.classList.remove('animate-pulse');
+            } else {
+                statusBar.classList.replace('text-red-500', 'text-indGreen');
+                statusBar.classList.replace('border-red-300', 'border-indGreen');
+                statusDot.classList.replace('bg-red-500', 'bg-indGreen');
+                statusDot.classList.add('animate-pulse');
+            }
+            statusText.innerText = msg;
+        }
+
+        imgInput.addEventListener('change', () => {
+            if(imgInput.files[0]) {
+                const file = imgInput.files[0];
+                
+                if (file.type !== 'image/webp') {
+                    showMessage("SYSTEM ERROR: ONLY WEBP FILES ALLOWED HERE.", true);
+                    imgInput.value = ''; 
+                    fileMeta.classList.add('hidden');
+                    return;
+                }
+
+                fileMeta.classList.remove('hidden');
+                document.getElementById('file_name').innerText = file.name.length > 20 ? file.name.substring(0,20)+'...' : file.name;
+                document.getElementById('file_size').innerText = (file.size / 1024).toFixed(1) + ' KB';
+                statusBar.classList.add('hidden');
+            }
+        });
+
+        // Setup Drag Drop
+        const dropZone = document.getElementById('drop_zone');
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drop-active'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drop-active'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault(); dropZone.classList.remove('drop-active');
+            if (e.dataTransfer.files.length) { 
+                imgInput.files = e.dataTransfer.files; 
+                imgInput.dispatchEvent(new Event('change')); 
+            }
+        });
+
+        async function execute() {
+            if (!imgInput.files[0]) return showMessage("ERROR: NO PAYLOAD DETECTED.", true);
+
+            showMessage("PUMPING DATA TO ENGINE...");
+            document.getElementById('exec_btn').style.opacity = "0.7";
+            
+            const fd = new FormData();
+            fd.append('image', imgInput.files[0]); 
+            
+            // STRICT MODE CONSTRAINTS FOR BACKEND
+            fd.append('output_format', 'jpg');
+            fd.append('expected_input_format', 'webp');
+            
+            if(document.getElementById('width').value) fd.append('width', document.getElementById('width').value);
+            if(document.getElementById('height').value) fd.append('height', document.getElementById('height').value);
+            if(document.getElementById('target_kb').value) fd.append('target_kb', document.getElementById('target_kb').value);
+
+            try {
+                const res = await fetch('http://127.0.0.1:5000/convert', { method: 'POST', body: fd });
+                if (!res.ok) throw new Error((await res.json()).error);
+                
+                showMessage("COMPUTATION COMPLETE. DOWNLOADING JPG...");
+                const blob = await res.blob();
+                const a = document.createElement('a'); 
+                a.href = window.URL.createObjectURL(blob);
+                a.download = `sys_converted.jpg`; 
+                a.click();
+                
+                showMessage("SUCCESS: ARTIFACT EXTRACTED.");
+                statusDot.classList.remove('animate-pulse');
+            } catch (e) { 
+                showMessage(`CRITICAL_ERR: ${e.message}`, true); 
+            } finally {
+                document.getElementById('exec_btn').style.opacity = "1";
+            }
+        }
+    </script>
+</body>
+</html>

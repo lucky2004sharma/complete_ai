@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Browser ko batata hai page UTF-8 (normal text) encoding mein hai -->
+    <meta charset="UTF-8">
+    <!-- Mobile par sahi scale se dikhne ke liye zaroori -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Image Resizer Pro</title>
+
+    <!-- TAILWIND CSS: utility classes ke liye (padding, flex, grid, etc.) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Do fonts use kar rahe hain taaki "generic AI template" na lage:
+         - Space Grotesk: headings/buttons ke liye, thoda character wala font
+         - IBM Plex Mono: numbers/readouts (file size, %, px) ke liye, taaki
+           woh ek "instrument panel" jaisa lage, normal text jaisa nahi -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        /* =========================================================
+           CUSTOM DESIGN TOKENS (color palette, shadows, radius)
+           =========================================================
+           Yeh sab "parent" variables hain — poori site inhi rangon
+           se banti hai. Agar tum theme badalna chaho, sirf yahan
+           values change karo, poori site apne aap update ho jaayegi.
+           Yeh ek "darkroom / lab instrument" feel ke liye socha gaya
+           hai — amber safelight accent, teal ek "processed/success"
+           color ki tarah, aur rust ek "danger/reset" color ki tarah.
+        ========================================================= */
+        :root{
+            --bg-deep:#0F1417;        /* sabse peeche ka background */
+            --bg-panel:#161D21;        /* card/panel ka background */
+            --bg-panel-raised:#1E2731; /* thoda upar-uthe hue elements (inputs, inner boxes) */
+            --line:#2B363C;            /* borders */
+            --text-hi:#EDEFEF;         /* main text */
+            --text-mid:#9AA7AC;        /* secondary/label text */
+            --amber:#E8A33D;           /* primary action color (jaise darkroom safelight) */
+            --amber-dim:#8A6423;
+            --teal:#4FB6A8;            /* success / processed state */
+            --rust:#C4573F;            /* reset/destructive */
+            --shadow-deep: 0 10px 30px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.35);
+        }
+
+        body{
+            background:
+                radial-gradient(circle at 20% -10%, rgba(232,163,61,0.06), transparent 40%),
+                var(--bg-deep);
+            color:var(--text-hi);
+            font-family:'IBM Plex Sans', sans-serif;
+        }
+        .font-display{font-family:'Space Grotesk', sans-serif;}
+        .font-mono{font-family:'IBM Plex Mono', monospace;}
+
+        /* -------------------------------------------------------
+           PANEL: ek "card" jo halke se upar uthi hui dikhti hai.
+           Do shadows layer karke depth banayi hai — flat single
+           shadow generic dikhta hai, do layers milke asli "lifted
+           surface" ka feel dete hain.
+        ------------------------------------------------------- */
+        .panel{
+            background:var(--bg-panel);
+            border:1px solid var(--line);
+            border-radius:14px;
+            box-shadow:var(--shadow-deep);
+        }
+        .panel-raised{
+            background:var(--bg-panel-raised);
+            border:1px solid var(--line);
+            border-radius:10px;
+        }
+
+        /* -------------------------------------------------------
+           BUTTONS: "human-designed" feel — gradient + inner top
+           highlight (jaise real physical button par upar se light
+           padti hai) + press-down animation jab click karo.
+        ------------------------------------------------------- */
+        .btn{
+            font-family:'Space Grotesk', sans-serif;
+            font-weight:600;
+            border-radius:10px;
+            transition: transform .08s ease, box-shadow .15s ease, filter .15s ease;
+            position:relative;
+        }
+        .btn:active{ transform: translateY(2px); }
+
+        .btn-primary{
+            background: linear-gradient(180deg, #F0B454 0%, #E8A33D 55%, #C9861F 100%);
+            color:#241605;
+            box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 4px 12px rgba(232,163,61,0.35), 0 2px 0 #8A6423;
+        }
+        .btn-primary:hover{ filter:brightness(1.06); }
+        .btn-primary:active{ box-shadow: 0 1px 0 rgba(255,255,255,0.25) inset, 0 1px 4px rgba(232,163,61,0.3); }
+
+        .btn-secondary{
+            background: linear-gradient(180deg, #2E3D45 0%, #202A31 100%);
+            color:var(--text-hi);
+            border:1px solid var(--line);
+            box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .btn-secondary:hover{ border-color:var(--teal); color:var(--teal); }
+
+        .btn-ghost{
+            background:transparent;
+            color:var(--text-mid);
+            border:1px solid var(--line);
+        }
+        .btn-ghost:hover{ color:var(--text-hi); border-color:var(--text-mid); }
+
+        /* -------------------------------------------------------
+           MODE TOGGLE: "Manual Quality" vs "Target File Size"
+           Do buttons jo ek dusre ke saath judhe hue dikhte hain
+           (segmented control) — ek naya feature jo purane version
+           mein tha hi nahi.
+        ------------------------------------------------------- */
+        .segment{
+            display:flex; background:var(--bg-panel-raised);
+            border:1px solid var(--line); border-radius:10px; padding:3px;
+        }
+        .segment button{
+            flex:1; padding:8px 10px; border-radius:8px; font-size:12.5px;
+            font-family:'Space Grotesk',sans-serif; font-weight:600; color:var(--text-mid);
+            transition: all .15s ease;
+        }
+        .segment button.active{
+            background:linear-gradient(180deg,#4FB6A8,#3C9587); color:#04211D;
+            box-shadow: 0 2px 6px rgba(79,182,168,0.35);
+        }
+
+        /* -------------------------------------------------------
+           CUSTOM SLIDER: browser ka default range input bohot flat
+           dikhta hai. Yeh custom track + thumb "physical dial" jaisa
+           feel deta hai — inset shadow track ke andar "engraved"
+           lagne ke liye, aur thumb par gradient + ring for depth.
+        ------------------------------------------------------- */
+        input[type=range]{
+            -webkit-appearance:none; appearance:none;
+            width:100%; height:6px; border-radius:6px;
+            background: linear-gradient(90deg, var(--amber) 0%, var(--amber) var(--fill,50%), #2B363C var(--fill,50%), #2B363C 100%);
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+        }
+        input[type=range]::-webkit-slider-thumb{
+            -webkit-appearance:none; appearance:none;
+            width:18px; height:18px; border-radius:50%;
+            background: radial-gradient(circle at 35% 30%, #FCE3B0, #E8A33D 60%, #A87423);
+            border:2px solid #241605;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            cursor:pointer; margin-top:-6px;
+        }
+
+        /* -------------------------------------------------------
+           FILM-STRIP DIVIDER: Before/After ke beech ek perforated
+           (chhed-wali) line, jaise film-reel ke kinare hoti hai —
+           subject (photo editing) se directly connected signature
+           detail, generic divider nahi.
+        ------------------------------------------------------- */
+        .film-divider{
+            height:1px; margin:18px 0;
+            background-image: repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 12px);
+        }
+
+        /* number badges upar-neeche size ke liye */
+        .readout{
+            font-family:'IBM Plex Mono',monospace; font-size:12px;
+            padding:3px 8px; border-radius:6px; border:1px solid var(--line);
+            background:var(--bg-panel-raised);
+        }
+    </style>
+</head>
+
+<!--
+    BODY = poore page ka root/parent element.
+    Iske andar 2 bade hisse hain:
+      1) <div class="max-w-5xl ..."> -> main tool card (upload + controls + preview)
+      2) modals (fullscreen view, compare view) -> yeh normally hidden rehte hain,
+         JS unhe zaroorat par dikhata hai (display:none/hidden class hatakar)
+-->
+<body class="min-h-screen flex flex-col items-center p-6">
+
+    <!-- ============================================================
+         MAIN CONTAINER — is card ke andar sab kuch hai
+         ============================================================ -->
+    <div class="max-w-5xl w-full panel p-8">
+
+        <!-- HEADING -->
+        <div class="mb-8">
+            <h1 class="font-display text-3xl font-bold text-center" style="color:var(--amber)">Smart Image Resizer Pro</h1>
+            <p class="text-center mt-1" style="color:var(--text-mid)">Upload, preview changes live, and hit an exact file size — automatically.</p>
+        </div>
+
+        <!-- GRID: 2 columns bade screen par, 1 column mobile par (lg:grid-cols-2) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+            <!-- ============================================================
+                 LEFT COLUMN (CHILD 1 of grid) — saare controls yahan hain
+                 ============================================================ -->
+            <div class="space-y-6">
+
+                <!-- 1. FILE UPLOAD ZONE
+                     Trick: real <input type=file> ko invisible (opacity-0) karke
+                     poore box ke upar overlay kar diya hai, taaki poora box
+                     clickable lage — neeche wala <div> sirf "fake" visual hai. -->
+                <div class="relative border-2 border-dashed rounded-lg p-6 text-center transition cursor-pointer overflow-hidden panel-raised" style="border-color:var(--line)" id="dropArea">
+                    <input type="file" id="imageInput" accept="image/*" required class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+                    <div class="flex flex-col items-center pointer-events-none">
+                        <svg class="w-10 h-10 mb-2" style="color:var(--text-mid)" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <span id="fileName" class="font-medium" style="color:var(--text-hi)">Click to upload an image</span>
+                    </div>
+                </div>
+
+                <!-- 2. LIVE ENHANCEMENTS (Brightness / Contrast / Saturation)
+                     Note: yeh sirf PREVIEW mein CSS filter() se dikhte hain —
+                     asal file ke andar "bake" tabhi hote hain jab Download
+                     button dabaya jaata hai (canvas draw ke through). -->
+                <div class="panel-raised p-4 space-y-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider font-display" style="color:var(--text-mid)">Live Enhancements</h3>
+
+                    <!-- BRIGHTNESS slider + number, dono sync rehte hain -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-medium" style="color:var(--text-mid)">Brightness</label>
+                            <input type="number" id="brightNum" min="-100" max="100" value="0" class="w-16 rounded px-2 py-1 text-center text-xs font-mono panel-raised" style="border:1px solid var(--line); color:var(--text-hi)">
+                        </div>
+                        <input type="range" id="brightSlider" min="-100" max="100" value="0" class="w-full">
+                    </div>
+
+                    <!-- CONTRAST -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-medium" style="color:var(--text-mid)">Contrast</label>
+                            <input type="number" id="contrastNum" min="-100" max="100" value="0" class="w-16 rounded px-2 py-1 text-center text-xs font-mono panel-raised" style="border:1px solid var(--line); color:var(--text-hi)">
+                        </div>
+                        <input type="range" id="contrastSlider" min="-100" max="100" value="0" class="w-full">
+                    </div>
+
+                    <!-- SATURATION -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-xs font-medium" style="color:var(--text-mid)">Saturation</label>
+                            <input type="number" id="satNum" min="-100" max="100" value="0" class="w-16 rounded px-2 py-1 text-center text-xs font-mono panel-raised" style="border:1px solid var(--line); color:var(--text-hi)">
+                        </div>
+                        <input type="range" id="satSlider" min="-100" max="100" value="0" class="w-full">
+                    </div>
+                </div>
+
+                <!-- 3. DIMENSIONS -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1" style="color:var(--text-mid)">Resize Width (px)</label>
+                        <input type="number" id="widthInput" min="1" placeholder="Auto" class="w-full rounded-lg px-4 py-2 panel-raised font-mono" style="border:1px solid var(--line); color:var(--text-hi)">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1" style="color:var(--text-mid)">Resize Height (px)</label>
+                        <input type="number" id="heightInput" min="1" placeholder="Auto" class="w-full rounded-lg px-4 py-2 panel-raised font-mono" style="border:1px solid var(--line); color:var(--text-hi)">
+                    </div>
+                </div>
+
+                <!-- 4. COMPRESSION — YAHAN SABSE BADA UPGRADE HAI
+                     ==========================================================
+                     Pehle sirf ek "Quality %" slider tha — user ko khud guess
+                     karna padta tha ki 80% quality par file kitni badi banegi.
+
+                     Ab DO MODES hain (segmented toggle se switch hota hai):
+                       (a) MANUAL  -> purana wala tareeka, seedha quality % choose karo
+                       (b) TARGET  -> naya tareeka: bas bolo "50 KB se chhoti chahiye",
+                                      backend khud sahi quality dhoondh lega
+                                      (dekho app.py mein compress_to_target_kb function)
+                     ========================================================== -->
+                <div class="panel-raised p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold uppercase tracking-wider font-display" style="color:var(--text-mid)">Compression</h3>
+                        <span class="readout" id="qualityBadge" style="color:var(--teal)">manual</span>
+                    </div>
+
+                    <!-- MODE SWITCH -->
+                    <div class="segment">
+                        <button id="modeManualBtn" class="active" type="button">Manual Quality</button>
+                        <button id="modeTargetBtn" type="button">Target File Size</button>
+                    </div>
+
+                    <!-- MANUAL MODE UI -->
+                    <div id="manualModeBox">
+                        <label class="block text-sm font-medium mb-1 flex justify-between" style="color:var(--text-mid)">
+                            <span>Quality</span>
+                            <span class="font-mono" style="color:var(--amber)"><span id="qualityVal">85</span>%</span>
+                        </label>
+                        <input type="range" id="qualityInput" min="20" max="100" value="85" class="w-full">
+                        <p class="text-xs mt-1" style="color:var(--text-mid)">Higher = better looking, bigger file. Lower = smaller file, more visible compression.</p>
+                    </div>
+
+                    <!-- TARGET-SIZE MODE UI (naya, by default hidden) -->
+                    <div id="targetModeBox" class="hidden">
+                        <label class="block text-sm font-medium mb-1" style="color:var(--text-mid)">Maximum file size (KB)</label>
+                        <div class="flex gap-2 items-center">
+                            <input type="number" id="targetKbInput" min="5" value="50" class="w-28 rounded-lg px-3 py-2 panel-raised font-mono" style="border:1px solid var(--line); color:var(--text-hi)">
+                            <div class="flex gap-1">
+                                <!-- common presets, kyunki Indian govt forms mostly 20/50/100/200 KB maangte hain -->
+                                <button type="button" class="kb-preset btn btn-ghost text-xs px-2 py-1" data-kb="20">20</button>
+                                <button type="button" class="kb-preset btn btn-ghost text-xs px-2 py-1" data-kb="50">50</button>
+                                <button type="button" class="kb-preset btn btn-ghost text-xs px-2 py-1" data-kb="100">100</button>
+                                <button type="button" class="kb-preset btn btn-ghost text-xs px-2 py-1" data-kb="200">200</button>
+                            </div>
+                        </div>
+                        <p class="text-xs mt-2" style="color:var(--text-mid)">The server will automatically search for the highest quality that still fits under this size.</p>
+                    </div>
+                </div>
+
+                <!-- 5. PROCESS BUTTON -->
+                <button id="processBtn" class="btn btn-primary w-full py-3 px-4">
+                    Apply Compression &amp; Preview
+                </button>
+
+                <!-- 6. LOADER -->
+                <div id="loader" class="hidden text-center mt-2 font-semibold font-mono text-sm" style="color:var(--amber)">
+                    Processing your image on server...
+                </div>
+            </div>
+
+            <!-- ============================================================
+                 RIGHT COLUMN (CHILD 2 of grid) — live previews
+                 ============================================================ -->
+            <div class="panel-raised p-4 flex flex-col items-center justify-start min-h-[300px]">
+
+                <div id="previewPlaceholder" class="text-center mt-20" style="color:var(--text-mid)">
+                    Image preview will appear here
+                </div>
+
+                <!-- ORIGINAL IMAGE -->
+                <div id="originalBox" class="hidden w-full mb-2">
+                    <div class="flex justify-between items-end mb-2 pb-2" style="border-bottom:1px solid var(--line)">
+                        <p class="text-xs uppercase tracking-wider font-bold font-display" style="color:var(--text-mid)">Before</p>
+                        <div class="text-right">
+                            <p class="text-xs font-bold font-mono" style="color:var(--rust)"><span id="originalSize"></span></p>
+                            <p class="text-xs font-mono" style="color:var(--text-mid)"><span id="originalDims"></span></p>
+                        </div>
+                    </div>
+                    <div class="relative group cursor-pointer" onclick="openSingleFullscreen('originalPreview')">
+                        <img id="originalPreview" class="max-h-56 object-contain rounded w-full" style="border:1px solid var(--line); background:var(--bg-deep)" src="" alt="Original">
+                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span class="text-white text-xs px-3 py-1 rounded-full font-bold" style="background:rgba(0,0,0,0.8)">🔍 View Full Screen</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- film-strip style divider between before/after -->
+                <div class="film-divider w-full" id="filmDivider" style="display:none"></div>
+
+                <!-- PROCESSED IMAGE -->
+                <div id="processedBox" class="hidden w-full">
+                    <div class="flex justify-between items-end mb-2 pb-2" style="border-bottom:1px solid var(--line)">
+                        <p class="text-xs uppercase tracking-wider font-bold font-display" style="color:var(--text-mid)">After</p>
+                        <div class="text-right">
+                            <p class="text-xs font-bold font-mono" style="color:var(--teal)"><span id="processedSize"></span></p>
+                            <p class="text-xs font-mono" style="color:var(--text-mid)">quality: <span id="achievedQuality">—</span></p>
+                        </div>
+                    </div>
+
+                    <div class="relative group cursor-pointer" onclick="openSingleFullscreen('processedPreview')">
+                        <img id="processedPreview" class="max-h-56 object-contain rounded w-full" style="border:1px solid var(--teal); background:var(--bg-deep)" src="" alt="Processed">
+                        <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span class="text-white text-xs px-3 py-1 rounded-full font-bold" style="background:rgba(0,0,0,0.8)">🔍 View Full Screen</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mt-4">
+                        <button onclick="openCompareModal()" class="btn btn-secondary py-3 px-2 flex items-center justify-center gap-1 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                            Compare
+                        </button>
+                        <button id="downloadBtn" class="btn btn-primary py-3 px-2 flex items-center justify-center gap-1 text-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Download
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         MODAL 1: single image fullscreen viewer
+         (normally 'hidden' — JS class list se 'hidden' hataakar dikhata hai)
+         ============================================================ -->
+    <div id="singleFullscreenModal" class="hidden fixed inset-0 z-50 backdrop-blur-sm flex items-center justify-center p-4" style="background:rgba(0,0,0,0.9)">
+        <button onclick="closeSingleFullscreen()" class="absolute top-6 right-6 rounded-full p-2 transition" style="background:var(--bg-panel); color:var(--text-hi)">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <img id="singleFullscreenImage" class="max-w-full max-h-[90vh] object-contain rounded-lg" src="" alt="Full Screen Preview">
+        <div id="singleFullscreenLabel" class="absolute bottom-6 px-4 py-2 rounded-lg font-bold tracking-widest text-sm uppercase font-mono" style="background:var(--bg-panel); color:var(--text-mid)">Preview</div>
+    </div>
+
+    <!-- ============================================================
+         MODAL 2: side-by-side before/after compare
+         ============================================================ -->
+    <div id="compareModal" class="hidden fixed inset-0 z-50 backdrop-blur-md flex flex-col items-center justify-center p-4" style="background:rgba(0,0,0,0.92)">
+        <button onclick="closeCompareModal()" class="absolute top-6 right-6 rounded-full p-2 transition z-10" style="background:var(--bg-panel); color:var(--text-hi)">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <div class="flex flex-col md:flex-row gap-6 w-full max-w-7xl h-[85vh] items-center justify-center">
+            <div class="flex flex-col items-center w-full md:w-1/2 h-full justify-center">
+                <span class="font-bold px-6 py-2 rounded-t-lg -mb-1 font-mono" style="background:var(--bg-panel); color:var(--rust)">BEFORE</span>
+                <img id="compareBeforeImg" class="max-w-full max-h-[75vh] object-contain rounded-lg" style="border:3px solid var(--line); background:var(--bg-panel)" src="">
+            </div>
+            <div class="flex flex-col items-center w-full md:w-1/2 h-full justify-center">
+                <span class="font-bold px-6 py-2 rounded-t-lg -mb-1 font-mono" style="background:var(--bg-panel); color:var(--teal)">AFTER</span>
+                <img id="compareAfterImg" class="max-w-full max-h-[75vh] object-contain rounded-lg" style="border:3px solid var(--teal); background:var(--bg-panel)" src="">
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         JAVASCRIPT — poori interactivity yahan hai
+         ================================================================ -->
+    <script>
+        /* =========================================================
+           GLOBAL STATE VARIABLES
+           Yeh "parent scope" ki variables hain — poore script ke
+           andar kahin bhi accessible hain, kyunki koi function unhe
+           "shadow" nahi karta.
+        ========================================================= */
+        let finalProcessedBlob = null;   // server se aayi hui final processed image
+        let originalFileName   = "";     // download karte waqt naam ke liye
+        let originalMimeType   = "image/jpeg";
+        let compressionMode    = "manual"; // 'manual' ya 'target' — segmented toggle se badalta hai
+
+        /* ---------------------------------------------------------
+           DOM ELEMENT REFERENCES
+           Inhe ek baar dhoond kar variable mein rakh liya, taaki
+           baar baar document.getElementById na likhna pade — yeh
+           "children" hain jo humne HTML se pakde hain.
+        --------------------------------------------------------- */
+        const brightSlider = document.getElementById('brightSlider');
+        const brightNum    = document.getElementById('brightNum');
+        const contrastSlider = document.getElementById('contrastSlider');
+        const contrastNum    = document.getElementById('contrastNum');
+        const satSlider = document.getElementById('satSlider');
+        const satNum    = document.getElementById('satNum');
+
+        const originalImg  = document.getElementById('originalPreview');
+        const processedImg = document.getElementById('processedPreview');
+
+        const singleModal      = document.getElementById('singleFullscreenModal');
+        const singleModalImg   = document.getElementById('singleFullscreenImage');
+        const singleModalLabel = document.getElementById('singleFullscreenLabel');
+
+        const compareModal     = document.getElementById('compareModal');
+        const compareBeforeImg = document.getElementById('compareBeforeImg');
+        const compareAfterImg  = document.getElementById('compareAfterImg');
+
+        const modeManualBtn = document.getElementById('modeManualBtn');
+        const modeTargetBtn = document.getElementById('modeTargetBtn');
+        const manualModeBox = document.getElementById('manualModeBox');
+        const targetModeBox = document.getElementById('targetModeBox');
+        const qualityBadge  = document.getElementById('qualityBadge');
+
+        /* ---------------------------------------------------------
+           HELPER: range slider ke "fill" color ko update karna.
+           Humara custom CSS slider ek --fill CSS variable use karta
+           hai taaki track ka bhara hua hissa amber dikhe aur baaki
+           grey — yeh function har slider ke liye wahi % calculate
+           karke variable set karta hai.
+        --------------------------------------------------------- */
+        function updateSliderFill(slider){
+            const min = parseFloat(slider.min), max = parseFloat(slider.max), val = parseFloat(slider.value);
+            const pct = ((val - min) / (max - min)) * 100;
+            slider.style.setProperty('--fill', pct + '%');
+        }
+        // page load hote hi sabhi sliders ka fill set kar do
+        [brightSlider, contrastSlider, satSlider, document.getElementById('qualityInput')].forEach(updateSliderFill);
+
+        /* ---------------------------------------------------------
+           FUNCTION: openSingleFullscreen
+           Parent: click event on original/processed image
+           Child effect: singleModal ko visible karta hai
+        --------------------------------------------------------- */
+        function openSingleFullscreen(imageId) {
+            const sourceImage = document.getElementById(imageId);
+            singleModalImg.src = sourceImage.src;
+            singleModalImg.style.filter = sourceImage.style.filter;
+
+            if (imageId === 'originalPreview') {
+                singleModalLabel.innerText = "Original Image View";
+                singleModalLabel.style.color = 'var(--rust)';
+            } else {
+                singleModalLabel.innerText = "Final Processed View";
+                singleModalLabel.style.color = 'var(--teal)';
+            }
+            singleModal.classList.remove('hidden');
+        }
+        function closeSingleFullscreen() {
+            singleModal.classList.add('hidden');
+            singleModalImg.src = "";
+        }
+        // background par click karne se bhi band ho jaaye (target === modal khud, koi child nahi)
+        singleModal.addEventListener('click', (e) => { if (e.target === singleModal) closeSingleFullscreen(); });
+
+        /* ---------------------------------------------------------
+           FUNCTION: Compare modal open/close
+        --------------------------------------------------------- */
+        function openCompareModal() {
+            compareBeforeImg.src = originalImg.src;
+            compareAfterImg.src  = processedImg.src;
+            compareBeforeImg.style.filter = originalImg.style.filter;
+            compareAfterImg.style.filter  = originalImg.style.filter;
+            compareModal.classList.remove('hidden');
+        }
+        function closeCompareModal() {
+            compareModal.classList.add('hidden');
+            compareBeforeImg.src = "";
+            compareAfterImg.src = "";
+        }
+        compareModal.addEventListener('click', (e) => { if (e.target === compareModal) closeCompareModal(); });
+
+        /* ---------------------------------------------------------
+           FUNCTION: applyLiveFilters
+           Brightness/Contrast/Saturation sliders ki current values
+           ko ek CSS filter() string mein badal kar preview images
+           par laga deta hai — yeh sirf VISUAL PREVIEW hai, asli
+           pixels tabhi badalte hain jab Download dabaya jaata hai.
+        --------------------------------------------------------- */
+        function applyLiveFilters() {
+            const b = parseInt(brightSlider.value) + 100;
+            const c = parseInt(contrastSlider.value) + 100;
+            const s = parseInt(satSlider.value) + 100;
+            const filterString = `brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
+
+            originalImg.style.filter  = filterString;
+            processedImg.style.filter = filterString;
+
+            if (!singleModal.classList.contains('hidden'))  singleModalImg.style.filter = filterString;
+            if (!compareModal.classList.contains('hidden')) {
+                compareBeforeImg.style.filter = filterString;
+                compareAfterImg.style.filter  = filterString;
+            }
+        }
+
+        /* ---------------------------------------------------------
+           FUNCTION: syncInputs
+           Ek slider aur uske paas wale number-box ko "sync" rakhta
+           hai — dono mein se koi bhi badlo, doosra apne aap update
+           ho jaata hai. Yeh function dono ka "shared parent logic" hai.
+        --------------------------------------------------------- */
+        function syncInputs(sourceElement, sliderElement, numElement) {
+            let val = parseInt(sourceElement.value) || 0;
+            val = Math.max(-100, Math.min(100, val));
+            sliderElement.value = val;
+            numElement.value = val;
+            updateSliderFill(sliderElement);
+            applyLiveFilters();
+        }
+        brightSlider.addEventListener('input', (e) => syncInputs(e.target, brightSlider, brightNum));
+        brightNum.addEventListener('input',    (e) => syncInputs(e.target, brightSlider, brightNum));
+        contrastSlider.addEventListener('input', (e) => syncInputs(e.target, contrastSlider, contrastNum));
+        contrastNum.addEventListener('input',    (e) => syncInputs(e.target, contrastSlider, contrastNum));
+        satSlider.addEventListener('input', (e) => syncInputs(e.target, satSlider, satNum));
+        satNum.addEventListener('input',    (e) => syncInputs(e.target, satSlider, satNum));
+
+        /* ---------------------------------------------------------
+           EVENT: naya image file select hone par
+        --------------------------------------------------------- */
+        document.getElementById('imageInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const maxSizeBytes = 100 * 1024 * 1024;
+            if (file.size > maxSizeBytes) {
+                alert("File is too large! Maximum allowed size is 100MB.");
+                this.value = "";
+                return;
+            }
+
+            originalFileName = file.name;
+            originalMimeType = file.type || "image/jpeg";
+            document.getElementById('fileName').innerText = originalFileName;
+
+            const sizeKB = (file.size / 1024).toFixed(2);
+            document.getElementById('originalSize').innerText = sizeKB > 1024 ? (sizeKB / 1024).toFixed(2) + ' MB' : sizeKB + ' KB';
+
+            // ek temporary Image object banaya sirf naturalWidth/Height padhne
+            // ke liye — is se page mein kahin dikhta nahi, sirf data padhne
+            // ke kaam aata hai.
+            const tempImg = new Image();
+            tempImg.onload = function () {
+                document.getElementById('originalDims').innerText = `${this.naturalWidth}w × ${this.naturalHeight}h px`;
+            };
+            const fileUrl = URL.createObjectURL(file);
+            tempImg.src = fileUrl;
+            originalImg.src = fileUrl;
+
+            document.getElementById('previewPlaceholder').classList.add('hidden');
+            document.getElementById('originalBox').classList.remove('hidden');
+            document.getElementById('processedBox').classList.add('hidden');
+            document.getElementById('filmDivider').style.display = 'none';
+
+            // naya file aane par saare filters reset kar do
+            [brightSlider, contrastSlider, satSlider].forEach(s => { s.value = 0; updateSliderFill(s); });
+            brightNum.value = 0; contrastNum.value = 0; satNum.value = 0;
+            applyLiveFilters();
+        });
+
+        /* ---------------------------------------------------------
+           EVENT: manual quality slider
+        --------------------------------------------------------- */
+        const qualityInput = document.getElementById('qualityInput');
+        qualityInput.addEventListener('input', function (e) {
+            document.getElementById('qualityVal').innerText = e.target.value;
+            updateSliderFill(e.target);
+        });
+
+        /* ---------------------------------------------------------
+           MODE TOGGLE: Manual Quality <-> Target File Size
+           Segmented control — dono buttons ka "active" state, aur
+           uske hisaab se neeche wala box (manual vs target) dikhta/
+           chhupta hai.
+        --------------------------------------------------------- */
+        function setMode(mode) {
+            compressionMode = mode;
+            modeManualBtn.classList.toggle('active', mode === 'manual');
+            modeTargetBtn.classList.toggle('active', mode === 'target');
+            manualModeBox.classList.toggle('hidden', mode !== 'manual');
+            targetModeBox.classList.toggle('hidden', mode !== 'target');
+            qualityBadge.textContent = mode;
+        }
+        modeManualBtn.addEventListener('click', () => setMode('manual'));
+        modeTargetBtn.addEventListener('click', () => setMode('target'));
+
+        // target-KB ke quick preset buttons (20 / 50 / 100 / 200)
+        document.querySelectorAll('.kb-preset').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('targetKbInput').value = btn.dataset.kb;
+            });
+        });
+
+        /* ---------------------------------------------------------
+           EVENT: "Apply Compression & Preview" button
+           Yeh function backend ('/resize') ko FormData bhejta hai
+           aur wapas processed image blob receive karta hai.
+        --------------------------------------------------------- */
+        document.getElementById('processBtn').addEventListener('click', async function () {
+            const file = document.getElementById('imageInput').files[0];
+            const width = document.getElementById('widthInput').value;
+            const height = document.getElementById('heightInput').value;
+
+            if (!file) { alert("Please upload a photo first!"); return; }
+            if ((width !== "" && parseInt(width) <= 0) || (height !== "" && parseInt(height) <= 0)) {
+                alert("Error: Width aur Height minus (-) ya zero nahi ho sakte!");
+                return;
+            }
+
+            const loader = document.getElementById('loader');
+            loader.classList.remove('hidden');
+
+            // FormData = "yeh image + yeh saari settings, sab ek saath bhejo"
+            const formData = new FormData();
+            formData.append('image', file);
+            if (width)  formData.append('width', width);
+            if (height) formData.append('height', height);
+            formData.append('mode', compressionMode);
+
+            if (compressionMode === 'manual') {
+                formData.append('quality', qualityInput.value);
+            } else {
+                formData.append('target_kb', document.getElementById('targetKbInput').value);
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/resize', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    finalProcessedBlob = await response.blob();
+                    const achieved = response.headers.get('X-Achieved-Quality') || '—';
+                    document.getElementById('achievedQuality').innerText = achieved + '%';
+
+                    const newSizeKB = (finalProcessedBlob.size / 1024).toFixed(2);
+                    document.getElementById('processedSize').innerText = newSizeKB + ' KB';
+
+                    processedImg.src = URL.createObjectURL(finalProcessedBlob);
+                    document.getElementById('processedBox').classList.remove('hidden');
+                    document.getElementById('filmDivider').style.display = 'block';
+                } else {
+                    const errData = await response.json();
+                    alert("Server Error: " + (errData.error || "Kuch gadbad hui hai!"));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert("Cannot connect to Python server. Ensure it is running (python app.py).");
+            } finally {
+                loader.classList.add('hidden');
+            }
+        });
+
+        /* ---------------------------------------------------------
+           EVENT: Download button
+           Filters (brightness/contrast/saturation) ko canvas par
+           "bake" karke final file banata hai — server ne sirf
+           resize+compress kiya tha, yeh 3 filters purely client-side
+           hain isliye download ke waqt hi permanently apply hote hain.
+        --------------------------------------------------------- */
+        document.getElementById('downloadBtn').addEventListener('click', function () {
+            if (!finalProcessedBlob) return;
+
+            const img = new Image();
+            img.onload = function () {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext('2d');
+
+                const b = parseInt(brightSlider.value) + 100;
+                const c = parseInt(contrastSlider.value) + 100;
+                const s = parseInt(satSlider.value) + 100;
+                ctx.filter = `brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
+
+                ctx.drawImage(img, 0, 0);
+
+                canvas.toBlob(function (blob) {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'edited_' + originalFileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                }, originalMimeType, 1.0);
+            };
+            img.src = URL.createObjectURL(finalProcessedBlob);
+        });
+    </script>
+</body>
+</html>
