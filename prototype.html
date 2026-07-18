@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <!-- 
 ======================================================================
-* KYA KAR RAHA HAIN: HYBRID 4 - "Tech Tree" (Timeline flow + Clipped Shapes)
-* KYUN: Upar Universal Converter hai jisse lines nikal kar niche wale modules me ja rahi hain. 
-*       Hierarchy (tree structure) dikhata hai.
+* KYA KAR RAHA HAIN: HYBRID 5 - "Pill & Blade" (Jigsaw uneven sizes + Extreme Curves/Cuts)
+* KYUN: Kuch boxes bilkul gol (Pill shape) hain aur kuch bilkul teekhe (Blade shape). 
+*       Contrast between soft curves and harsh angles creates tension.
 ======================================================================
 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImageReducer // Tech Tree</title>
+    <title>ImageReducer // Pill & Blade</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -18,60 +18,43 @@
     </script>
     <style>
         body { background-color: #F9FAFB; background-image: linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px); background-size: 40px 40px; }
-        .clip-slant { clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0% 100%); }
+        .clip-blade { clip-path: polygon(0 0, 100% 0, 80% 100%, 0% 100%); }
     </style>
 </head>
-<body class="text-indText font-mono min-h-screen py-12 flex flex-col items-center">
+<body class="text-indText font-mono min-h-screen p-12">
 
-    <div class="w-full max-w-[1000px] flex flex-col items-center">
+    <div class="max-w-[1200px] mx-auto flex flex-col gap-6">
         
-        <!-- UNIVERSAL NODE (Root) -->
-        <div class="w-[400px] bg-indText p-1 clip-slant shadow-xl z-10 relative">
-            <div class="bg-white p-8 clip-slant border-2 border-gray-400 text-center flex flex-col items-center cursor-pointer hover:border-indOrange transition">
-                <span class="text-3xl text-indOrange font-black mb-2">+</span>
-                <h2 class="text-2xl font-black">ROOT_UNIVERSAL</h2>
+        <!-- UNIVERSAL: The Pill (Fully rounded) -->
+        <div class="w-full bg-indText p-2 rounded-full shadow-2xl cursor-pointer hover:bg-indOrange transition-colors">
+            <div class="bg-white rounded-full p-8 border-4 border-dashed border-gray-400 flex items-center justify-between">
+                <div class="w-20 h-20 bg-indOrange rounded-full text-white flex items-center justify-center text-4xl font-black shrink-0">+</div>
+                <h2 class="text-4xl font-black text-center w-full">UNIVERSAL CAPSULE</h2>
+                <div class="w-20 h-20 shrink-0"></div> <!-- Spacer for balance -->
             </div>
         </div>
 
-        <!-- 
-        * KYA: SVG Lines for Tree Branches 
-        * KYUN: Timeline/flow dikhane ke liye
-        -->
-        <svg class="w-full h-[100px] -mt-2 -mb-2 z-0" preserveAspectRatio="none">
-            <!-- Center line -->
-            <line x1="50%" y1="0" x2="50%" y2="100%" stroke="#111827" stroke-width="3" stroke-dasharray="6,6"/>
-            <!-- Left Branch -->
-            <line x1="50%" y1="50%" x2="20%" y2="50%" stroke="#111827" stroke-width="3" stroke-dasharray="6,6"/>
-            <line x1="20%" y1="50%" x2="20%" y2="100%" stroke="#111827" stroke-width="3" stroke-dasharray="6,6"/>
-            <!-- Right Branch -->
-            <line x1="50%" y1="50%" x2="80%" y2="50%" stroke="#111827" stroke-width="3" stroke-dasharray="6,6"/>
-            <line x1="80%" y1="50%" x2="80%" y2="100%" stroke="#111827" stroke-width="3" stroke-dasharray="6,6"/>
-        </svg>
-
-        <!-- CHILD NODES (Stamps in Slanted boxes) -->
-        <div class="w-full flex justify-between px-10 relative z-10">
+        <div class="flex flex-col md:flex-row gap-6 mt-4">
             
-            <div class="w-[280px] bg-indPanel p-1 clip-slant shadow-md group cursor-pointer">
-                <div class="bg-white p-6 clip-slant border-2 border-dashed border-gray-400 flex items-center justify-between">
-                    <div class="border border-gray-300 text-gray-400 text-[10px] font-black px-1 -rotate-12 group-hover:text-indOrange">J&gt;P</div>
-                    <h3 class="text-lg font-black text-right">JPG > PNG</h3>
+            <!-- STAMPED BOX 1: The Blade (Clipped sharp edge) -->
+            <div class="w-full md:w-1/2 bg-indPanel p-1 clip-blade shadow-md group cursor-pointer">
+                <div class="bg-white p-8 clip-blade border-2 border-dashed border-gray-400 flex justify-between h-full min-h-[150px]">
+                    <div>
+                        <h3 class="text-2xl font-black mb-2">JPG TO PNG</h3>
+                        <p class="text-xs font-bold text-gray-500">Lossless edge.</p>
+                    </div>
+                    <!-- Rotated Stamp -->
+                    <div class="border-2 border-gray-300 text-gray-400 text-sm font-black px-2 py-1 -rotate-12 group-hover:text-indOrange self-start mr-8">J&gt;P</div>
                 </div>
             </div>
 
-            <div class="w-[280px] bg-indPanel p-1 clip-slant shadow-md group cursor-pointer">
-                <div class="bg-white p-6 clip-slant border-2 border-dashed border-gray-400 flex items-center justify-center">
-                    <h3 class="text-lg font-black">WEBP > JPG</h3>
-                    <div class="border border-gray-300 text-gray-400 text-[10px] font-black px-1 -rotate-12 group-hover:text-indOrange ml-2">W&gt;J</div>
-                </div>
+            <!-- STAMPED BOX 2: The Block (Standard solid contrast) -->
+            <div class="w-full md:w-1/2 bg-white border-4 border-indText shadow-[8px_8px_0_#FF6D00] p-6 group cursor-pointer hover:-translate-y-1 transition-transform relative">
+                <div class="absolute bottom-4 right-4 border-2 border-gray-300 text-gray-400 text-sm font-black px-2 py-1 -rotate-12 group-hover:text-indText">P&gt;J</div>
+                <h3 class="text-2xl font-black mb-2">PNG TO JPEG</h3>
+                <p class="text-xs font-bold text-gray-500">Heavy block compression.</p>
             </div>
 
-            <div class="w-[280px] bg-indPanel p-1 clip-slant shadow-md group cursor-pointer">
-                <div class="bg-white p-6 clip-slant border-2 border-dashed border-gray-400 flex items-center justify-between">
-                    <h3 class="text-lg font-black">PNG > JPG</h3>
-                    <div class="border border-gray-300 text-gray-400 text-[10px] font-black px-1 -rotate-12 group-hover:text-indOrange">P&gt;J</div>
-                </div>
-            </div>
-            
         </div>
     </div>
 </body>
