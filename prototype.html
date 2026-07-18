@@ -1,144 +1,63 @@
 <!DOCTYPE html>
 <!-- 
 ======================================================================
-* KYA KAR RAHA HAIN: Ye Hybrid 3 hai. Isme Ticket (Barcode) aur Floating Icon dono ko ek "Price Tag" style me mix kiya hai.
-* KYUN: Upar center me ek "hole" banaya hai jisse ye ek physical hanging tag lagta hai. Icon floating hai. Full name clear hai.
+* KYA KAR RAHA HAIN: HYBRID 3 - "Eclipse Grid" (Jigsaw Grid + Circular Radar)
+* KYUN: CSS Grid use kiya hai (jigsaw ki tarah), par main Universal tool ek bada Circle hai. 
+*       Ye circle square dabbo ke beech me "Eclipse" (grahan) jaisa lagta hai. Very contrasting geometry!
 ======================================================================
 -->
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hybrid 3 // Punched Tag</title>
+    <title>ImageReducer // Eclipse Grid</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = { theme: { extend: { fontFamily: { mono: ['Roboto Mono', 'Courier New', 'monospace'] }, colors: { indBg: '#F9FAFB', indPanel: '#E5E7EB', indText: '#111827', indOrange: '#FF6D00', indGreen: '#16A34A' } } } }
+        tailwind.config = { theme: { extend: { fontFamily: { mono: ['Roboto Mono', 'monospace'] }, colors: { indBg: '#F9FAFB', indPanel: '#E5E7EB', indText: '#111827', indOrange: '#FF6D00', indGreen: '#16A34A' } } } }
     </script>
     <style>
-        .hardware-btn { box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 6px rgba(0,0,0,0.3); text-shadow: 1px 1px 2px rgba(0,0,0,0.4); transition: all 0.1s ease; }
-        .hardware-btn:active { box-shadow: inset 0 4px 6px rgba(0,0,0,0.4); transform: translateY(2px); }
-        body { background-color: #F9FAFB; background-image: linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px); background-size: 40px 40px; }
-        .dropdown-menu { display: none; position: absolute; top: 100%; left: 0; min-width: 240px; z-index: 100; }
-        .dropdown-container:hover .dropdown-menu { display: block; }
-        
-        /* Barcode pattern for the bottom of the tag */
-        .barcode-bottom { background-image: repeating-linear-gradient(90deg, #111827, #111827 2px, transparent 2px, transparent 4px, #111827 4px, #111827 5px, transparent 5px, transparent 8px); height: 10px; opacity: 0.3; }
+        body { background-color: #F9FAFB; background-image: linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px); background-size: 40px 40px; }
     </style>
 </head>
+<body class="text-indText font-mono min-h-screen p-8">
 
-<body class="text-indText font-mono min-h-screen flex flex-col antialiased">
+    <div class="max-w-[1200px] mx-auto">
+        <h1 class="text-4xl font-black mb-10 text-indText uppercase">Eclipse Engine</h1>
 
-    <header class="w-full sticky top-0 z-50 bg-white border-b border-gray-300 shadow-sm">
-        <div class="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
-            <a href="home_01.html" class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition">
-                <div class="w-8 h-8 bg-indOrange text-white rounded-sm flex items-center justify-center font-black shadow-md">/></div>
-                <span class="text-xl font-bold tracking-widest text-indOrange">ImageReducer</span>
-            </a>
-            <nav class="hidden md:flex items-center gap-6 text-sm tracking-widest text-gray-600 font-bold">
-                <a href="home_01.html" class="hover:text-indGreen transition">[ HOME ]</a>
-                <a href="index_02.html" class="hover:text-indGreen transition">[ RESIZE ]</a>
-                <a href="#" class="hover:text-indGreen transition">[ CROP ]</a>
-                <div class="dropdown-container relative py-2">
-                    <a href="converter.html" class="text-indOrange border-b-2 border-indOrange font-black transition flex items-center gap-1">[ CONVERTER ▼ ]</a>
-                    <div class="dropdown-menu bg-white border-2 border-gray-300 shadow-2xl rounded-sm p-2">
-                        <div class="text-[10px] text-gray-400 font-black px-3 py-1 border-b border-gray-200">SELECT FORMAT</div>
-                        <a href="#" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPG TO PNG</a>
-                        <a href="#" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPEG TO PNG</a>
-                        <a href="#" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; PNG TO JPEG</a>
-                        <a href="#" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; WEBP TO JPEG</a>
-                        <div class="border-t border-gray-200 my-1"></div>
-                        <a href="#" class="block px-3 py-2 text-xs bg-orange-50 text-indOrange hover:bg-indOrange hover:text-white transition font-black">&gt;&gt; UNIVERSAL CONVERTER</a>
-                    </div>
-                </div>
-                <a href="#features" class="hover:text-indGreen transition">[ FEATURES ]</a>
-                <a href="#footer" class="hover:text-indGreen transition">[ CONTACT ]</a>
-            </nav>
-            <div>
-                <a href="index_02.html" class="hardware-btn bg-indOrange text-white px-6 py-2.5 rounded font-black tracking-wider transition flex items-center gap-2">RESIZE IMAGE &gt;&gt;</a>
-            </div>
-        </div>
-    </header>
-
-    <main class="flex-grow max-w-[1400px] mx-auto px-6 py-12 w-full">
-        <div class="mb-12 text-center">
-            <h1 class="text-4xl font-black text-indText uppercase">Format Converter</h1>
-            <p class="text-gray-500 font-bold mt-2">Hybrid 3: The Punched Hardware Tag</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <!-- Asymmetric CSS Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center justify-items-center">
             
+            <!-- STAMPED BOX 1: Left Square -->
+            <div class="w-full bg-indPanel p-2 border-2 border-gray-300 shadow-sm group cursor-pointer hover:border-indOrange transition-colors">
+                <div class="bg-white p-6 border-2 border-dashed border-gray-400 flex flex-col items-start min-h-[200px]">
+                    <div class="border-2 border-gray-300 text-gray-400 text-sm font-black px-2 py-1 -rotate-12 group-hover:text-indOrange mb-4">J&gt;P</div>
+                    <h3 class="text-2xl font-black mb-2">JPG TO PNG</h3>
+                    <p class="text-xs font-bold text-gray-500">Lossless Extraction</p>
+                </div>
+            </div>
+
             <!-- 
-            ======================================================================
-            * KYA HAI: Card 1 (JPG TO PNG)
-            * CSS LOGIC: Upar center me ek circle (w-4 h-4 rounded-full bg-indBg) banaya hai jo tag ka 'hole' lagta hai.
-            * Icon ko ek ribbon ki tarah left side pe chipka diya hai.
-            ======================================================================
+            * KYA: UNIVERSAL CIRCLE. Col-span-1 par center me hai. Circle (rounded-full)
+            * KYUN: Square grid ke bich ek bada gol circle attention kheenchta hai.
             -->
-            <div class="bg-white border-2 border-gray-300 shadow-md relative group cursor-pointer hover:border-indOrange transition-colors flex flex-col pt-8 pb-0 rounded-t-lg">
-                <!-- Punched Hole -->
-                <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-indBg border-b-2 border-gray-300"></div>
-                
-                <!-- Ribbon Icon -->
-                <div class="absolute top-4 -left-2 bg-gray-200 text-gray-500 text-xs font-black px-2 py-1 border border-gray-300 group-hover:bg-indOrange group-hover:text-white group-hover:border-indOrange transition-colors">
-                    J&gt;P
+            <div class="w-[300px] h-[300px] bg-indText p-2 rounded-full shadow-2xl flex items-center justify-center cursor-pointer hover:scale-105 transition-transform relative z-10 border-4 border-indOrange">
+                <div class="w-full h-full bg-white rounded-full border-4 border-dashed border-gray-400 flex flex-col items-center justify-center p-6 text-center">
+                    <span class="text-5xl text-indOrange font-black mb-2">+</span>
+                    <h2 class="text-2xl font-black">UNIVERSAL<br/>SPHERE</h2>
                 </div>
-
-                <div class="px-6 flex-grow text-center">
-                    <h2 class="text-xl font-black text-indText mb-2">JPG TO PNG</h2>
-                    <p class="text-xs text-gray-500 font-bold mb-4">Lossless image extraction.</p>
-                </div>
-                
-                <!-- Barcode Footer -->
-                <div class="w-full barcode-bottom mt-4 group-hover:opacity-100 transition-opacity"></div>
             </div>
 
-            <!-- Card 2 -->
-            <div class="bg-white border-2 border-gray-300 shadow-md relative group cursor-pointer hover:border-indOrange transition-colors flex flex-col pt-8 pb-0 rounded-t-lg">
-                <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-indBg border-b-2 border-gray-300"></div>
-                <div class="absolute top-4 -left-2 bg-gray-200 text-gray-500 text-xs font-black px-2 py-1 border border-gray-300 group-hover:bg-indOrange group-hover:text-white group-hover:border-indOrange transition-colors">
-                    P&gt;J
+            <!-- STAMPED BOX 2: Right Square -->
+            <div class="w-full bg-indPanel p-2 border-2 border-gray-300 shadow-sm group cursor-pointer hover:border-indOrange transition-colors">
+                <div class="bg-white p-6 border-2 border-dashed border-gray-400 flex flex-col items-end text-right min-h-[200px]">
+                    <div class="border-2 border-gray-300 text-gray-400 text-sm font-black px-2 py-1 -rotate-12 group-hover:text-indOrange mb-4">P&gt;J</div>
+                    <h3 class="text-2xl font-black mb-2">PNG TO JPG</h3>
+                    <p class="text-xs font-bold text-gray-500">Max Compression</p>
                 </div>
-                <div class="px-6 flex-grow text-center">
-                    <h2 class="text-xl font-black text-indText mb-2">PNG TO JPEG</h2>
-                    <p class="text-xs text-gray-500 font-bold mb-4">Web optimization compression.</p>
-                </div>
-                <div class="w-full barcode-bottom mt-4 group-hover:opacity-100 transition-opacity"></div>
-            </div>
-
-            <!-- Card 3 -->
-            <div class="bg-white border-2 border-gray-300 shadow-md relative group cursor-pointer hover:border-indOrange transition-colors flex flex-col pt-8 pb-0 rounded-t-lg">
-                <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-indBg border-b-2 border-gray-300"></div>
-                <div class="absolute top-4 -left-2 bg-gray-200 text-gray-500 text-xs font-black px-2 py-1 border border-gray-300 group-hover:bg-indOrange group-hover:text-white group-hover:border-indOrange transition-colors">
-                    W&gt;J
-                </div>
-                <div class="px-6 flex-grow text-center">
-                    <h2 class="text-xl font-black text-indText mb-2">WEBP TO JPEG</h2>
-                    <p class="text-xs text-gray-500 font-bold mb-4">Legacy software support.</p>
-                </div>
-                <div class="w-full barcode-bottom mt-4 group-hover:opacity-100 transition-opacity"></div>
-            </div>
-
-            <!-- Card 4 Universal -->
-            <div class="bg-orange-50 border-2 border-indOrange shadow-md relative group cursor-pointer flex flex-col pt-8 pb-0 rounded-t-lg">
-                <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-indBg border-b-2 border-indOrange"></div>
-                <div class="absolute top-4 -left-2 bg-indOrange text-white text-xs font-black px-2 py-1 border border-indOrange">
-                    UNI
-                </div>
-                <div class="px-6 flex-grow text-center">
-                    <h2 class="text-xl font-black text-indOrange mb-2">UNIVERSAL</h2>
-                    <p class="text-xs text-gray-600 font-bold mb-4">Complete format control.</p>
-                </div>
-                <div class="w-full barcode-bottom mt-4 opacity-50"></div>
             </div>
 
         </div>
-    </main>
-
-    <footer class="bg-gray-100 border-t border-gray-300 pt-8 pb-8 mt-auto">
-        <div class="max-w-[1400px] mx-auto px-6 text-center text-gray-500 text-xs font-bold tracking-widest">
-            &copy; 2026 ImageReducer
-        </div>
-    </footer>
+    </div>
 </body>
 </html>
