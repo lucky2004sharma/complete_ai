@@ -1,53 +1,24 @@
 <!DOCTYPE html>
 <!-- 
 ======================================================================
-* KYA KAR RAHA HAIN: Ye Naya Page (converter.html) hai jo tab khulega jab user main header '[ CONVERTER ]' par click karega.
-* KYUN KAR RAHA HAIN: Taki user ko sabhi format conversion tools (JPG to PNG, WebP to JPEG etc.) ka usage aur working ek hi jagah mil jaye.
-* PYTHON FILE PAR ASAR: Zero. Completely frontend working model hai.
+* KYA KAR RAHA HAIN: Ye Hybrid 2 hai. Isme bahar ek solid box hai aur andar dashed ticket.
+* KYUN: 'P>J' ek Rubber Stamp ki tarah offset (tehda) rakha gaya hai box ke andar. Main focus complete text par hai.
 ======================================================================
 -->
 <html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImageReducer // System Format Converter Workspace</title>
-    
+    <title>Hybrid 2 // Stamped Box</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { mono: ['Roboto Mono', 'Courier New', 'monospace'] },
-                    colors: {
-                        indBg: '#F9FAFB',
-                        indPanel: '#E5E7EB',
-                        indText: '#111827',
-                        indOrange: '#FF6D00',
-                        indGreen: '#16A34A'
-                    }
-                }
-            }
-        }
+        tailwind.config = { theme: { extend: { fontFamily: { mono: ['Roboto Mono', 'Courier New', 'monospace'] }, colors: { indBg: '#F9FAFB', indPanel: '#E5E7EB', indText: '#111827', indOrange: '#FF6D00', indGreen: '#16A34A' } } } }
     </script>
-
     <style>
-        .hardware-btn {
-            box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 6px rgba(0,0,0,0.3);
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
-            transition: all 0.1s ease;
-        }
-        .hardware-btn:active {
-            box-shadow: inset 0 4px 6px rgba(0,0,0,0.4);
-            transform: translateY(2px);
-        }
-        body {
-            background-color: #F9FAFB;
-            background-image: linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
-            background-size: 40px 40px;
-        }
+        .hardware-btn { box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 6px rgba(0,0,0,0.3); text-shadow: 1px 1px 2px rgba(0,0,0,0.4); transition: all 0.1s ease; }
+        .hardware-btn:active { box-shadow: inset 0 4px 6px rgba(0,0,0,0.4); transform: translateY(2px); }
+        body { background-color: #F9FAFB; background-image: linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px); background-size: 40px 40px; }
         .dropdown-menu { display: none; position: absolute; top: 100%; left: 0; min-width: 240px; z-index: 100; }
         .dropdown-container:hover .dropdown-menu { display: block; }
     </style>
@@ -55,7 +26,6 @@
 
 <body class="text-indText font-mono min-h-screen flex flex-col antialiased">
 
-    <!-- HEADER NAVIGATION (Exact same as home page for consistency) -->
     <header class="w-full sticky top-0 z-50 bg-white border-b border-gray-300 shadow-sm">
         <div class="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
             <a href="home_01.html" class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition">
@@ -66,24 +36,19 @@
                 <a href="home_01.html" class="hover:text-indGreen transition">[ HOME ]</a>
                 <a href="index_02.html" class="hover:text-indGreen transition">[ RESIZE ]</a>
                 <a href="#" class="hover:text-indGreen transition">[ CROP ]</a>
-                
                 <div class="dropdown-container relative py-2">
-                    <a href="converter.html" class="text-indOrange border-b-2 border-indOrange font-black transition flex items-center gap-1">
-                        [ CONVERTER ▼ ]
-                    </a>
+                    <a href="converter.html" class="text-indOrange border-b-2 border-indOrange font-black transition flex items-center gap-1">[ CONVERTER ▼ ]</a>
                     <div class="dropdown-menu bg-white border-2 border-gray-300 shadow-2xl rounded-sm p-2">
                         <div class="text-[10px] text-gray-400 font-black px-3 py-1 border-b border-gray-200">SELECT FORMAT</div>
-                        <a href="#jpg2png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPG TO PNG</a>
-                        <a href="#jpeg2png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPEG TO PNG</a>
-                        <a href="#png2jpeg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; PNG TO JPEG</a>
-                        <a href="#webp2jpeg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; WEBP TO JPEG</a>
+                        <a href="#" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPG TO PNG</a>
+                        <a href="#" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPEG TO PNG</a>
+                        <a href="#" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; PNG TO JPEG</a>
+                        <a href="#" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; WEBP TO JPEG</a>
                         <div class="border-t border-gray-200 my-1"></div>
-                        <a href="#universal" class="block px-3 py-2 text-xs bg-orange-50 text-indOrange hover:bg-indOrange hover:text-white transition font-black">&gt;&gt; UNIVERSAL CONVERTER</a>
+                        <a href="#" class="block px-3 py-2 text-xs bg-orange-50 text-indOrange hover:bg-indOrange hover:text-white transition font-black">&gt;&gt; UNIVERSAL CONVERTER</a>
                     </div>
                 </div>
-
-                <a href="home_01.html#features" class="hover:text-indGreen transition">[ FEATURES ]</a>
-                <a href="#" class="hover:text-indGreen transition">[ MORE ]</a>
+                <a href="#features" class="hover:text-indGreen transition">[ FEATURES ]</a>
                 <a href="#footer" class="hover:text-indGreen transition">[ CONTACT ]</a>
             </nav>
             <div>
@@ -92,356 +57,87 @@
         </div>
     </header>
 
-    <main class="flex-grow max-w-[1400px] mx-auto px-6 py-10">
-        
-        <!-- PAGE HEADER BANNER -->
-        <div class="bg-indPanel p-2 border-4 border-gray-300 mb-12 shadow-lg">
-            <div class="bg-white p-8 border-2 border-gray-300 flex flex-col md:flex-row items-center justify-between gap-6">
-                <div>
-                    <div class="inline-flex items-center gap-2 border border-green-200 bg-green-50 px-3 py-1 text-indGreen font-bold text-xs tracking-[0.14em] mb-3">
-                        <span class="w-2 h-2 bg-indGreen"></span> SYSTEM FORMAT CONVERSION MODULE
-                    </div>
-                    <h1 class="text-3xl lg:text-5xl font-black text-indText uppercase tracking-tight">
-                        IMAGE FORMAT <span class="text-indOrange">CONVERTER</span> WORKSPACE
-                    </h1>
-                    <p class="mt-2 text-gray-600 font-medium text-sm lg:text-base">
-                        Select a specialized converter below or use the Universal Converter to seamlessly switch image encoding formats.
-                    </p>
-                </div>
-                <a href="#universal" class="hardware-btn bg-indOrange text-white px-8 py-4 rounded font-black text-sm tracking-wider transition whitespace-nowrap shadow-md">
-                    USE UNIVERSAL CONVERTER &gt;&gt;
-                </a>
-            </div>
+    <main class="flex-grow max-w-[1400px] mx-auto px-6 py-12 w-full">
+        <div class="mb-12">
+            <h1 class="text-4xl font-black text-indText uppercase">Format Converter</h1>
+            <p class="text-gray-500 font-bold mt-2">Hybrid 2: Solid outer box, inner dashed ticket with rubber stamp icon.</p>
         </div>
 
-        <!-- ======================================================================
-        * SPECIALIZED CONVERTERS GRID (JPG TO PNG, JPEG TO PNG, WEBP TO JPEG ETC.)
-        * KYA KAR RAHA HAIN: Saare format combinations ko box karke unki usage aur working explain kar raha hai.
-        * CHANGE SE KYA HOGA: Agar user dropdown se kisi option (jaise #jpeg2png) pe click karta hai, toh
-        *                    browser direct scroll karke is box par aa jayega.
-        ====================================================================== -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             
-            <!-- CONVERTER CARD 1: JPG TO PNG -->
-            <div id="jpg2png" class="bg-indPanel p-2 border-2 border-gray-300 shadow-md">
-                <div class="bg-white p-6 border border-gray-300 h-full flex flex-col justify-between">
-                    <div>
-                        <div class="flex justify-between items-center border-b-2 border-gray-200 pb-3 mb-4">
-                            <span class="text-lg font-black text-indOrange">&gt; JPG TO PNG CONVERTER</span>
-                            <span class="text-[10px] bg-gray-100 px-2 py-1 font-bold border border-gray-300">LOSSLESS_OUTPUT</span>
-                        </div>
-                        <p class="text-xs font-bold text-gray-500 tracking-wider mb-1">USAGE &amp; PURPOSE:</p>
-                        <p class="text-sm text-gray-700 mb-4 font-medium">Best for converting standard photos into PNG format when you need high quality, sharp text readability, or intend to add transparency later.</p>
-                        <p class="text-xs font-bold text-gray-500 tracking-wider mb-1">HOW IT WORKS:</p>
-                        <p class="text-xs text-gray-600 bg-gray-50 p-3 border border-gray-200 font-medium mb-6">Decompresses standard JPG compression artifacts and encodes pixels into PNG's lossless bitmap structure.</p>
+            <!-- 
+            ======================================================================
+            * KYA HAI: Card 1 (JPG TO PNG)
+            * CSS LOGIC: Bahar solid border, andar bg-gray-50 aur dashed border. 
+            * STAMP: '-rotate-12' css class 'J>P' icon ko thoda tehda kar deti hai jaise real stamp lagaya ho.
+            ======================================================================
+            -->
+            <div class="bg-indPanel p-2 border-2 border-gray-300 shadow-sm group cursor-pointer hover:-translate-y-1 transition-transform">
+                <div class="bg-white h-full p-4 border-2 border-dashed border-gray-400 relative flex flex-col justify-between overflow-hidden">
+                    
+                    <!-- Tehda Stamp (Icon) -->
+                    <div class="absolute top-2 right-2 border-2 border-gray-300 text-gray-400 text-xs font-black px-2 py-1 -rotate-12 group-hover:border-indOrange group-hover:text-indOrange transition-colors">
+                        J&gt;P
                     </div>
-                    <button onclick="selectUniversalMode('image/png')" class="hardware-btn w-full bg-indText hover:bg-gray-800 text-white py-3 rounded font-black text-xs tracking-wider transition">
-                        LAUNCH JPG TO PNG &gt;&gt;
-                    </button>
+
+                    <div>
+                        <h2 class="text-xl font-black text-indText mt-8 mb-2">JPG TO PNG</h2>
+                        <p class="text-xs text-gray-500 font-bold mb-4">High quality lossless conversion.</p>
+                    </div>
+                    
+                    <span class="text-xs font-black text-indOrange">LAUNCH &rarr;</span>
                 </div>
             </div>
 
-            <!-- CONVERTER CARD 2: JPEG TO PNG -->
-            <div id="jpeg2png" class="bg-indPanel p-2 border-2 border-gray-300 shadow-md">
-                <div class="bg-white p-6 border border-gray-300 h-full flex flex-col justify-between">
-                    <div>
-                        <div class="flex justify-between items-center border-b-2 border-gray-200 pb-3 mb-4">
-                            <span class="text-lg font-black text-indOrange">&gt; JPEG TO PNG CONVERTER</span>
-                            <span class="text-[10px] bg-gray-100 px-2 py-1 font-bold border border-gray-300">EXT_STANDARD</span>
-                        </div>
-                        <p class="text-xs font-bold text-gray-500 tracking-wider mb-1">USAGE &amp; PURPOSE:</p>
-                        <p class="text-sm text-gray-700 mb-4 font-medium">JPEG is the exact same format as JPG (Joint Photographic Experts Group). Use this for digital camera files ending in .jpeg to prevent quality degradation.</p>
-                        <p class="text-xs font-bold text-gray-500 tracking-wider mb-1">HOW IT WORKS:</p>
-                        <p class="text-xs text-gray-600 bg-gray-50 p-3 border border-gray-200 font-medium mb-6">Reads RGB color channels from the .jpeg container and maps them cleanly to an uncompressed Portable Network Graphics (PNG) algorithm.</p>
+            <!-- Card 2 -->
+            <div class="bg-indPanel p-2 border-2 border-gray-300 shadow-sm group cursor-pointer hover:-translate-y-1 transition-transform">
+                <div class="bg-white h-full p-4 border-2 border-dashed border-gray-400 relative flex flex-col justify-between overflow-hidden">
+                    <div class="absolute top-2 right-2 border-2 border-gray-300 text-gray-400 text-xs font-black px-2 py-1 -rotate-12 group-hover:border-indOrange group-hover:text-indOrange transition-colors">
+                        P&gt;J
                     </div>
-                    <button onclick="selectUniversalMode('image/png')" class="hardware-btn w-full bg-indText hover:bg-gray-800 text-white py-3 rounded font-black text-xs tracking-wider transition">
-                        LAUNCH JPEG TO PNG &gt;&gt;
-                    </button>
+                    <div>
+                        <h2 class="text-xl font-black text-indText mt-8 mb-2">PNG TO JPEG</h2>
+                        <p class="text-xs text-gray-500 font-bold mb-4">Compress size for faster web load.</p>
+                    </div>
+                    <span class="text-xs font-black text-indOrange">LAUNCH &rarr;</span>
                 </div>
             </div>
 
-            <!-- CONVERTER CARD 3: PNG TO JPEG -->
-            <div id="png2jpeg" class="bg-indPanel p-2 border-2 border-gray-300 shadow-md">
-                <div class="bg-white p-6 border border-gray-300 h-full flex flex-col justify-between">
-                    <div>
-                        <div class="flex justify-between items-center border-b-2 border-gray-200 pb-3 mb-4">
-                            <span class="text-lg font-black text-indOrange">&gt; PNG TO JPEG CONVERTER</span>
-                            <span class="text-[10px] bg-gray-100 px-2 py-1 font-bold border border-gray-300">MAX_COMPRESSION</span>
-                        </div>
-                        <p class="text-xs font-bold text-gray-500 tracking-wider mb-1">USAGE &amp; PURPOSE:</p>
-                        <p class="text-sm text-gray-700 mb-4 font-medium">Essential for drastically reducing file size! Heavy PNG images (like screenshots or banners) become up to 80% lighter when converted to JPEG for fast website loading.</p>
-                        <p class="text-xs font-bold text-gray-500 tracking-wider mb-1">HOW IT WORKS:</p>
-                        <p class="text-xs text-gray-600 bg-gray-50 p-3 border border-gray-200 font-medium mb-6">Flattens transparent alpha channels onto a solid white canvas and applies DCT compression to minimize file payload.</p>
+             <!-- Card 3 -->
+             <div class="bg-indPanel p-2 border-2 border-gray-300 shadow-sm group cursor-pointer hover:-translate-y-1 transition-transform">
+                <div class="bg-white h-full p-4 border-2 border-dashed border-gray-400 relative flex flex-col justify-between overflow-hidden">
+                    <div class="absolute top-2 right-2 border-2 border-gray-300 text-gray-400 text-xs font-black px-2 py-1 -rotate-12 group-hover:border-indOrange group-hover:text-indOrange transition-colors">
+                        W&gt;J
                     </div>
-                    <button onclick="selectUniversalMode('image/jpeg')" class="hardware-btn w-full bg-indText hover:bg-gray-800 text-white py-3 rounded font-black text-xs tracking-wider transition">
-                        LAUNCH PNG TO JPEG &gt;&gt;
-                    </button>
+                    <div>
+                        <h2 class="text-xl font-black text-indText mt-8 mb-2">WEBP TO JPEG</h2>
+                        <p class="text-xs text-gray-500 font-bold mb-4">Convert for legacy compatibility.</p>
+                    </div>
+                    <span class="text-xs font-black text-indOrange">LAUNCH &rarr;</span>
                 </div>
             </div>
 
-            <!-- CONVERTER CARD 4: WEBP TO JPEG -->
-            <div id="webp2jpeg" class="bg-indPanel p-2 border-2 border-gray-300 shadow-md">
-                <div class="bg-white p-6 border border-gray-300 h-full flex flex-col justify-between">
-                    <div>
-                        <div class="flex justify-between items-center border-b-2 border-gray-200 pb-3 mb-4">
-                            <span class="text-lg font-black text-indOrange">&gt; WEBP TO JPEG CONVERTER</span>
-                            <span class="text-[10px] bg-gray-100 px-2 py-1 font-bold border border-gray-300">COMPATIBILITY</span>
-                        </div>
-                        <p class="text-xs font-bold text-gray-500 tracking-wider mb-1">USAGE &amp; PURPOSE:</p>
-                        <p class="text-sm text-gray-700 mb-4 font-medium">Many government portals, old software, and document editors do not support Google's WebP format. Convert WebP to JPEG for 100% universal software compatibility.</p>
-                        <p class="text-xs font-bold text-gray-500 tracking-wider mb-1">HOW IT WORKS:</p>
-                        <p class="text-xs text-gray-600 bg-gray-50 p-3 border border-gray-200 font-medium mb-6">Decodes VP8/VP8L WebP bitstreams into raw canvas data and re-encodes them into standardized ISO/IEC 10918-1 JPEG format.</p>
+            <!-- Card 4 (Universal) -->
+            <div class="bg-indPanel p-2 border-2 border-indOrange shadow-sm group cursor-pointer hover:-translate-y-1 transition-transform">
+                <div class="bg-orange-50 h-full p-4 border-2 border-dashed border-indOrange relative flex flex-col justify-between overflow-hidden">
+                    <div class="absolute top-2 right-2 border-2 border-indOrange bg-indOrange text-white text-xs font-black px-2 py-1 -rotate-12">
+                        UNI
                     </div>
-                    <button onclick="selectUniversalMode('image/jpeg')" class="hardware-btn w-full bg-indText hover:bg-gray-800 text-white py-3 rounded font-black text-xs tracking-wider transition">
-                        LAUNCH WEBP TO JPEG &gt;&gt;
-                    </button>
+                    <div>
+                        <h2 class="text-xl font-black text-indOrange mt-8 mb-2">UNIVERSAL</h2>
+                        <p class="text-xs text-gray-600 font-bold mb-4">Convert any format to any format.</p>
+                    </div>
+                    <span class="text-xs font-black text-indText">LAUNCH &rarr;</span>
                 </div>
             </div>
 
         </div>
-
-        <!-- ======================================================================
-        * LIVE WORKING UNIVERSAL CONVERTER WORKSPACE
-        * KYA KAR RAHA HAIN: Ek asli JS-powered tool jahan user photo upload karke kisi bhi format me download kar sakta hai!
-        * ====================================================================== -->
-        <section id="universal" class="bg-indPanel p-3 rounded-lg border-4 border-gray-300 shadow-2xl mb-16">
-            <div class="bg-white p-8 border-2 border-gray-300">
-                
-                <div class="border-b-2 border-gray-300 pb-4 mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <span class="text-xs font-black bg-indGreen text-white px-2 py-1 mr-2">LIVE MODULE</span>
-                        <span class="text-2xl font-black tracking-wider text-indText">UNIVERSAL FORMAT CONVERTER</span>
-                    </div>
-                    <span class="text-xs text-gray-500 font-bold">STATUS: READY FOR INPUT</span>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                    
-                    <!-- LEFT COLUMN: File Upload Input -->
-                    <div class="border-2 border-dashed border-gray-400 bg-gray-50 p-8 text-center flex flex-col items-center justify-center min-h-[260px]">
-                        <div class="w-16 h-16 bg-white border-2 border-indOrange text-indOrange flex items-center justify-center text-3xl font-black mb-4 shadow-sm">+</div>
-                        <p class="text-base font-black text-indText">SELECT OR DROP IMAGE HERE</p>
-                        <p class="text-xs text-gray-500 font-bold mt-1 mb-6">Supports JPG, JPEG, PNG, WEBP, BMP</p>
-                        
-                        <!-- Real HTML File Input -->
-                        <input type="file" id="fileInput" accept="image/*" class="hidden">
-                        <button onclick="document.getElementById('fileInput').click()" class="hardware-btn bg-indText text-white px-6 py-3 rounded font-black text-xs tracking-wider">
-                            BROWSE DEVICE FILES
-                        </button>
-                        <p id="fileNameDisplay" class="mt-4 text-xs font-bold text-indGreen hidden"></p>
-                    </div>
-
-                    <!-- RIGHT COLUMN: Format Selector & Action -->
-                    <div class="bg-gray-100 p-6 border-2 border-gray-300 flex flex-col justify-between min-h-[260px]">
-                        <div>
-                            <label class="block text-xs font-black text-gray-600 tracking-wider mb-2">01 // SELECT TARGET OUTPUT FORMAT:</label>
-                            <select id="targetFormat" class="w-full bg-white border-2 border-gray-400 p-3 font-black text-sm text-indText focus:outline-none focus:border-indOrange mb-6">
-                                <option value="image/jpeg">JPEG / JPG (.jpg) - Smallest File Size</option>
-                                <option value="image/png">PNG (.png) - High Quality / Lossless</option>
-                                <option value="image/webp">WEBP (.webp) - Modern Web Optimized</option>
-                            </select>
-
-                            <div class="bg-white p-4 border border-gray-300 text-xs text-gray-600 font-medium mb-6">
-                                <p class="font-bold text-indText mb-1">&gt; PROCESSING NOTE:</p>
-                                When converting from PNG to JPEG, transparent areas will automatically be converted to a clean white background.
-                            </div>
-                        </div>
-
-                        <button id="convertBtn" onclick="processConversion()" class="hardware-btn w-full bg-indOrange hover:bg-orange-600 text-white py-4 rounded font-black text-sm tracking-widest uppercase transition opacity-50 cursor-not-allowed" disabled>
-                            CONVERT &amp; DOWNLOAD IMAGE
-                        </button>
-                    </div>
-
-                </div>
-            </div>
-        </section>
-
     </main>
 
-    <!-- FOOTER SECTION -->
-    <footer class="bg-gray-100 border-t border-gray-300 pt-12 pb-8 mt-auto">
+    <footer class="bg-gray-100 border-t border-gray-300 pt-8 pb-8 mt-auto">
         <div class="max-w-[1400px] mx-auto px-6 text-center text-gray-500 text-xs font-bold tracking-widest">
-            &copy; 2026 ImageReducer // SYSTEM CONVERTER WORKSPACE // ALL RIGHTS RESERVED.
+            &copy; 2026 ImageReducer
         </div>
     </footer>
-
-    <!-- ======================================================================
-    * PEDAGOGICAL JAVASCRIPT FOR BEGINNERS (EXHAUSTIC COMMENTING)
-    * Bhai Lucky, yahan maine har ek line, variable, function, aur if-else pe detail comment likha hai!
-    ====================================================================== -->
-    <script>
-        /* 
-        ======================================================================
-        * CONSTANTS & VARIABLES SETUP
-        * KYA KAR RAHA HAIN: HTML elements (jaise file input, button, dropdown) ko JS variables me store kar raha hai.
-        * KYUN KAR RAHA HAIN: Taki baad me hum in variables pe operations kar sakein.
-        ====================================================================== 
-        */
-        const fileInput = document.getElementById('fileInput');
-        const convertBtn = document.getElementById('convertBtn');
-        const targetFormatSelect = document.getElementById('targetFormat');
-        const fileNameDisplay = document.getElementById('fileNameDisplay');
-
-        // Ek empty variable banaya jisme user ki uploaded photo save hogi
-        let uploadedImageFile = null;
-
-        /* 
-        ======================================================================
-        * EVENT LISTENER #1: FILE SELECT HONE PAR KYA HOGA
-        * KYA KAR RAHA HAIN: Jab user file select karega (change event), ye function chalega.
-        * WHY: Check karne ke liye ki file sahi hai ya nahi aur button ko activate karne ke liye.
-        ====================================================================== 
-        */
-        fileInput.addEventListener('change', function(event) {
-            // event.target.files[0] se pehli selected file milti hai
-            const file = event.target.files[0];
-
-            /* 
-            * IF-ELSE BLOCK #1: FILE VALIDATION
-            * KYA: Check karta hai ki file exist karti hai ya nahi.
-            * CHANGE SE KYA HOGA: Agar file nahi hogi toh code error nahi dega, aage ka code ruk jayega.
-            */
-            if (file) {
-                uploadedImageFile = file; // File ko global variable me save kiya
-                
-                // User ko selected file ka naam dikhao
-                fileNameDisplay.textContent = "> SELECTED FILE: " + file.name;
-                fileNameDisplay.classList.remove('hidden');
-
-                // Convert button ko ON (enable) karo aur opacity theek karo
-                convertBtn.disabled = false;
-                convertBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                convertBtn.classList.add('cursor-pointer');
-            } else {
-                // Agar user ne file cancel kar di
-                uploadedImageFile = null;
-                fileNameDisplay.classList.add('hidden');
-                convertBtn.disabled = true;
-                convertBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            }
-        });
-
-        /* 
-        ======================================================================
-        * FUNCTION: selectUniversalMode(formatValue)
-        * KYA KAR RAHA HAIN: Jab user uper kisi box (jaise JPG to PNG) ke "LAUNCH" button pe click karta hai,
-        *                    toh ye function Universal Converter me wahi format automatic select kar deta hai aur wahan scroll karta hai.
-        * WHY USER EXPERIENCE: Taki user ko baar-baar dropdown se select na karna pade!
-        ====================================================================== 
-        */
-        function selectUniversalMode(formatValue) {
-            // Dropdown ka value badal do (e.g. 'image/png')
-            targetFormatSelect.value = formatValue;
-            
-            // Screen ko smoothly Universal Converter box pe le jao
-            document.getElementById('universal').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        /* 
-        ======================================================================
-        * MAIN FUNCTION: processConversion()
-        * KYA KAR RAHA HAIN: Ye sabse important function hai jo photo ko read karke naye format me convert karta hai aur download shuru karta hai!
-        * WHEN IT RUNS: Jab user "CONVERT & DOWNLOAD IMAGE" button dabata hai.
-        ====================================================================== 
-        */
-        function processConversion() {
-            /* 
-            * IF BLOCK #2: SAFEGUARD CHECK
-            * KYA: Agar kisi wajah se bina file ke button press ho gaya toh function wahin ruk jayega (return).
-            */
-            if (!uploadedImageFile) {
-                alert("Please select an image file first!");
-                return; // Code ko yahan se wapas bhej do, aage mat chalo
-            }
-
-            // FileReader ek browser build-in tool hai jo computer se file read karta hai
-            const reader = new FileReader();
-
-            /* 
-            * READER ONLOAD: JAB FILE READ HO JAYE
-            * KYA: File read hone ke baad photo ko ek HTML <canvas> pe draw karke naye format me nikaalna.
-            */
-            reader.onload = function(e) {
-                const img = new Image();
-                img.src = e.target.result;
-
-                img.onload = function() {
-                    // Ek virtual canvas banate hain (photo ka processing board)
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-
-                    // Canvas ka size photo ke original size ke barabar set karo
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-
-                    // Target format get karo (jaise 'image/jpeg' ya 'image/png')
-                    const selectedFormat = targetFormatSelect.value;
-
-                    /* 
-                    * IF BLOCK #3: TRANSPARENCY HANDLING FOR JPEG
-                    * KYA: Agar user PNG se JPEG bana raha hai, toh background me white paint kar do.
-                    * KYUN: Kyunki JPEG me transparent background nahi hota, agar white nahi kiya toh black ho jayega!
-                    * CHANGE SE KYA HOGA: Agar ye if block hata doge toh transparent PNG ko JPG banate hi peeche black background aa jayega.
-                    */
-                    if (selectedFormat === 'image/jpeg') {
-                        ctx.fillStyle = '#FFFFFF'; // White color
-                        ctx.fillRect(0, 0, canvas.width, canvas.height); // Poore canvas pe white fill karo
-                    }
-
-                    // Ab original photo ko canvas ke upar draw kar do
-                    ctx.drawImage(img, 0, 0);
-
-                    /* 
-                    * DATAURL GENERATION & DOWNLOAD
-                    * KYA: Canvas se naye format me data nikaal karke download link banana.
-                    * CONSTANT (0.92): Image quality parameter (92% quality for JPEG/WEBP).
-                    */
-                    const convertedDataUrl = canvas.toDataURL(selectedFormat, 0.92);
-
-                    // File extension nikaalo (e.g., 'image/png' -> 'png')
-                    let ext = selectedFormat.split('/')[1];
-                    if (ext === 'jpeg') ext = 'jpg'; // Normal name ke liye
-
-                    // Ek virtual <a> link banao aur use auto-click karwao taaki download ho jaye
-                    const downloadLink = document.createElement('a');
-                    downloadLink.href = convertedDataUrl;
-                    downloadLink.download = "converted_image." + ext; // Example: converted_image.png
-                    
-                    // Trigger Click (Download shuru)
-                    document.body.appendChild(downloadLink);
-                    downloadLink.click();
-                    document.body.removeChild(downloadLink);
-                };
-            };
-
-            // File ko As a URL read karna shuru karo
-            reader.readAsDataURL(uploadedImageFile);
-        }
-
-        /* 
-        ======================================================================
-        * URL PARAMETER READING (FOR HEADER DROPDOWN LINKS)
-        * KYA KAR RAHA HAIN: Jab user home page se '?mode=jpeg2png' wala link click karke yahan aata hai,
-        *                    toh ye JS check karta hai aur automatic wahi format select kar deta hai!
-        * HOW IT HELPS: Exact requirement ful-fill karti hai - dropdown se click kiya toh wahi converter khulega!
-        ====================================================================== 
-        */
-        window.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const mode = urlParams.get('mode'); // e.g., 'jpeg2png'
-
-            /* 
-            * IF-ELSE IF BLOCK #4: ROUTING MODES
-            * KYA: URL check karke sahi card ya format ko highlight/select karta hai.
-            */
-            if (mode === 'jpg2png' || mode === 'jpeg2png') {
-                selectUniversalMode('image/png');
-            } else if (mode === 'png2jpeg' || mode === 'webp2jpeg') {
-                selectUniversalMode('image/jpeg');
-            } else if (mode === 'universal') {
-                document.getElementById('universal').scrollIntoView({ behavior: 'smooth' });
-            }
-        });
-    </script>
 </body>
 </html>
