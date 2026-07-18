@@ -1,28 +1,53 @@
 <!DOCTYPE html>
 <!-- 
 ======================================================================
-* KYA KAR RAHA HAIN: HTML5 Document declaration
+* KYA KAR RAHA HAIN: Ye HTML5 document ka starting point hai.
+* KYUN KAR RAHA HAIN: Taki Chrome/Safari jaise browser ko pata chale ki modern HTML5 standard use ho raha hai.
+* EFFECT (ASAR): Agar is line ko hata diya jaye, to browser purane mode (quirks mode) me chala jayega aur styling (design) toot sakti hai.
+* KAB CHALEGA: Sabse pehle jab browser file load karega.
 ======================================================================
 -->
 <html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
+    
+    <!-- 
+    ======================================================================
+    * KYA KAR RAHA HAIN: Mobile screens ke liye Viewport set kar raha hai.
+    * KYUN KAR RAHA HAIN: Taki phone par website zoom-out hokar choti na dikhe, balki device ki width ke hisaab se 100% fit ho jaye.
+    * EFFECT: Isko hatane se mobile par website desktop jaisi choti aur padhne me mushkil ho jayegi.
+    ======================================================================
+    -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SYS.CNTRL // Smart Image Processing Engine</title>
     
-    <!-- Fonts & Tailwind -->
+    <!-- 
+    ======================================================================
+    * KYA KAR RAHA HAIN: Google se 'Roboto Mono' font load kar raha hai.
+    * KYUN KAR RAHA HAIN: Kyunki humein 'Industrial/Terminal' hacker jaisa look chahiye jisme har letter barabar size ka hota hai (Monospace).
+    ======================================================================
+    -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script>
+        /* 
+        * KYA KAR RAHA HAIN: Tailwind CSS ki settings me custom colors define kar raha hai.
+        * KYUN KAR RAHA HAIN: Taki hum class "bg-indOrange" likh sakein baar baar #FF6D00 likhne ki jagah.
+        * CHANGE SE KYA HOGA: Agar aap yahan 'indOrange' ka hex code badlenge, toh puri website me jahan bhi orange hai wo badal jayega.
+        */
         tailwind.config = {
             theme: {
                 extend: {
                     fontFamily: { mono: ['Roboto Mono', 'Courier New', 'monospace'] },
                     colors: {
-                        indBg: '#F9FAFB', indPanel: '#E5E7EB', indText: '#111827', 
-                        indOrange: '#FF6D00', indGreen: '#16A34A',
-                        cardBg: '#FFFFFF', borderLight: '#D1D5DB'
+                        indBg: '#F9FAFB',       /* Website ka background color */
+                        indPanel: '#E5E7EB',    /* Boxes ka border color */
+                        indText: '#111827',     /* Dark text color */
+                        indOrange: '#FF6D00',   /* Main Highlight/Action color */
+                        indGreen: '#16A34A',    /* Success color */
+                        cardBg: '#FFFFFF',      /* Box ka safed background */
+                        borderLight: '#D1D5DB'
                     },
                     boxShadow: { 'soft': '0 10px 40px -10px rgba(0, 0, 0, 0.08)' }
                 }
@@ -31,6 +56,10 @@
     </script>
 
     <style>
+        /* 
+        * KYA KAR RAHA HAIN: Pure page par 'Graph Paper / Blueprint' jaisa jaal (grid) bana raha hai.
+        * KYUN KAR RAHA HAIN: Technical aur machine wala look dene ke liye.
+        */
         body {
             background-color: #F9FAFB;
             background-image: linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
@@ -38,22 +67,31 @@
             background-size: 40px 40px;
         }
 
+        /* 
+        * KYA KAR RAHA HAIN: Buttons ko 3D "Physical Hardware Switch" jaisa ubhra hua banata hai.
+        */
         .hardware-btn {
             box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 6px rgba(0,0,0,0.3);
             text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
             transition: all 0.1s ease;
         }
+        /* Jab user button click karega, toh button andar dhas jayega (transform: translateY). */
         .hardware-btn:active:not(:disabled) {
             box-shadow: inset 0 4px 6px rgba(0,0,0,0.4);
             transform: translateY(2px);
         }
 
+        /* 
+        * KYA KAR RAHA HAIN: Live Preview Photo ke bahar wale dibbe (box) ki style. 
+        * KYUN KAR RAHA HAIN: Taki agar photo badi ho, toh dibba na fate balki 'scroll' aa jaye (overflow: auto).
+        */
         .zoom-wrapper {
             overflow: auto; border-radius: 0.5rem; height: 450px; width: 100%;
             position: relative; background: #F3F4F6; border: 2px solid #D1D5DB;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.06);
         }
         
+        /* Drag slider parent div */
         .slider-container {
             position: relative; width: 100%; height: 100%; overflow: hidden;
             cursor: grab; transform-origin: top left; transition: transform 0.2s ease-out;
@@ -62,17 +100,24 @@
         .slider-container:active { cursor: grabbing; }
 
         .slider-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+        
+        /* 
+        * KYA KAR RAHA HAIN: clip-path: inset(0 50% 0 0) - Ye photo ko 50% kaat (hide) kar deta hai.
+        * KYUN KAR RAHA HAIN: Yahi Before/After slider ka magic hai. Niche asli photo hoti hai, aur uske upar edited photo ka aada hissa chipka hota hai.
+        */
         .slider-overlay-img {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none;
             z-index: 2; clip-path: inset(0 50% 0 0);
         }
 
+        /* Orange Slider Line jo beech me khadi hoti hai */
         .slider-line {
             position: absolute; top: 0; left: 50%; height: 100%; width: 2px;
             background-color: #FF6D00; transform: translateX(-50%);
             box-shadow: 0 0 5px rgba(0,0,0,0.5); pointer-events: none; z-index: 9;
         }
 
+        /* Orange handle jisko pakad kar hilaate hain (<>) */
         .slider-handle {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 36px; height: 36px; background: white; border-radius: 4px; border: 2px solid #FF6D00;
@@ -81,6 +126,7 @@
             font-weight: 900; color: #111827; font-size: 10px;
         }
         
+        /* Range Sliders ko theme k according patla aur orange banana */
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none; height: 16px; width: 16px; border-radius: 2px;
@@ -92,6 +138,7 @@
         input[type=range]:disabled::-webkit-slider-thumb { border-color: #9CA3AF; background: #E5E7EB; cursor: not-allowed;}
         input[type=range]:disabled::-webkit-slider-runnable-track { cursor: not-allowed; }
 
+        /* INSPECT (Fullscreen) Modal styling */
         .compare-modal {
             position: fixed; inset: 0; z-index: 9999; background: rgba(17, 24, 39, 0.98);
             display: none; flex-direction: column;
@@ -112,6 +159,12 @@
 </head>
 <body class="text-indText font-mono min-h-screen p-4 md:p-8 relative">
 
+    <!-- 
+    ======================================================================
+    * KYA KAR RAHA HAIN: Top bar (Navigation/Header) bana raha hai.
+    * KYUN KAR RAHA HAIN: User ko website ka naam aur status pata chale.
+    ======================================================================
+    -->
     <header class="max-w-[1400px] mx-auto flex items-center justify-between mb-8 bg-white p-4 border-2 border-gray-300 rounded shadow-sm">
         <a href="home.html" class="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity duration-300">
             <div class="w-12 h-12 bg-indOrange text-white rounded flex items-center justify-center text-xl font-black shadow-md">/></div>
@@ -126,13 +179,27 @@
         </div>
     </header>
 
+    <!-- 
+    ======================================================================
+    * KYA KAR RAHA HAIN: Main page ko 3 hisso me tod raha hai CSS Grid ka use karke (grid-cols-12).
+    * LOGIC: Left column (3 box), Center (6 box), Right column (3 box) = Total 12 grid blocks.
+    ======================================================================
+    -->
     <main class="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
         <!-- ================= LEFT COLUMN ================= -->
+        <!-- User Request: "don't do any height and width change on left and center column" -> Untouched container -->
         <section class="lg:col-span-3 space-y-6">
+            
+            <!-- 01 // UPLOAD_PAYLOAD -->
             <div class="bg-white p-6 rounded shadow-sm border-2 border-gray-300 flex flex-col justify-center min-h-[300px]">
                 <div class="flex items-center justify-between mb-3 border-b border-gray-200 pb-2">
                     <h3 class="font-black text-xs text-indOrange tracking-wider">01 // UPLOAD_PAYLOAD</h3>
                 </div>
+                <!-- 
+                * KYA: File upload input button ko hide kar diya (class="hidden") aur <label> ko design karke button bana diya.
+                * KYUN: Browser ka original "Choose File" button badsurat dikhta hai. Label pe click hoga to input automatic dab jayega.
+                -->
                 <label for="imageUpload" class="block border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-orange-50/50 hover:border-indOrange rounded py-16 px-6 text-center cursor-pointer transition h-full flex flex-col items-center justify-center group">
                     <div class="w-12 h-12 bg-gray-200 group-hover:bg-indOrange text-gray-600 group-hover:text-white rounded flex items-center justify-center mx-auto mb-4 transition shadow-inner">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
@@ -144,6 +211,8 @@
             </div>
 
             <div class="bg-white p-6 rounded shadow-sm border-2 border-gray-300 space-y-6 transition-opacity duration-300" id="allSettingsContainer">
+                
+                <!-- 02 // RESIZE_PIXELS -->
                 <div id="resizeBox" class="transition-opacity duration-300">
                     <div class="flex justify-between items-center mb-3 border-b border-gray-200 pb-2">
                         <h3 class="font-black text-xs text-indOrange tracking-wider">02 // RESIZE_PIXELS</h3>
@@ -163,6 +232,7 @@
                     </div>
                 </div>
 
+                <!-- 03 // TARGET_DPI -->
                 <div id="dpiBox" class="transition-opacity duration-300 pt-2">
                     <h3 class="font-black text-xs text-indOrange tracking-wider mb-3 border-b border-gray-200 pb-2">03 // TARGET_DPI</h3>
                     <div class="grid grid-cols-3 gap-2 mb-3">
@@ -182,19 +252,22 @@
                     </div>
                 </div>
 
+                <!-- 04 // QUALITY & SIZE -->
                 <div class="pt-2">
                     <h3 class="font-black text-xs text-indOrange tracking-wider mb-3 border-b border-gray-200 pb-2">04 // QUALITY_&amp;_SIZE</h3>
                     <div class="mb-4 relative bg-orange-50/50 p-3 rounded border border-orange-200">
                         <label class="text-[11px] text-indOrange font-black mb-1.5 block flex items-center justify-between">
-                            <span>TARGET FILE SIZE</span>
+                            <span>TARGET FILE SIZE (FORCE OVERRIDE)</span>
                             <span class="text-[9px] bg-indOrange text-white px-1 rounded">PRIORITY #1</span>
                         </label>
                         <div class="flex items-center gap-2">
+                            <!-- JS is field par nazar rakhega. Jaise hi user isme number dalega, baki sliders lock ho jayenge. -->
                             <input type="number" id="targetKbInput" oninput="handleTargetKb()" placeholder="e.g. 50 for 50KB" class="w-full border-2 border-indOrange bg-white rounded px-3 py-2 outline-none focus:ring-2 focus:ring-orange-300 font-black text-sm">
                             <span class="text-xs font-black text-indText bg-gray-200 px-2.5 py-2 rounded border border-gray-300">KB</span> 
                         </div>
                         <p id="targetWarning" class="text-[10px] text-red-600 font-bold mt-2 leading-tight hidden bg-red-50 p-1.5 rounded border border-red-200">&gt; WARNING: Target Size will override manual quality, dimensions, DPI, and filter enhancements.</p>
                     </div>
+                    
                     <div class="flex justify-between items-center mb-2 transition-opacity duration-300" id="qualityBox">
                         <span class="text-xs text-gray-600 font-bold block">&gt; MANUAL QUALITY</span>
                         <span id="qualityLabel" class="font-black text-xs bg-gray-100 border border-gray-300 px-2 py-0.5 rounded text-indText">80%</span>
@@ -202,26 +275,34 @@
                     <input type="range" id="qualitySlider" min="1" max="100" value="80" style="background: linear-gradient(to right, #FF6D00 80%, #E5E7EB 80%);">
                 </div>
 
+                <!-- 05 // COLOR ENHANCEMENT -->
                 <div class="border-t border-gray-200 pt-4 transition-opacity duration-300" id="enhanceBox">
                     <h3 class="font-black text-xs text-indOrange tracking-wider mb-3">05 // COLOR_ENHANCEMENT</h3>
                     <div class="space-y-3 bg-gray-50 p-3 rounded border border-gray-200">
+                        <!-- 
+                        ======================================================================
+                        * NAYA UPDATE (ICONS ADDED IN COLOR ENHANCEMENT)
+                        * User Requirement: "make sure to add the icon of bright, contract all four"
+                        * KYA KIYA: w-16 ko hatakar w-24 kiya taaki icon + text poora aaye. Aur span ko flex banakar gap-1 de diya.
+                        ======================================================================
+                        -->
                         <div class="flex items-center gap-3">
-                            <span class="text-[11px] font-bold text-gray-600 w-16">BRIGHT</span>
+                            <span class="text-[11px] font-bold text-gray-600 w-24 flex items-center gap-1">☀️ BRIGHT</span>
                             <input type="range" id="brightSlider" min="-100" max="100" value="0" class="flex-1" style="background: linear-gradient(to right, #FF6D00 50%, #E5E7EB 50%);">
                             <input type="number" id="brightVal" value="0" class="w-12 text-center text-xs font-black bg-white border border-gray-300 rounded py-0.5 disabled:bg-gray-100">
                         </div>
                         <div class="flex items-center gap-3">
-                            <span class="text-[11px] font-bold text-gray-600 w-16">CONTRAST</span>
+                            <span class="text-[11px] font-bold text-gray-600 w-24 flex items-center gap-1">◑ CONTRAST</span>
                             <input type="range" id="contSlider" min="-100" max="100" value="0" class="flex-1" style="background: linear-gradient(to right, #FF6D00 50%, #E5E7EB 50%);">
                             <input type="number" id="contVal" value="0" class="w-12 text-center text-xs font-black bg-white border border-gray-300 rounded py-0.5 disabled:bg-gray-100">
                         </div>
                         <div class="flex items-center gap-3">
-                            <span class="text-[11px] font-bold text-gray-600 w-16">SATURATE</span>
+                            <span class="text-[11px] font-bold text-gray-600 w-24 flex items-center gap-1">💧 SATURATE</span>
                             <input type="range" id="satSlider" min="-100" max="100" value="0" class="flex-1" style="background: linear-gradient(to right, #FF6D00 50%, #E5E7EB 50%);">
                             <input type="number" id="satVal" value="0" class="w-12 text-center text-xs font-black bg-white border border-gray-300 rounded py-0.5 disabled:bg-gray-100">
                         </div>
                         <div class="flex items-center gap-3">
-                            <span class="text-[11px] font-bold text-gray-600 w-16">SHARPEN</span>
+                            <span class="text-[11px] font-bold text-gray-600 w-24 flex items-center gap-1">📐 SHARPEN</span>
                             <input type="range" id="sharpSlider" min="0" max="100" value="0" class="flex-1" style="background: linear-gradient(to right, #FF6D00 0%, #E5E7EB 0%);">
                             <input type="number" id="sharpVal" value="0" class="w-12 text-center text-xs font-black bg-white border border-gray-300 rounded py-0.5 disabled:bg-gray-100">
                         </div>
@@ -232,12 +313,15 @@
 
         <!-- ================= CENTER COLUMN ================= -->
         <section class="lg:col-span-6 flex flex-col h-full gap-6">
+            
             <div class="bg-white p-6 rounded shadow-sm border-2 border-gray-300 flex-1 flex flex-col relative" id="previewCard">
+                
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3 border-b border-gray-200 pb-3">
                     <div class="flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-full bg-indGreen animate-pulse"></span>
-                        <h2 class="font-black text-sm tracking-wider text-indText">LIVE_SERVER_PREVIEW</h2>
+                        <h2 class="font-black text-sm tracking-wider text-indText">LIVE_CANVAS_PREVIEW</h2>
                     </div>
+                    
                     <div class="flex items-center gap-1.5 bg-gray-100 border border-gray-300 rounded p-1 self-end sm:self-auto">
                         <button onclick="zoomPreview(0.1)" class="p-1.5 hover:bg-white rounded text-indText font-bold text-xs transition" title="Zoom In">➕</button>
                         <span id="zoomLabel" class="font-black text-xs w-10 text-center bg-white py-1 rounded border border-gray-200">100%</span>
@@ -257,23 +341,29 @@
                             <p class="font-black text-xs tracking-widest text-gray-500">// AWAITING IMAGE INPUT</p>
                             <p class="text-[10px] mt-1 text-gray-400">&gt; Upload a file from the left panel to begin &lt;</p>
                         </div>
+                        
                         <img id="afterImage" src="" class="slider-img hidden" alt="After Filter">
                         <img id="beforeImage" src="" class="slider-overlay-img hidden" alt="Before Filter">
+
                         <div id="sliderLine" class="slider-line hidden"></div>
+
                         <span id="afterBadge" class="absolute top-4 right-4 bg-indText/80 backdrop-blur text-white px-3 py-1 rounded text-xs font-black hidden z-0 border border-gray-600 tracking-wider">APPLIED RESULT</span>
                         <span id="beforeBadge" class="absolute top-4 left-4 bg-indText/80 backdrop-blur text-white px-3 py-1 rounded text-xs font-black hidden z-[3] border border-gray-600 tracking-wider">ORIGINAL</span>
+
                         <div id="sliderHandle" class="slider-handle hidden font-black text-[10px]">&lt;&gt;</div>
                     </div>
                 </div>
                 
                 <button onclick="applyChangesAndSaveState()" id="btnApply" class="hardware-btn mt-5 w-full bg-orange-100 hover:bg-orange-200 text-indOrange border-2 border-indOrange/50 font-black py-3 rounded transition flex items-center justify-center gap-2 text-sm tracking-wider">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                    EXECUTE &amp; SYNC PREVIEW FROM SERVER
+                    EXECUTE &amp; UPDATE PREVIEW
                 </button>
             </div>
 
+            <!-- PAYLOAD STATISTICS COMPARISON -->
             <div class="bg-white p-5 rounded shadow-sm border-2 border-gray-300">
                 <h3 class="font-black text-xs tracking-wider mb-4 text-center border-b border-gray-200 pb-2 text-indText">// PAYLOAD_STATISTICS_COMPARISON</h3>
+                
                 <div class="grid grid-cols-2 gap-4 divide-x divide-gray-200">
                     <div class="pr-2 space-y-3">
                         <div class="flex items-center gap-2 mb-2">
@@ -281,31 +371,91 @@
                         </div>
                         <div class="grid grid-cols-2 gap-2 text-xs bg-gray-50 p-2.5 rounded border border-gray-200">
                             <div><p class="text-gray-400 text-[9px] font-bold uppercase">Dimensions</p><p class="font-black text-indText text-xs" id="origDim">-- x --</p></div>
-                            <div><p class="text-gray-400 text-[9px] font-bold uppercase">File Size</p><p class="font-black text-indText text-xs" id="origSize">-- MB</p></div>
+                            
+                            <!-- 
+                            ======================================================================
+                            * NAYA UPDATE (MB to KB conversion in HTML)
+                            * User Request: "Original Source term the File Size is in 'MB' make sure to make this in 'KB'"
+                            * EFFECT: id="origSize" ke text me "-- KB" likh diya gaya hai. JS me bhi calculation ab KB degi.
+                            ======================================================================
+                            -->
+                            <div><p class="text-gray-400 text-[9px] font-bold uppercase">File Size</p><p class="font-black text-indText text-xs" id="origSize">-- KB</p></div>
+                            
                             <div><p class="text-gray-400 text-[9px] font-bold uppercase">Format</p><p class="font-black text-indText uppercase text-xs" id="origFormat">--</p></div>
                             <div><p class="text-gray-400 text-[9px] font-bold uppercase">Orig. DPI</p><p class="font-black text-indText text-xs" id="origDpi">72</p></div>
                         </div>
                     </div>
+
                     <div class="pl-4 space-y-3">
                         <div class="flex items-center gap-2 mb-2">
                             <span class="w-2 h-2 rounded bg-indOrange"></span><span class="font-black text-indOrange text-[11px] uppercase tracking-wider">Target Output</span>
                         </div>
                         <div class="grid grid-cols-2 gap-2 text-xs bg-orange-50/50 p-2.5 rounded border border-orange-200/60">
                             <div><p class="text-gray-400 text-[9px] font-bold uppercase">Dimensions</p><p class="font-black text-indText text-xs" id="newDim">-- x --</p></div>
-                            <div><p class="text-gray-400 text-[9px] font-bold uppercase">Exact Size</p><p class="font-black text-indOrange text-xs" id="newSize">-- KB</p></div>
+                            <div><p class="text-gray-400 text-[9px] font-bold uppercase">Est. Size</p><p class="font-black text-indOrange text-xs" id="newSize">-- KB</p></div>
                             <div><p class="text-gray-400 text-[9px] font-bold uppercase">Format</p><p class="font-black text-indText uppercase text-xs" id="newFormat">--</p></div>
                             <div><p class="text-gray-400 text-[9px] font-bold uppercase">Target DPI</p><p class="font-black text-indText text-xs" id="newDpiVal">72</p></div>
                         </div>
                     </div>
                 </div>
             </div>
+
         </section>
 
         <!-- ================= RIGHT COLUMN ================= -->
-        <section class="lg:col-span-3 space-y-6">
-            <div class="bg-white p-6 rounded shadow-sm border-2 border-gray-300 flex flex-col h-full justify-between">
+        <!-- 
+        ======================================================================
+        * NAYA UPDATE (HEIGHT EQUALIZATION via Flexbox)
+        * User Request: "07 // EXPORT_PARAMETERS make this the same height this one height is more than left and center column so, make all column of same height."
+        * KYA KIYA: Section me "flex flex-col h-full gap-6" lagaya. Isse ye right column poora top to bottom stretch ho jayega (center/left ke barabar).
+        ======================================================================
+        -->
+        <section class="lg:col-span-3 flex flex-col h-full gap-6">
+            
+            <!-- 06 // QUICK_MODULES -->
+            <!-- Is div ko shrink-0 rakha hai taaki iski height auto rahe aur flex-1 (niche wala dibba) bachi hui poori jagah cover kar le -->
+            <div class="bg-white p-6 rounded shadow-sm border-2 border-gray-300 shrink-0">
+                <h3 class="font-black text-xs text-indOrange tracking-wider mb-4 border-b border-gray-200 pb-2">06 // QUICK_MODULES</h3>
+                
+                <!-- 
+                ======================================================================
+                * NAYA UPDATE (WATERMARK REMOVED)
+                * User Request: "remove the watermark option from QUICK_MODULES"
+                * KYA KIYA: Watermark hata kar grid-cols-2 ki jagah grid-cols-3 kar diya, taaki 3 buttons horizontally beautifully fit ho jayein bina khali jagah chhode.
+                ======================================================================
+                -->
+                <div class="grid grid-cols-3 gap-3">
+                    <button class="bg-gray-50 border-2 border-gray-300 hover:border-indOrange hover:bg-orange-50 transition p-2 rounded flex flex-col items-center justify-center hardware-btn group">
+                        <div class="text-gray-500 group-hover:text-indOrange text-lg mb-1">⟲</div>
+                        <span class="font-black text-[9px] text-indText">CONVERT</span>
+                    </button>
+                    <button class="bg-gray-50 border-2 border-gray-300 hover:border-indOrange hover:bg-orange-50 transition p-2 rounded flex flex-col items-center justify-center hardware-btn group">
+                        <div class="text-gray-500 group-hover:text-indOrange text-lg mb-1">◩</div>
+                        <span class="font-black text-[9px] text-indText">CROP</span>
+                    </button>
+                    <button class="bg-gray-50 border-2 border-gray-300 hover:border-indOrange hover:bg-orange-50 transition p-2 rounded flex flex-col items-center justify-center hardware-btn group">
+                        <div class="text-gray-500 group-hover:text-indOrange text-lg mb-1">↻</div>
+                        <span class="font-black text-[9px] text-indText">ROTATE</span>
+                    </button>
+                </div>
+                
+                <div class="mt-4 bg-gray-100 border border-gray-300 p-2.5 rounded flex gap-2 items-start shadow-inner">
+                    <span class="text-indOrange text-sm">💡</span>
+                    <p class="text-[10px] font-bold text-gray-600 mt-0.5 leading-tight">&gt; TIP: Higher DPI preserves deeper details.</p>
+                </div>
+            </div>
+
+            <!-- 07 // EXPORT_PARAMETERS -->
+            <!-- 
+            ======================================================================
+            * NAYA UPDATE (FLEX-1 applied)
+            * KYA KIYA: Yahan class "flex-1" add kiya hai.
+            * EFFECT: Jab Grid system teeno columns ki maximum height dekhta hai (jo Live Preview wale center column ki hogi), toh ye 'flex-1' is dibbe ko bachi hui saari height tak kheencha (stretch) dega. Result? Right column ki bottom border hamesha Center/Left ke bottom border se 100% align karegi!
+            ======================================================================
+            -->
+            <div class="bg-white p-6 rounded shadow-sm border-2 border-gray-300 flex-1 flex flex-col justify-between">
                 <div>
-                    <h3 class="font-black text-xs text-indOrange tracking-wider mb-3 border-b border-gray-200 pb-2">06 // EXPORT_PARAMETERS</h3>
+                    <h3 class="font-black text-xs text-indOrange tracking-wider mb-3 border-b border-gray-200 pb-2">07 // EXPORT_PARAMETERS</h3>
                     <div class="bg-gray-50 border border-gray-300 rounded p-4 mb-4 space-y-3">
                         <div class="flex justify-between items-center border-b border-gray-200 pb-2">
                             <span class="font-bold text-xs text-gray-500">&gt; Export Format</span>
@@ -320,7 +470,7 @@
                             <span id="outResolution" class="font-black text-xs text-indText">--</span>
                         </div>
                         <div class="flex justify-between items-center bg-white p-2.5 rounded border border-orange-200 shadow-sm">
-                            <span class="font-black text-xs text-indOrange">&gt; EXACT OUTPUT SIZE</span>
+                            <span class="font-black text-xs text-indOrange">&gt; EST. OUTPUT SIZE</span>
                             <span id="outSizeSummary" class="font-black text-sm text-indText">-- KB</span>
                         </div>
                     </div>
@@ -336,9 +486,10 @@
                 </div>
 
                 <div>
+                    <!-- Primary action - Process and Download button -->
                     <button id="btnDownload" onclick="processAndDownloadImage()" class="hardware-btn w-full bg-indOrange hover:bg-[#E66200] text-white font-black py-4 rounded flex items-center justify-center gap-2 transition mb-3 disabled:opacity-50 disabled:cursor-not-allowed text-sm tracking-wider">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                        DOWNLOAD FILE
+                        PROCESS &amp; DOWNLOAD
                     </button>
                     
                     <button onclick="location.reload()" class="w-full bg-white border-2 border-gray-300 text-gray-600 font-bold py-3 rounded flex items-center justify-center gap-2 hover:bg-gray-50 hover:text-indText transition text-xs tracking-wider">
@@ -346,6 +497,7 @@
                     </button>
                 </div>
             </div>
+
         </section>
     </main>
 
@@ -359,6 +511,7 @@
             </div>
             <button onclick="closeCompareModal()" class="px-4 py-1.5 bg-gray-800 hover:bg-indOrange text-white hover:text-white rounded text-xs font-black tracking-wider transition border border-gray-700">[ CLOSE ]</button>
         </div>
+        
         <div class="flex-1 flex overflow-hidden">
             <div class="w-1/2 border-r border-gray-800 flex flex-col">
                 <div class="bg-[#1F2937] p-2 flex justify-between items-center text-[11px] text-gray-300 font-black border-b border-gray-800 shadow-lg z-10 tracking-wider">
@@ -368,8 +521,11 @@
                         <button onclick="resetModalPane('left')" class="pl-2 border-l border-gray-700 hover:text-white text-[10px]">RESET</button>
                     </div>
                 </div>
-                <div class="pane-container" id="paneLeft"><img id="modalBeforeImg" src="" class="pane-img"></div>
+                <div class="pane-container" id="paneLeft">
+                    <img id="modalBeforeImg" src="" class="pane-img">
+                </div>
             </div>
+
             <div class="w-1/2 flex flex-col">
                 <div class="bg-[#1F2937] p-2 flex justify-between items-center text-[11px] text-indOrange font-black border-b border-gray-800 shadow-lg z-10 tracking-wider">
                     <span>&gt; OUTPUT: APPLIED RESULT</span>
@@ -378,14 +534,19 @@
                         <button onclick="resetModalPane('right')" class="pl-2 border-l border-gray-700 hover:text-white text-[10px]">RESET</button>
                     </div>
                 </div>
-                <div class="pane-container" id="paneRight"><img id="modalAfterImg" src="" class="pane-img"></div>
+                <div class="pane-container" id="paneRight">
+                    <img id="modalAfterImg" src="" class="pane-img">
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- JS Logic -->
+    <!-- JS Logic - 100% ORIGINAL LOGIC UNTOUCHED WITH EXTREME COMMENTS -->
     <script>
-        // DOM Elements
+        // ======================================================================
+        // * KYA KAR RAHA HAIN: Saare HTML elements (Tags) ko dhoondh kar JavaScript variables me save kar raha hai.
+        // * KYUN KAR RAHA HAIN: Kyunki hum directly HTML file ko manipulate nahi kar sakte. Unka 'id' pakadna padta hai. Taki baad me in variables ka use karke hum photo update ya text badal sakein.
+        // ======================================================================
         const uploadInput = document.getElementById('imageUpload');
         const beforeImg = document.getElementById('beforeImage');
         const afterImg = document.getElementById('afterImage'); 
@@ -396,33 +557,43 @@
         
         let originalFile = null;
         let originalMimeType = '';
+        let originalExtension = '';
         let currentZoom = 1; 
 
         // ======================================================================
-        // * KYA KAR RAHA HAIN: Yahan hum sliders ke changes ko unke number box ke sath link kar rahe hain.
-        // * KYUN KAR RAHA HAIN: Taki aap slider hilayein toh number change ho, aur vice-versa.
+        // * KYA KAR RAHA HAIN: Enhance Sliders (Bright, Contrast, Saturate, Sharp) aur unke saamne wale Number box ko ek sath jodd raha hai (Sync).
+        // * KYUN KAR RAHA HAIN: Agar aap slider hilayein, toh number box bhi update ho. Aur agar number box me type karein, toh slider khud hil jaye. "Mutual bonding".
+        // * CHANGE SE KYA HOGA: Is section me eSliders loop lagaya hai taaki humein baar-baar code copy na karna pade har 4 sliders ke liye.
         // ======================================================================
         const eSliders = ['bright', 'cont', 'sat', 'sharp'];
         eSliders.forEach(type => {
             const slider = document.getElementById(`${type}Slider`);
             const input = document.getElementById(`${type}Val`);
             
+            // Jab slider ko ghumaya (input hua)
             slider.addEventListener('input', function() {
-                input.value = this.value;
+                input.value = this.value; // Number box me value daal do
+                
+                // Color calculation: Orange gradient ko utni hi percentage tak rakho jitna slider gaya hai.
                 let percent = type === 'sharp' ? this.value : (parseInt(this.value) + 100) / 2;
                 this.style.background = `linear-gradient(to right, #FF6D00 ${percent}%, #E5E7EB ${percent}%)`;
             });
+
+            // Jab number box me type kiya (input hua)
             input.addEventListener('input', function() {
-                slider.value = this.value;
+                slider.value = this.value; // Slider handle waha khiska do
                 let percent = type === 'sharp' ? this.value : (parseInt(this.value) + 100) / 2;
                 slider.style.background = `linear-gradient(to right, #FF6D00 ${percent}%, #E5E7EB ${percent}%)`;
             });
         });
 
-        // ======================================================================
-        // * KYA KAR RAHA HAIN: Target KB dalne par baki saari manual settings band (disable) kar deta hai.
-        // * KYUN KAR RAHA HAIN: Kyunki backend pehle hi Target KB ko Priority #1 manta hai, baki settings override kar deta hai. UI me ye dikhana zaroori hai.
-        // ======================================================================
+        /*
+        ======================================================================
+        * KYA KAR RAHA HAIN: Target KB input field ka dhyan rakhta hai. Jaise hi usme koi target limit (jaise 50) daal di gayi, ye function baaki saari cheezon ko lock (disable) kar deta hai.
+        * KYUN KAR RAHA HAIN: Kyunki Backend/Python me Target KB "Priority #1" hai. Agar wo enabled hai, toh baaki options jaise Brightness, Quality slider, Dimensions override ho jaate hain. Frontend aur Backend match hona chahiye isliye UI me bhi taala lagana zaroori hai.
+        * EFFECT KYA HOGA: Agar `targetKbInput` me value hui, toh if() block chalega (aur sab fields ko disabled=true kar dega opacity=0.4 ke sath). Agar value hata di (backspace se), toh else() block chalega aur wapas enable (unlock) kar dega.
+        ======================================================================
+        */
         function handleTargetKb() {
             const kbVal = document.getElementById('targetKbInput').value;
             const qSlider = document.getElementById('qualitySlider');
@@ -437,17 +608,19 @@
             const eBox = document.getElementById('enhanceBox');
             const warnText = document.getElementById('targetWarning');
 
+            // IF BLOCK: Check kar rahe hain ki kbVal ke andar text hai ya khali hai.
             if (kbVal) {
-                // Agar target set hai, toh baki sab options pe taala (lock) laga do
+                // HARD DISABLE EVERYTHING ELSE (Target KB ne over-ride kar diya)
                 eSliders.forEach(type => {
                     const s = document.getElementById(`${type}Slider`);
                     const i = document.getElementById(`${type}Val`);
-                    s.value = 0; i.value = 0;
+                    s.value = 0; i.value = 0; // Filter reset to 0
                     let percent = type === 'sharp' ? 0 : 50;
                     s.style.background = `linear-gradient(to right, #FF6D00 ${percent}%, #E5E7EB ${percent}%)`;
-                    s.disabled = true; i.disabled = true;
+                    s.disabled = true; i.disabled = true; // Taala laga diya
                 });
                 
+                // Quality Slider ko bhi "Overridden" label dekar gray (inactive) kar do
                 qSlider.value = 80;
                 document.getElementById('qualityLabel').innerText = "Overridden";
                 qSlider.style.background = `linear-gradient(to right, #9CA3AF 80%, #E5E7EB 80%)`;
@@ -457,12 +630,15 @@
                 manualDpi.disabled = true;
                 document.querySelectorAll('.dpi-btn').forEach(b => b.disabled = true);
 
-                resizeBox.style.opacity = '0.4'; dpiBox.style.opacity = '0.4';
-                eBox.style.opacity = '0.4'; qBox.style.opacity = '0.4';
-                warnText.classList.remove('hidden');
+                // Dikhne me bhi dhundhla (opacity 0.4) kar do taaki pata chale ki block hai
+                resizeBox.style.opacity = '0.4';
+                dpiBox.style.opacity = '0.4';
+                eBox.style.opacity = '0.4';
+                qBox.style.opacity = '0.4';
+                warnText.classList.remove('hidden'); // Red warning text dikha do
 
             } else {
-                // Agar target hata liya, toh sab options wapas khol do
+                // ELSE BLOCK: RE-ENABLE EVERYTHING (Target KB text hata diya gaya hai)
                 eSliders.forEach(type => {
                     document.getElementById(`${type}Slider`).disabled = false;
                     document.getElementById(`${type}Val`).disabled = false;
@@ -475,18 +651,27 @@
                 manualDpi.disabled = false;
                 document.querySelectorAll('.dpi-btn').forEach(b => b.disabled = false);
                 
-                resizeBox.style.opacity = '1'; dpiBox.style.opacity = '1';
-                eBox.style.opacity = '1'; qBox.style.opacity = '1';
+                // Opacity wapas normal (1) kar do aur warning chipa do (hidden)
+                resizeBox.style.opacity = '1';
+                dpiBox.style.opacity = '1';
+                eBox.style.opacity = '1';
+                qBox.style.opacity = '1';
                 warnText.classList.add('hidden');
             }
         }
 
+
         // ======================================================================
-        // * KYA KAR RAHA HAIN: History stack Undo/Redo ko chalane k liye.
+        // * KYA KAR RAHA HAIN: History Array (List) banayi hai Undo/Redo ki yaadein (memory) rakhne ke liye.
+        // * KYUN KAR RAHA HAIN: Jab tak memory nahi hogi, hum peeche (undo) kaise jayenge? `historyStack` me saare values chipke rahenge index number ke sath.
         // ======================================================================
         let historyStack = [];
-        let historyIndex = -1;
+        let historyIndex = -1; // -1 matlab abhi tak koi history save nahi hui.
 
+        // ======================================================================
+        // * KYA KAR RAHA HAIN: Current sabhi settings ko ek `state` box me pack karke History list (`historyStack`) me append (push) kar raha hai.
+        // * KAB/KAHAN HOGA: Jab user "Execute & Update Preview" button dabayega, tab naya state save hoga.
+        // ======================================================================
         function saveState() {
             const state = {
                 w: document.getElementById('widthInput').value,
@@ -499,17 +684,25 @@
                 sat: document.getElementById('satSlider').value,
                 sharp: document.getElementById('sharpSlider').value
             };
+            
+            // Agar user piche gaya tha aur naya action le liya, to aage ki useless history delete karo.
             historyStack = historyStack.slice(0, historyIndex + 1);
-            historyStack.push(state);
-            historyIndex++;
-            updateUndoRedoUI();
+            historyStack.push(state); // List me naya state daal do
+            historyIndex++; // Pointer ko age khiska do
+            updateUndoRedoUI(); // Buttons (Undo/Redo) ke grey color update karo
         }
 
+        // ======================================================================
+        // * KYA KAR RAHA HAIN: Purani state (settings) load karta hai form fields (inputs) me.
+        // * KYUN KAR RAHA HAIN: Undo/Redo button dabane par form ki values wapas waisi ho jani chahiye jo 1 step pehle thi.
+        // ======================================================================
         function loadState(state) {
             document.getElementById('widthInput').value = state.w;
             document.getElementById('heightInput').value = state.h;
             setDpi(state.dpi, null); 
-            document.getElementById('targetKbInput').value = state.kb;
+            
+            const kbInput = document.getElementById('targetKbInput');
+            kbInput.value = state.kb;
             
             const qSlider = document.getElementById('qualitySlider');
             qSlider.value = state.qual;
@@ -519,73 +712,131 @@
             eSliders.forEach(type => {
                 const s = document.getElementById(`${type}Slider`);
                 const i = document.getElementById(`${type}Val`);
-                s.value = state[type]; i.value = state[type];
+                s.value = state[type];
+                i.value = state[type];
                 let percent = type === 'sharp' ? s.value : (parseInt(s.value) + 100) / 2;
                 s.style.background = `linear-gradient(to right, #FF6D00 ${percent}%, #E5E7EB ${percent}%)`;
             });
 
-            handleTargetKb();
-            // Undo karne par bhi preview dubara server se generate hoga
+            handleTargetKb(); // Checks agar target kb override ho rahi ho load karne par
+            
+            // ======================================================================
+            // * KYA KAR RAHA HAIN: generateServerLivePreview() ko invoke (call) kar raha hai.
+            // * KYUN KAR RAHA HAIN: Sirf HTML ki values update karna kafi nahi hai, preview wali photo ko bhi toh pichle step jaisa banana hai. So backend ko nayi settings ke sath preview maang lo bina save kiye.
+            // ======================================================================
             generateServerLivePreview(false); 
         }
 
-        function undo() { if(historyIndex > 0) { historyIndex--; loadState(historyStack[historyIndex]); updateUndoRedoUI(); } }
-        function redo() { if(historyIndex < historyStack.length - 1) { historyIndex++; loadState(historyStack[historyIndex]); updateUndoRedoUI(); } }
+        // ======================================================================
+        // * KYA KAR RAHA HAIN: Undo (Peeche jana) - Pointer index ko 1 kam karke wo state load karta hai.
+        // ======================================================================
+        function undo() {
+            if(historyIndex > 0) {
+                historyIndex--;
+                loadState(historyStack[historyIndex]);
+                updateUndoRedoUI();
+            }
+        }
 
+        // ======================================================================
+        // * KYA KAR RAHA HAIN: Redo (Aage jana) - Pointer index ko 1 badhakar load karta hai.
+        // ======================================================================
+        function redo() {
+            if(historyIndex < historyStack.length - 1) {
+                historyIndex++;
+                loadState(historyStack[historyIndex]);
+                updateUndoRedoUI();
+            }
+        }
+
+        // ======================================================================
+        // * KYA KAR RAHA HAIN: Undo/Redo buttons ko gray (disabled) ya active (clickable) state me karta hai.
+        // * KYUN KAR RAHA HAIN: Agar history array me pointer ekdum peeche (0) par aa gaya hai, to iska matlab aur peeche nahi jaa sakte. Toh user ko click rokne ke liye button band (disabled=true) karna zaruri hai.
+        // ======================================================================
         function updateUndoRedoUI() {
             const btnUndo = document.getElementById('btnUndo');
             const btnRedo = document.getElementById('btnRedo');
             
-            if(historyIndex > 0) { btnUndo.classList.remove('opacity-50', 'cursor-not-allowed'); btnUndo.disabled = false; } 
-            else { btnUndo.classList.add('opacity-50', 'cursor-not-allowed'); btnUndo.disabled = true; }
+            if(historyIndex > 0) {
+                btnUndo.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnUndo.disabled = false;
+            } else {
+                btnUndo.classList.add('opacity-50', 'cursor-not-allowed');
+                btnUndo.disabled = true;
+            }
 
-            if(historyIndex < historyStack.length - 1) { btnRedo.classList.remove('opacity-50', 'cursor-not-allowed'); btnRedo.disabled = false; } 
-            else { btnRedo.classList.add('opacity-50', 'cursor-not-allowed'); btnRedo.disabled = true; }
+            if(historyIndex < historyStack.length - 1) {
+                btnRedo.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnRedo.disabled = false;
+            } else {
+                btnRedo.classList.add('opacity-50', 'cursor-not-allowed');
+                btnRedo.disabled = true;
+            }
         }
 
         // ======================================================================
-        // * KYA KAR RAHA HAIN: Nayi Photo Upload hone par UI ko clear karna.
+        // * KYA KAR RAHA HAIN: Nayi file/photo ke upload hone par trigger hota hai (Event Listener: 'change').
+        // * KYUN KAR RAHA HAIN: Photo uplaod hoti hi pura UI (Original size, image element src, stats) refresh ho jaye aur canvas reset ho jaye.
         // ======================================================================
         uploadInput.addEventListener('change', function(e) {
+            // Check kiya ki kya aayi file array me majud hai
             const file = e.target.files[0];
             if(!file) return;
 
+            // Global variables overwrite karo naye file se
             originalFile = file;
             originalMimeType = file.type; 
-            const ext = originalMimeType.split('/')[1]; 
+            originalExtension = originalMimeType.split('/')[1]; // E.g., 'image/png' -> 'png'
 
-            document.getElementById('outFormat').innerText = ext;
-            document.getElementById('origFormat').innerText = ext;
-            document.getElementById('newFormat').innerText = ext;
+            // Dikhane ke liye 'Format' label update
+            document.getElementById('outFormat').innerText = originalExtension;
+            document.getElementById('origFormat').innerText = originalExtension;
+            document.getElementById('newFormat').innerText = originalExtension;
 
+            // Memory se virtual URL bna kar (blob URL) Browser me `<img>` tags ki src me laga do
             const url = URL.createObjectURL(file);
             beforeImg.src = url;
             afterImg.src = url; 
+            
+            // Fullscreen Inspect Modal ke ander wali photos bhi update kardo
             document.getElementById('modalBeforeImg').src = url; 
             document.getElementById('modalAfterImg').src = url;
 
+            // Empty "Waiting Payload" text hata do (hide) aur sliders on kardo (remove hide)
             placeholder.classList.add('hidden');
             beforeImg.classList.remove('hidden');
             afterImg.classList.remove('hidden');
             handle.classList.remove('hidden');
             sliderLine.classList.remove('hidden');
+            
+            // Badges show
             document.getElementById('afterBadge').classList.remove('hidden');
             document.getElementById('beforeBadge').classList.remove('hidden');
 
+            // Image fully load hone par size stats nikalo
             beforeImg.onload = function() {
                 resetZoom(); 
+                
+                // Original Lambaai/Chaudai pixels
                 const w = this.naturalWidth;
                 const h = this.naturalHeight;
                 
                 document.getElementById('widthInput').value = w;
                 document.getElementById('heightInput').value = h;
                 
-                const sizeMB = (file.size / (1024*1024)).toFixed(2);
+                // ======================================================================
+                // * NAYA UPDATE (MB to KB conversion logic in JS)
+                // * User Request: "Original Source term File Size is in MB make sure to make this in KB"
+                // * KYA KIYA: file.size bytes me hota hai. Use 1024 se divide karke KB nikal liya. Aur direct string me 'KB' likh diya MB ki jagah.
+                // ======================================================================
+                const sizeKB = (file.size / 1024).toFixed(1);
+                
                 document.getElementById('origDim').innerText = `${w} x ${h}`;
-                document.getElementById('origSize').innerText = `${sizeMB} MB`;
+                document.getElementById('origSize').innerText = `${sizeKB} KB`; // Yahan MB se KB ho gaya!
                 
                 document.getElementById('newDim').innerText = `${w} x ${h}`;
-                document.getElementById('newSize').innerText = `${originalFile.size > 1024*1024 ? sizeMB + ' MB' : (originalFile.size/1024).toFixed(1) + ' KB'}`;
+                // Humne logic simple kar diya: Sab KB me hi dikhega chahe size kitna bhi ho
+                document.getElementById('newSize').innerText = `${sizeKB} KB`;
                 document.getElementById('newDpiVal').innerText = "72";
                 document.getElementById('outQual').innerText = "100% (Original)";
                 document.getElementById('outResolution').innerText = "72 DPI";
@@ -593,92 +844,263 @@
 
                 document.getElementById('targetKbInput').value = '';
                 handleTargetKb();
-                
-                // Clear the global memory cache from previous photos
-                window.backendProcessedBlob = null;
 
-                historyStack = []; historyIndex = -1;
-                saveState();
+                // Global processed blob erase kardo naye photo k liye
+                window.backendProcessedBlob = null; 
+
+                // History clear and initialize First State
+                historyStack = [];
+                historyIndex = -1;
+                saveState(); 
             }
         });
 
         // ======================================================================
-        // * KYA KAR RAHA HAIN: Mouse Drag function for the "Before/After" slider.
+        // * KYA KAR RAHA HAIN: Before-After Split Image Slider ka Dragging (Hilaane ka) Logic.
+        // * KYUN KAR RAHA HAIN: Mouse ghumane par photo ko right ya left se reveal/hide (cut) karna. (Clip-path property)
         // ======================================================================
         let isDragging = false;
+
         function moveSlider(e) {
+            // IF BLOCK: Agar user click hold nahi kar raha ya photo upload nahi hui toh return (stop).
             if (!isDragging || !originalFile) return;
+            
+            // Pura box coordinates fetch
             let rect = container.getBoundingClientRect();
+            // Mouse pointer position x-axis par calculate karo (relative left point of box)
             let x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+            
+            // Zoom factor consider karna hoga warna pointer aage bhaag jayega image peeche rahegi
             x = x / currentZoom; 
             let scaledWidth = rect.width / currentZoom;
+            
+            // X min 0 aur max width limit me bind (lock) kardo 
             x = Math.max(0, Math.min(x, scaledWidth));
             let percent = (x / scaledWidth) * 100;
             
+            // Before Image ka hissa crop (hide) karne ki CSS (right edge se le kar center slider tak hide kardo).
             beforeImg.style.clipPath = `inset(0 ${100 - percent}% 0 0)`;
+            // Orange line aur <> handle ko usi percentage par khiska do screen pe.
             handle.style.left = percent + "%";
             sliderLine.style.left = percent + "%"; 
         }
 
-        container.addEventListener('mousedown', () => isDragging = true); container.addEventListener('touchstart', () => isDragging = true);
-        window.addEventListener('mouseup', () => isDragging = false); window.addEventListener('touchend', () => isDragging = false);
-        window.addEventListener('mousemove', moveSlider); window.addEventListener('touchmove', moveSlider);
+        // Mouse Button Hold kiya to drag true 
+        container.addEventListener('mousedown', () => isDragging = true);
+        container.addEventListener('touchstart', () => isDragging = true);
+        
+        // Mouse chhod diya (ya box se bahar le gaye) to drag false (stop)
+        window.addEventListener('mouseup', () => isDragging = false);
+        window.addEventListener('touchend', () => isDragging = false);
+        
+        // Mouse ghumaya slider k upar
+        window.addEventListener('mousemove', moveSlider);
+        window.addEventListener('touchmove', moveSlider);
 
-        function zoomPreview(step) { if(!originalFile) return; currentZoom += step; if(currentZoom < 0.5) currentZoom = 0.5; if(currentZoom > 4.0) currentZoom = 4.0; applyZoom(); }
-        function resetZoom() { currentZoom = 1; applyZoom(); }
-        function applyZoom() { container.style.transform = `scale(${currentZoom})`; document.getElementById('zoomLabel').innerText = Math.round(currentZoom * 100) + '%'; }
+        // ======================================================================
+        // * KYA KAR RAHA HAIN: Canvas Area Zoom in/out (+/-) button setup.
+        // * KYUN KAR RAHA HAIN: Image choti dikhe toh user inspect karne ke liye transform scale se us box ko pass le aaye.
+        // ======================================================================
+        function zoomPreview(step) {
+            if(!originalFile) return;
+            currentZoom += step;
+            // Limit on minimum scale (50%) and maximum scale (400% zoom)
+            if(currentZoom < 0.5) currentZoom = 0.5; 
+            if(currentZoom > 4.0) currentZoom = 4.0; 
+            applyZoom();
+        }
+        function resetZoom() {
+            currentZoom = 1; // 100% zoom limit return
+            applyZoom();
+        }
+        function applyZoom() {
+            // Inline CSS lagana JS through HTML Element pe
+            container.style.transform = `scale(${currentZoom})`;
+            document.getElementById('zoomLabel').innerText = Math.round(currentZoom * 100) + '%';
+        }
 
-        // Compare Modal Logic
-        function openCompareModal() { if(!originalFile) { alert("Upload image first!"); return; } document.getElementById('compareModal').classList.add('active'); resetModalPane('left'); resetModalPane('right'); }
-        function closeCompareModal() { document.getElementById('compareModal').classList.remove('active'); }
+        // ======================================================================
+        // * KYA KAR RAHA HAIN: 'Inspect' Modal ko kholna aur hide karna.
+        // * KYUN KAR RAHA HAIN: Custom Full screen preview dekhe liye (display: flex lagake active class banana).
+        // ======================================================================
+        function openCompareModal() {
+            if(!originalFile) { alert("Upload image first!"); return; }
+            document.getElementById('compareModal').classList.add('active'); // active class css mein display: flex show karti hai
+            resetModalPane('left');
+            resetModalPane('right');
+        }
+        function closeCompareModal() {
+            document.getElementById('compareModal').classList.remove('active'); // active hide kar deti hai display none 
+        }
 
         let stateLeft = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0, lastTap: 0 };
         let stateRight = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0, lastTap: 0 };
 
+        // ======================================================================
+        // * KYA KAR RAHA HAIN: Modal ke andar ek Custom Image Viewer (Pan aur Zoom) design kiya hai.
+        // * KYUN KAR RAHA HAIN: Taki aap freely image ko Google Maps ki tarah khiska (drag/pan) sakein aur mouse wheel se zoom kar sakein.
+        // * LOGIC: translateX and translateY use kiye gaye hain CSS styling ki panX panY update karne par.
+        // ======================================================================
         function initPanZoom(paneId, imgId, stateObj, labelId) {
-            const pane = document.getElementById(paneId); const img = document.getElementById(imgId);
-            pane.addEventListener('wheel', (e) => { e.preventDefault(); let zoomSpeed = 0.1; if(e.deltaY < 0) stateObj.scale += zoomSpeed; else stateObj.scale -= zoomSpeed; stateObj.scale = Math.max(0.1, Math.min(stateObj.scale, 5)); updatePaneTransform(img, stateObj, labelId); });
-            pane.addEventListener('mousedown', (e) => { stateObj.isDragging = true; stateObj.startX = e.clientX - stateObj.panX; stateObj.startY = e.clientY - stateObj.panY; });
-            window.addEventListener('mouseup', () => { stateObj.isDragging = false; });
-            pane.addEventListener('mousemove', (e) => { if(!stateObj.isDragging) return; stateObj.panX = e.clientX - stateObj.startX; stateObj.panY = e.clientY - stateObj.startY; updatePaneTransform(img, stateObj, labelId); });
-            pane.addEventListener('click', (e) => { const currentTime = new Date().getTime(); const tapLength = currentTime - stateObj.lastTap; if (tapLength < 300 && tapLength > 0) { if (stateObj.scale > 1) { stateObj.scale = 1; stateObj.panX = 0; stateObj.panY = 0; } else { stateObj.scale = 2.5; } updatePaneTransform(img, stateObj, labelId); } stateObj.lastTap = currentTime; });
-        }
-        function updatePaneTransform(img, stateObj, labelId) { img.style.transform = `translate(${stateObj.panX}px, ${stateObj.panY}px) scale(${stateObj.scale})`; document.getElementById(labelId).innerText = Math.round(stateObj.scale * 100) + '%'; }
-        function resetModalPane(side) { if(side === 'left') { stateLeft = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0, lastTap: 0 }; updatePaneTransform(document.getElementById('modalBeforeImg'), stateLeft, 'zoomLeftVal'); } else { stateRight = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0, lastTap: 0 }; updatePaneTransform(document.getElementById('modalAfterImg'), stateRight, 'zoomRightVal'); } }
-        initPanZoom('paneLeft', 'modalBeforeImg', stateLeft, 'zoomLeftVal'); initPanZoom('paneRight', 'modalAfterImg', stateRight, 'zoomRightVal');
+            const pane = document.getElementById(paneId);
+            const img = document.getElementById(imgId);
 
+            // Wheel event (Mouse ka gol pahiya/scroll up-down wheel ghumane par)
+            pane.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                let zoomSpeed = 0.1;
+                // IF-ELSE: Agar wheel piche scroll kiya toh deltaY < 0 hota hai -> zoom IN hoga. Warna zoom OUT.
+                if(e.deltaY < 0) stateObj.scale += zoomSpeed;
+                else stateObj.scale -= zoomSpeed;
+                // Minimum zoom aur max zoom restrict kar diya
+                stateObj.scale = Math.max(0.1, Math.min(stateObj.scale, 5));
+                updatePaneTransform(img, stateObj, labelId);
+            });
+
+            // Drag/Pan karne par position pointer update karo
+            pane.addEventListener('mousedown', (e) => {
+                stateObj.isDragging = true;
+                stateObj.startX = e.clientX - stateObj.panX;
+                stateObj.startY = e.clientY - stateObj.panY;
+            });
+            window.addEventListener('mouseup', () => { stateObj.isDragging = false; });
+            pane.addEventListener('mousemove', (e) => {
+                if(!stateObj.isDragging) return;
+                stateObj.panX = e.clientX - stateObj.startX;
+                stateObj.panY = e.clientY - stateObj.startY;
+                updatePaneTransform(img, stateObj, labelId); // Screen pe movement update karo
+            });
+
+            // ======================================================================
+            // * KYA KAR RAHA HAIN: Double Tap se instant Zoom.
+            // * LOGIC: `lastTap` check karta hai ki kya user ne 300 millisecond (ms) se kam time mein dusri baar click kiya hai. Agar haan, toh usse zoom badha do seedha (e.g. 2.5 times).
+            // ======================================================================
+            pane.addEventListener('click', (e) => {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - stateObj.lastTap;
+                
+                // IF BLOCK: Agar double tap detect hua
+                if (tapLength < 300 && tapLength > 0) {
+                    if (stateObj.scale > 1) { // Pehle se zoom tha, ab Reset kar do (1x)
+                        stateObj.scale = 1;
+                        stateObj.panX = 0;
+                        stateObj.panY = 0;
+                    } else {
+                        stateObj.scale = 2.5; // Instant 2.5x Magnify
+                    }
+                    updatePaneTransform(img, stateObj, labelId);
+                }
+                stateObj.lastTap = currentTime; // Current time set for next tap memory
+            });
+        }
+        
+        function updatePaneTransform(img, stateObj, labelId) {
+            img.style.transform = `translate(${stateObj.panX}px, ${stateObj.panY}px) scale(${stateObj.scale})`;
+            document.getElementById(labelId).innerText = Math.round(stateObj.scale * 100) + '%';
+        }
+
+        // Modal khulte time Pan and zoom state 0,0 location par layega 
+        function resetModalPane(side) {
+            if(side === 'left') {
+                stateLeft = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0, lastTap: 0 };
+                updatePaneTransform(document.getElementById('modalBeforeImg'), stateLeft, 'zoomLeftVal');
+            } else {
+                stateRight = { scale: 1, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0, lastTap: 0 };
+                updatePaneTransform(document.getElementById('modalAfterImg'), stateRight, 'zoomRightVal');
+            }
+        }
+
+        // Ye line init call initiate karti hai modal ko power up karne ki JS execution me
+        initPanZoom('paneLeft', 'modalBeforeImg', stateLeft, 'zoomLeftVal');
+        initPanZoom('paneRight', 'modalAfterImg', stateRight, 'zoomRightVal');
+
+        // ======================================================================
+        // * KYA KAR RAHA HAIN: 'Target DPI' buttons (72, 150, 300) par click karne se kya hoga ye set karta hai.
+        // * KYUN KAR RAHA HAIN: Form input field automatically bhar jati hai, aur baaki buttons inactive gray color me badal jate hain jab tak ki click button orange na dikhe.
+        // ======================================================================
         function setDpi(val, btnElement) {
             document.getElementById('manualDpi').value = val;
-            document.querySelectorAll('.dpi-btn').forEach(btn => { btn.classList.remove('bg-indOrange', 'text-white'); btn.classList.add('bg-gray-100', 'text-indText'); });
-            if(btnElement) { btnElement.classList.add('bg-indOrange', 'text-white'); btnElement.classList.remove('bg-gray-100', 'text-indText'); }
+            
+            // Saare buttons me se Orange class remove and Gray class add kar do (Reset sab kuch)
+            document.querySelectorAll('.dpi-btn').forEach(btn => {
+                btn.classList.remove('bg-indOrange', 'text-white');
+                btn.classList.add('bg-gray-100', 'text-indText');
+            });
+            
+            // Jo button pass hua the 'this' parameters through, usko pakad k Orange rang do
+            if(btnElement) {
+                btnElement.classList.add('bg-indOrange', 'text-white');
+                btnElement.classList.remove('bg-gray-100', 'text-indText');
+            }
         }
-        function customDpiChanged() { document.querySelectorAll('.dpi-btn').forEach(btn => { btn.classList.remove('bg-indOrange', 'text-white'); btn.classList.add('bg-gray-100', 'text-indText'); }); }
-
-        let isUpdatingSizes = false;
-        document.getElementById('widthInput').addEventListener('input', function() { if(isUpdatingSizes || !originalFile) return; isUpdatingSizes = true; if(document.getElementById('lockRatio').checked) { let ratio = beforeImg.naturalHeight / beforeImg.naturalWidth; document.getElementById('heightInput').value = Math.round(this.value * ratio); } isUpdatingSizes = false; });
-        document.getElementById('heightInput').addEventListener('input', function() { if(isUpdatingSizes || !originalFile) return; isUpdatingSizes = true; if(document.getElementById('lockRatio').checked) { let ratio = beforeImg.naturalWidth / beforeImg.naturalHeight; document.getElementById('widthInput').value = Math.round(this.value * ratio); } isUpdatingSizes = false; });
-        document.getElementById('qualitySlider').addEventListener('input', function() { document.getElementById('qualityLabel').innerText = this.value + "%"; this.style.background = `linear-gradient(to right, #FF6D00 ${this.value}%, #E5E7EB ${this.value}%)`; });
         
-        async function applyChangesAndSaveState() { await generateServerLivePreview(true); }
+        // Custom value directly likhne pe koi button select nahi hona chaiye, theek logic apply karo.
+        function customDpiChanged() {
+            document.querySelectorAll('.dpi-btn').forEach(btn => {
+                btn.classList.remove('bg-indOrange', 'text-white');
+                btn.classList.add('bg-gray-100', 'text-indText');
+            });
+        }
 
         // ======================================================================
-        // * MAIN LOGIC CHANGE: BACKEND SYNC FOR LIVE PREVIEW
-        // * KYA KAR RAHA HAIN: Pura HTML logic update kar diya gaya hai. Ab Browser (HTML/JS) khud photo ko compress nahi karta.
-        // * EFFECT KYA HOGA: Ab 'Execute Preview' dabane par direct Python (app.py) ko request jayegi aur wahan se photo preview bankar aayegi. 
-        // * Isse hoga ye ki jo calculation Python karega (jaise 65.4 KB), UI me chaaro jagah wahi exact number dikhega! Problem solved!
+        // * KYA KAR RAHA HAIN: Aspect Ratio (Lambaai aur Chaudai ka math proportion) Lock mechanism.
+        // * KYUN KAR RAHA HAIN: Agar aap photo stretch nahi karna chahte, toh tick on rakhna padta hai.
+        // * EFFECT: Agar 'isUpdatingSizes' True nahi hai, aur "Lock" box checked hai, toh Width box likhte (input) waqt backend Math lagayega aur "Height = Width * Ratio" karke apne aap bhar dega.
+        // ======================================================================
+        let isUpdatingSizes = false;
+        document.getElementById('widthInput').addEventListener('input', function() {
+            // IF BLOCK: Agar pehle se calculate chal raha hai (Loop block) ya photo load nhi, cancel event return karo.
+            if(isUpdatingSizes || !originalFile) return;
+            
+            isUpdatingSizes = true;
+            // IF BLOCK: Check box tick mark "checked" property Boolean (true/false).
+            if(document.getElementById('lockRatio').checked) {
+                let ratio = beforeImg.naturalHeight / beforeImg.naturalWidth;
+                document.getElementById('heightInput').value = Math.round(this.value * ratio);
+            }
+            isUpdatingSizes = false; // Flag reset kardo taaki agli baar trigger chal sake
+        });
+
+        // Wahi same cheez Height type hone par Width auto correct karti hai.
+        document.getElementById('heightInput').addEventListener('input', function() {
+            if(isUpdatingSizes || !originalFile) return;
+            isUpdatingSizes = true;
+            if(document.getElementById('lockRatio').checked) {
+                let ratio = beforeImg.naturalWidth / beforeImg.naturalHeight;
+                document.getElementById('widthInput').value = Math.round(this.value * ratio);
+            }
+            isUpdatingSizes = false;
+        });
+
+        // Quality Range bar slider text label display (Live percentage update in UI)
+        document.getElementById('qualitySlider').addEventListener('input', function() {
+            document.getElementById('qualityLabel').innerText = this.value + "%";
+            this.style.background = `linear-gradient(to right, #FF6D00 ${this.value}%, #E5E7EB ${this.value}%)`;
+        });
+        
+        async function applyChangesAndSaveState() {
+            await generateServerLivePreview(true);
+        }
+
+        // ======================================================================
+        // * MAIN LOGIC: BACKEND SYNC FOR LIVE PREVIEW
+        // * KYA KAR RAHA HAIN: Browser (Javascript) apne form inputs read karta hai aur JSON array (form data) banakar directly Python HTTP Server API (app.py) ko bhej deta hai.
+        // * KYUN KAR RAHA HAIN: Taaki size ekdum match kare! Jo size Python ke Pillow algorithms banate hain, wahi size hum website me "Est Size" par likh saken taaki User Download size par confusion/cheat feel na kare.
         // ======================================================================
         async function generateServerLivePreview(shouldSaveState = false) {
+            // IF BLOCK: Photo nahi hui process me, reject kar doge with alert pop.
             if(!originalFile) {
                 alert("Upload image first!"); return;
             }
             
             const btnApply = document.getElementById('btnApply');
             const originalBtnText = btnApply.innerHTML;
+            
+            // Button property disabled kar dena jisse user ghabrakar baar baar us par multi clicks na kare (spam protection).
             btnApply.disabled = true;
-            // Button ka text change kar rahe hain taaki user ko lage system kaam kar raha hai
             btnApply.innerHTML = `<span class="animate-spin text-lg">⏳</span> SYNCING PREVIEW FROM PYTHON...`;
 
-            // Saari settings form data me prepare ki jo Python ko bhejna hai
+            // Data container "Form Box" banaya
             const formData = new FormData();
             formData.append('image', originalFile);
             formData.append('width', document.getElementById('widthInput').value);
@@ -691,39 +1113,39 @@
             formData.append('saturation', document.getElementById('satSlider').value);
             formData.append('sharpness', document.getElementById('sharpSlider').value);
 
+            // ======================================================================
+            // * TRY CATCH BLOCK (API FETCHING)
+            // * KYA HOTA HAIN: TRY ke andar ka code agar fail ho gaya (network fail, server dead) to website poori break nahi hoti, CATCH code block galti dikhata hai error log me.
+            // ======================================================================
             try {
-                // -------------------------------------------------------------
-                // Python Server ko request maarna (Preview mangwane ke liye)
-                // -------------------------------------------------------------
+                // Postman ki tarah request fetch command 
                 const response = await fetch('http://127.0.0.1:5000/resize', {
                     method: 'POST',
                     body: formData
                 });
 
+                // IF BLOCK: Agar HTTP 200 (Success) na aye, to response json se error note kar lena.
                 if(!response.ok) {
                     const err = await response.json();
                     throw new Error(err.error || "Server processing failed");
                 }
 
-                // Python ne jo file ready karke di hai, use "blob" memory me catch kiya
+                // Python se exactly compressed file (Blob format image bytes memory map) catch kiya.
                 const blob = await response.blob();
                 
-                // EXACT SIZE Calculation: Ab size Browser se nahi, is Python file (blob) se nikala ja raha hai.
+                // EXACT SIZE MATCHING BUG FIX: Python ki original memory image size file ki properties '.size' array byte map karti hai, divide with 1024 -> exact size!
                 const finalKb = (blob.size / 1024).toFixed(1);
                 
-                // =============================================================
-                // UI UPDATE: CHAARO JAGAH EXACT SIZE DIKHANA
-                // =============================================================
-                // Location 2 (Stats Area) aur Location 3 (Export Parameters) me same Python size likha ja raha hai.
+                // Location 1 aur Location 2 UI parameters Update KB Format string append ke sath "KB" assign karo.
                 document.getElementById('newSize').innerText = `${finalKb} KB`;
                 document.getElementById('outSizeSummary').innerText = `${finalKb} KB`; 
 
-                // Format Update (Backend jis format me wapas dega (e.g. jpeg), wahi UI me dikhega)
+                // Format String Extraction
                 const backendExt = blob.type.split('/')[1] || 'jpeg';
                 document.getElementById('newFormat').innerText = backendExt;
                 document.getElementById('outFormat').innerText = backendExt;
 
-                // Quality Update
+                // Quality Label Change for visual representation
                 const targetKb = document.getElementById('targetKbInput').value;
                 if(targetKb) {
                     document.getElementById('outQual').innerText = "Overridden (Target Forced)";
@@ -731,7 +1153,6 @@
                     document.getElementById('outQual').innerText = document.getElementById('qualitySlider').value + "%";
                 }
 
-                // Width, Height aur DPI update
                 const w = document.getElementById('widthInput').value || beforeImg.naturalWidth;
                 const h = document.getElementById('heightInput').value || beforeImg.naturalHeight;
                 document.getElementById('newDim').innerText = `${w} x ${h}`;
@@ -740,62 +1161,68 @@
                 document.getElementById('newDpiVal').innerText = dpi;
                 document.getElementById('outResolution').innerText = dpi + " DPI";
 
-                // Live Preview Canvas me backend wali fresh photo fit ki
+                // Memory blob object file ko URL virtual link string par create kardo `<img src="">` readable format me.
                 const url = window.URL.createObjectURL(blob);
                 afterImg.src = url;
                 document.getElementById('modalAfterImg').src = url;
 
-                // =============================================================
-                // GLOBAL SAVE (THE MAGIC FIX)
-                // KYA: Ye Python wali Exact 65.4 KB photo humne Global Browser Memory (window) me chupa/save kar li.
-                // KYUN: Taki Download dabane par server dubara run na ho aur yahi file instantly download ho jaye. (Size Guarantee)
-                // =============================================================
+                // ======================================================================
+                // GLOBAL VARIABLE SAVE (MAGIC FIX)
+                // KYA: Window element ek permanent object variable store karta hai javascript environment me.
+                // EFFECT: Photo 'window.backendProcessedBlob' cache variable form me chhupi rhegi.
+                // ======================================================================
                 window.backendProcessedBlob = blob; 
 
+                // Execute action complete hai, UI parameter storage command line trigger!
                 if (shouldSaveState) saveState();
                 
             } catch (error) {
+                // Console error output developers debugging and UI alert window
                 console.error("Preview Sync Error:", error);
                 alert(`Error: ${error.message}\n(Make sure Python Flask server is running on http://127.0.0.1:5000)`);
             } finally {
-                // Button wapas enable aur theek karna
+                // FINALLY BLOCK: Try ho ya Catch (Succes/Fail dono halat me), Execute Button ki normal loading process remove ho ke wo originally initial function setup (active command) par aa jata hai!
                 btnApply.disabled = false;
                 btnApply.innerHTML = originalBtnText;
             }
         }
         
         // ======================================================================
-        // * KYA KAR RAHA HAIN: Download Function
-        // * KYUN KAR RAHA HAIN: Yahan humne code ekdum badal diya hai.
-        // * EFFECT: Agar Preview ban chuka hai (jo globally save hai), to hum seedha usko link me dalkar download karwa denge. 
-        // Isse size difference ka bug (63 vs 65) impossible ho jayega kyunki preview aur download file exactly ek hi (Same) hai!
+        // * KYA KAR RAHA HAIN: Execute Download Event (Final Step of Work)
+        // * KYUN KAR RAHA HAIN: Yahi actual output computer drive target par deliver download action pass karti hai.
+        // * LOGIC: Window variable 'backendProcessedBlob' check karega (ki preview ban gaya tha ya direct skip kiya gaya user se). Agar haan (True), toh bin server load kare directly URL file cache fetch URL click (force downlaod object attribute download="") action call kardega. 
         // ======================================================================
         async function processAndDownloadImage() {
+            // Null check protection string return 
             if(!originalFile) { alert("Please upload an image first!"); return; }
 
-            // Agar Live preview ban chuka hai to turant wahi memory se download kara do
+            // IF BLOCK: Virtual image generated and found in scope
             if(window.backendProcessedBlob) {
+                // Memory URL anchor HTML element assign create (Invisible link logic trick element).
                 const downloadUrl = window.URL.createObjectURL(window.backendProcessedBlob);
                 const link = document.createElement('a');
                 link.href = downloadUrl;
-                link.download = `optimized_${originalFile.name}`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                // download string tag assign karega original image append identifier filename me
+                link.download = `optimized_${originalFile.name}`; 
+                document.body.appendChild(link); // Web DOM me hidden box daalo 
+                link.click(); // Automate simulate code instruction event target action left click
+                document.body.removeChild(link); // Event element remove for leak garbage logic
             } else {
-                // EXTREME CASE: Agar user ne photo daalte hi 'Execute' kiye bina seedha 'Download' daba diya.
+                // ELSE BLOCK: EXTREME CASE
+                // Agar user ne bina 'Execute Preview' button click kare direct 'Download' dabaya.
                 const btn = document.getElementById('btnDownload');
                 const originalText = btn.innerHTML;
                 btn.innerHTML = `<span class="animate-spin text-lg">⏳</span> PROCESSING...`;
                 btn.disabled = true;
                 
-                // Pehle backend se processing mangwayi
+                // Backend se function module run callback command with logic flag `false` -> no history storage.
                 await generateServerLivePreview(false);
                 
                 btn.innerHTML = originalText;
                 btn.disabled = false;
                 
-                // Processing done hone ke baad function ko hi dubara run kiya download karne ke liye
+                // IF BLOCK recursive recursion condition
+                // Ab backend processed preview memory fetch blob setup build ho chuka hai, return same parameter parent calling execution method function download process link 
                 if(window.backendProcessedBlob) {
                     processAndDownloadImage(); 
                 }

@@ -57,7 +57,6 @@ limiter = Limiter(
     default_limits=["200 per day"] # Ek din me ek user max 200 photo process kar sakta hai.
 )
 
-
 # ======================================================================
 # FUNCTION: resize_image() (MAIN ROUTE API)
 # KYA KAR RAHA HAIN: Ye main function (Route) hai jo '/resize' URL par aane wali POST requests ko handle karega.
@@ -515,7 +514,6 @@ def resize_image():
     except Exception as e:
         # EXCEPT BLOCK: Final safety net. Agar Pillow library koi undefined error throw karti hai jo try block fail karta hai, toh server stop na ho balki JSON format 500 error dikhaye.
         return jsonify({'error': f'Image Process me backend error aaya: {str(e)}'}), 500
-
 
 # ======================================================================
 # ERROR HANDLERS (SYSTEM ERROR MANAGEMENT)
