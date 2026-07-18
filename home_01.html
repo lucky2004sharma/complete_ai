@@ -1,101 +1,38 @@
-<!-- # SYS.IMG_CORE -->
-
 <!DOCTYPE html>
 <!-- 
 ======================================================================
-* KYA KAR RAHA HAIN: Ye pehli line (<!DOCTYPE html>) browser ko batati hai ki ye file ek modern HTML5 document hai.
-* KYUN KAR RAHA HAIN: Iske bina browser confuse ho sakta hai aur design bigad sakta hai (quirks mode me chala jaata hai).
-* CHANGE SE KYA HOGA (EFFECT): Ise kabhi mat hatana, ye har website ki neev (foundation) hoti hai.
-* PYTHON FILE PAR ASAR: Koi asar nahi. Ye sirf Frontend (Browser) ke liye hai.
-* KAB/KAHAN HOGA: Browser jab page load karega tab sabse pehle ise padhega.
+* KYA KAR RAHA HAIN: Ye pehli line (<!DOCTYPE html>) browser ko batati hai ki ye file ek modern HTML5 document hai[cite: 1].
+* KYUN KAR RAHA HAIN: Iske bina browser confuse ho sakta hai aur design bigad sakta hai (quirks mode me chala jaata hai)[cite: 1].
+* CHANGE SE KYA HOGA (EFFECT): Ise kabhi mat hatana, ye har website ki neev (foundation) hoti hai[cite: 1].
+* PYTHON FILE PAR ASAR: Koi asar nahi. Ye sirf Frontend (Browser) ke liye hai[cite: 1].
+* KAB/KAHAN HOGA: Browser jab page load karega tab sabse pehle ise padhega[cite: 1].
 ======================================================================
 -->
 <html lang="en" class="scroll-smooth">
-<!--
-KYA: class="scroll-smooth" pura page ko bolti hai ki jab kisi link (jaise #features) pe click ho,
-     to page achanak se nahi, balki smoothly (dheere se) scroll ho.
-KYUN: Achi user-experience ke liye - jhatka lagne wala scroll amateur lagta hai.
-EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, animation nahi dikhega.
--->
 <head>
-    <!-- 
-    ======================================================================
-    * KYA KAR RAHA HAIN: <meta charset="UTF-8"> text ki encoding set karta hai (taaki emojis aur special characters sahi dikhein).
-    *                     <meta name="viewport"...> website ko mobile-friendly banata hai.
-    * KYUN KAR RAHA HAIN: Agar viewport nahi lagayenge, toh mobile par website bahut choti dikhegi, padhne me dikkat hogi.
-    * CHANGE SE KYA HOGA (EFFECT): In values ko chhedne se mobile view kharab ho sakta hai. Ise aise hi rehne dein.
-    * PYTHON FILE PAR ASAR: Koi nahi. Sirf browser render ko control karta hai.
-    ======================================================================
-    -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <!-- 
-    ======================================================================
-    * KYA KAR RAHA HAIN: Browser ke tab (upar title bar) mein dikhne wala naam set kar raha hai.
-    * KYUN KAR RAHA HAIN: User ko pata chale ki usne kaunsi website kholi hai. Google Search (SEO) ke liye bhi zaroori hai.
-    * CHANGE SE KYA HOGA (EFFECT): "SYS.CNTRL" naam is naye "Industrial/Terminal" theme ke sath match karta hai -
-    *                     isse pehle wale warm "Smart Image Resizer - Home" title se alag rakha hai taaki tab par
-    *                     bhi user ko theme ka feel mile.
-    ======================================================================
-    -->
     <title>ImageReducer // Resize, Compress & Set Exact Image Size</title>
     <meta name="description" content="Resize and compress images, set exact target KB, adjust dimensions and DPI, and download an optimized result.">
     
-    <!-- 
-    ======================================================================
-    * KYA KAR RAHA HAIN: Google Fonts se 'Roboto Mono' naam ka font download aur apply kar raha hai.
-    * KYUN KAR RAHA HAIN: THEME CHANGE #1 (FONT): Purane theme me 'Nunito' tha jo gol (rounded) aur friendly lagta
-    *                     tha. Naye "Industrial/Terminal" look ke liye humein ek MONOSPACE font chahiye
-    *                     (jisme har letter ki width barabar hoti hai) - ye computer-terminal/coding jaisa
-    *                     serious aur technical feel deta hai.
-    * CHANGE SE KYA HOGA (EFFECT): Agar aap yahan link ko wapas Nunito wala kar denge, to text phir se gol-mol
-    *                     aur friendly dikhega, terminal wala effect chala jayega.
-    * PYTHON FILE PAR ASAR: Zero. Ye sirf browser me font load karta hai.
-    ======================================================================
-    -->
+    <!-- Google Fonts: Roboto Mono[cite: 1] -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700;900&display=swap" rel="stylesheet">
     
-    <!-- 
-    ======================================================================
-    * KYA KAR RAHA HAIN: Tailwind CSS (ek styling library) ko internet se manga raha hai (CDN link).
-    * KYUN KAR RAHA HAIN: Custom CSS likhne ki jagah, hum HTML classes (jaise text-center, mt-4) use karke
-    *                     fast design bana sakte hain.
-    * CHANGE SE KYA HOGA: Isko hatane se poori website ki styling (colors, spacing, layout) tut jayegi.
-    ======================================================================
-    -->
+    <!-- Tailwind CSS CDN[cite: 1] -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- 
-    ======================================================================
-    * KYA KAR RAHA HAIN: THEME CHANGE #2 (COLORS): Tailwind ke andar apne khud ke custom colors define kar
-    *                     rahe hain. Ye poori website ki NAYI "Industrial Light" color-scheme hai.
-    * KYUN KAR RAHA HAIN: Pehle warm cream/orange palette (cream, primary, lightText) tha. Ab hum use replace
-    *                     karke ek "clean white hardware panel" jaisa palette use kar rahe hain:
-    *                       - indBg     (#F9FAFB) = Bahut halka off-white background (jaise machine ka canvas)
-    *                       - indPanel  (#E5E7EB) = Halka grey - metallic casing/box borders ke liye
-    *                       - indText   (#111827) = Bahut dark (almost black) text - readability ke liye
-    *                       - indOrange (#FF6D00) = Bright orange - sirf ACTION cheezon (buttons, headings) ke liye
-    *                       - indGreen  (#16A34A) = Green - "success/online/working" wale signals ke liye
-    * CHANGE SE KYA HOGA (EFFECT): Agar aap 'indOrange: "#FF6D00"' ki jagah koi doosra hex (jaise "#0000FF" blue)
-    *                     daalenge, to website ke saare orange buttons/headings turant blue ho jayenge - poori
-    *                     site ek jagah se theme badal sakti hai, isliye ye approach "single source of truth" hai.
-    * PYTHON FILE PAR ASAR: Zero. Colors sirf visual hain, backend logic se koi lena dena nahi.
-    ======================================================================
-    -->
+    <!-- Tailwind Custom Colors & Font Config[cite: 1] -->
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    // 'mono' naam ka font-family bana rahe hain jisme humara Roboto Mono font hai.
-                    // Fallback (agar Roboto Mono load na ho) 'Courier New' aur phir generic 'monospace' hai.
                     fontFamily: { mono: ['Roboto Mono', 'Courier New', 'monospace'] },
                     colors: {
-                        indBg: '#F9FAFB',     /* Poori website ka light background canvas */
-                        indPanel: '#E5E7EB',  /* Boxes/cards ki metallic-grey outer casing */
-                        indText: '#111827',   /* Default dark text color (white background par readable) */
-                        indOrange: '#FF6D00', /* Primary action color - buttons, headings, CTA */
-                        indGreen: '#16A34A'   /* Secondary "system online / success" color */
+                        indBg: '#F9FAFB',     /* Light background canvas[cite: 1] */
+                        indPanel: '#E5E7EB',  /* Boxes/cards ki metallic-grey casing[cite: 1] */
+                        indText: '#111827',   /* Default dark text color[cite: 1] */
+                        indOrange: '#FF6D00', /* Primary action color[cite: 1] */
+                        indGreen: '#16A34A'   /* Secondary success/online color[cite: 1] */
                     }
                 }
             }
@@ -104,55 +41,20 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
 
     <style>
         /* ======================================================================
-        * KYA KAR RAHA HAIN: '.hardware-btn' naam ki custom CSS class bana rahe hain jo button ko
-        *                     3D "physical switch" jaisa look deti hai (halka ubhra hua/raised).
-        * KYUN KAR RAHA HAIN: THEME CHANGE #3 (BUTTON STYLE): Purane theme me buttons flat rounded-full
-        *                     the (soft rounded pill). Naye Industrial theme me buttons ko ek asli machine
-        *                     ke switch/button jaisa feel dena hai.
-        * ISME KYA HO RAHA HAI (LINE BY LINE):
-        *   - box-shadow ke 3 parts hain (comma se alag):
-        *       1) "inset 0 2px 0 rgba(255,255,255,0.4)" = Button ke UPAR ek halki white chamak (highlight)
-        *       2) "inset 0 -4px 0 rgba(0,0,0,0.2)"      = Button ke NEECHE ek halka andhera (depth/gehrai)
-        *       3) "0 4px 6px rgba(0,0,0,0.3)"            = Button ke bahar ek normal shadow (ubhrapan)
-        *   - text-shadow = Button ke text ko halka sa 3D bana deta hai.
-        *   - transition: all 0.1s ease = Jab button ki state badle (jaise click), to change turant nahi,
-        *     0.1 second me smoothly ho.
-        * CHANGE SE KYA HOGA (EFFECT): Agar in shadow values ko hata denge, button bilkul flat/plain dikhega,
-        *                     3D-switch wala effect chala jayega.
-        ======================================================================
-        */
+        * KYA KAR RAHA HAIN: '.hardware-btn' class button ko 3D physical switch jaisa look deti hai[cite: 1].
+        * PYTHON FILE PAR ASAR: Zero. Sirf browser me CSS styling hai[cite: 1].
+        ====================================================================== */
         .hardware-btn {
             box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 6px rgba(0,0,0,0.3);
             text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
             transition: all 0.1s ease;
         }
-        /* 
-        KYA: '.hardware-btn:active' ka matlab hai - "jab user is button ko dabaye rakhega (mouse click hold)".
-        KYUN: Real hardware switch jaisa feel dene ke liye - jab dabao, to button andar dhas jaye.
-        EFFECT: box-shadow ko "inset" (andar ki taraf) kar diya hai, aur transform: translateY(2px) button ko
-                2 pixel neeche shift kar deta hai - isse "button press ho gaya" wala illusion milta hai.
-        */
         .hardware-btn:active {
             box-shadow: inset 0 4px 6px rgba(0,0,0,0.4);
             transform: translateY(2px);
         }
 
-        /* ======================================================================
-        * KYA KAR RAHA HAIN: THEME CHANGE #4 (BACKGROUND PATTERN): Body (poori website) ka background
-        *                     ab ek "graph paper / blueprint grid" jaisa dikhta hai, dots jaisa nahi.
-        * KYUN KAR RAHA HAIN: Purane theme me chhote-chhote gol dots the (radial-gradient dots) jo soft/friendly
-        *                     lagte the. Industrial/terminal theme ke liye seedhi lines wala grid zyada
-        *                     "engineering blueprint" jaisa aur technical feel deta hai.
-        * ISME KYA HO RAHA HAI:
-        *   - background-color: #F9FAFB → Poore page ka base off-white color.
-        *   - background-image: do linear-gradient ek sath use kiye hain - ek horizontal lines banata hai,
-        *     doosra vertical lines - dono milke ek grid/graph-paper pattern banate hain.
-        *   - background-size: 40px 40px → Har grid box 40 pixel x 40 pixel ka hoga.
-        * CHANGE SE KYA HOGA (EFFECT): 'background-size: 40px' ko '80px' karenge to grid lines aur door-door
-        *                     (bade squares) ho jayengi. rgba() ki 0.05 value badhane se lines aur dark/visible
-        *                     ho jayengi.
-        ======================================================================
-        */
+        /* Body Blueprint Grid Pattern[cite: 1] */
         body {
             background-color: #F9FAFB;
             background-image: linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
@@ -160,26 +62,14 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
             background-size: 40px 40px;
         }
 
-        /* 
-        KYA: '.hero-img-hover' class hero section ki badi photo par lagi hai.
-        KYUN: Jab user mouse photo ke upar le jaye, to photo thodi upar (translateY) sarak jaye -
-              isse page "zinda"/interactive feel karwata hai. Ye behaviour original design se same rakha
-              gaya hai, sirf niche wale hover rule me effect define hota hai.
-        EFFECT: 'transition: transform 0.5s ease' matlab jab bhi transform value badlegi (hover se), wo
-                change achanak nahi, 0.5 second me smoothly hoga.
-        */
         .hero-img-hover {
             transition: transform 0.5s ease;
         }
         .hero-img-hover:hover {
-            /* KYA: Mouse image ke upar aane par isse 10px upar utha do. KYUN: Interactivity/depth ka feel. */
             transform: translateY(-10px); 
         }
 
-
-        /* UX / TRUST REFINEMENTS: visual-only; no project logic or links are changed. */
-        a:focus-visible,
-        button:focus-visible {
+        a:focus-visible, button:focus-visible {
             outline: 3px solid #111827;
             outline-offset: 4px;
         }
@@ -211,6 +101,27 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
             background-size: 22px 22px;
         }
 
+        /* ======================================================================
+        * NAYA ADDITION #1: DROPDOWN MENU KI SPECIAL CSS
+        * KYA KAR RAHA HAIN: Jab user mouse ko '.dropdown-container' pe le jayega (hover),
+        *                    toh andar ka hidden '.dropdown-menu' dikhne lagega (block ho jayega).
+        * KYUN KAR RAHA HAIN: Taki bina click kiye, sirf mouse move karne se converter options dikhein.
+        * CHANGE SE KYA HOGA: Agar 'display: none' ya 'display: block' hila diya, toh menu hamesha khula 
+        *                    rahega ya kabhi dikhega hi nahi!
+        * PYTHON FILE PAR ASAR: Zero. Completely frontend logic.
+        ====================================================================== */
+        .dropdown-menu {
+            display: none; /* Default me dropdown chhupa rahega */
+            position: absolute;
+            top: 100%;
+            left: 0;
+            min-width: 240px;
+            z-index: 100;
+        }
+        .dropdown-container:hover .dropdown-menu {
+            display: block; /* Hover karte hi menu dikhega */
+        }
+
         @media (prefers-reduced-motion: reduce) {
             html { scroll-behavior: auto; }
             *, *::before, *::after {
@@ -223,90 +134,59 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
     </style>
 </head>
 
-<!-- 
-======================================================================
-* KYA KAR RAHA HAIN: <body> tag se website ka asal content (jo user ko dikhega) shuru hota hai.
-* KYUN KAR RAHA HAIN: class="text-indText font-mono" lagane se PURI website ka default text color dark
-*                     (indText) aur default font Roboto Mono (mono) set ho jaata hai - taaki har chhote element
-*                     me baar baar font/color na likhna pade.
-* "min-h-screen flex flex-col" KYA KARTA HAI: Ye ensure karta hai ki footer hamesha screen ke bottom par rahe,
-*                     chahe content kितna bhi kam ho (footer "chipakta" nahi upar).
-======================================================================
--->
 <body class="text-indText font-mono min-h-screen flex flex-col antialiased">
 
-    <!-- 
-    ======================================================================
-    * KYA KAR RAHA HAIN: HEADER (Navigation Bar). class="sticky top-0 z-50" isko hamesha screen ke
-    *                     upar chipka ke rakhta hai, chahe user page ko kitna bhi scroll kare.
-    * KYUN KAR RAHA HAIN: Menu bar hamesha upar hona chahiye taaki user page me kahin se bhi doosre
-    *                     section/page par ja sake.
-    * THEME CHANGE: Pehle header "bg-cream/90 backdrop-blur-md" (halka transparent cream) tha. Ab
-    *                     "bg-white border-b border-gray-300" hai - ek saaf, solid white industrial panel jaisa.
-    * PYTHON FILE PAR ASAR: Koi nahi - ye pure frontend navigation hai.
-    ======================================================================
-    -->
+    <!-- HEADER NAVIGATION[cite: 1] -->
     <header class="w-full sticky top-0 z-50 bg-white border-b border-gray-300 shadow-sm">
         <div class="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
             
-            <!-- 
-            ======================================================================
-            * KYA KAR RAHA HAIN: WEBSITE LOGO aur NAAM. href="home.html" lagaya hai jisse click karne par
-            *                     user wapas isi home page par aa jaye (agar site kisi aur page se aayi ho).
-            * KYUN KAR RAHA HAIN: Standard web practice - logo hamesha home page se link hota hai.
-            * THEME CHANGE: Emoji 🌄 (mountain) ki jagah ab "/>" symbol use kiya hai jo ek code/terminal
-            *                     prompt jaisa dikhta hai - "industrial/technical" personality ke liye.
-            * CHANGE SE KYA HOGA (EFFECT): Agar aap home page ka filename badalte hain (jaise 'index.html'),
-            *                     to yahan href bhi wahi naam hona chahiye, warna logo click karne par
-            *                     404 error (page not found) aayega.
-            ======================================================================
-            -->
+            <!-- WEBSITE LOGO[cite: 1] -->
             <a href="home_01.html" class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition">
-                <!-- Chota box jisme "/>" symbol hai - purane emoji-icon ki jagah terminal-style icon -->
                 <div class="w-8 h-8 bg-indOrange text-white rounded-sm flex items-center justify-center font-black shadow-md">
                     />
                 </div>
                 <span class="text-xl font-bold tracking-widest text-indOrange">ImageReducer</span>
             </a>
 
-            <!-- 
-            ======================================================================
-            * KYA KAR RAHA HAIN: MENU LINKS - navigation bar jahan saare raste (links) likhe hain.
-            * KYUN KAR RAHA HAIN: Original home page ki tarah hi 6 links rakhe hain (Home, Resize, Crop,
-            *                     Features, More, Contact) - content same hai, sirf style badla hai.
-            * THEME CHANGE: Har link ke text ko square-bracket style "[ HOME ]" me likha hai jo ek
-            *                     computer-terminal ke command menu jaisa dikhta hai. "hidden md:flex" ka
-            *                     matlab hai ki mobile (chhoti screen) par ye poora menu chhup jayega
-            *                     (kyunki jagah kam hoti hai) - sirf desktop/tablet (md se bada) par dikhega.
-            * CHANGE SE KYA HOGA:
-            *     - href="home.html": Home page reload karega.
-            *     - href="index.html": Aapke Image Resizer Tool wale page par le jayega.
-            *     - href="#": Ye abhi dummy (khali) link hai. Jab "Crop" ka naya page banega (crop.html),
-            *       to '#' hata kar wahan 'crop.html' likh dena.
-            ======================================================================
-            -->
-            <nav class="hidden md:flex items-center gap-8 text-sm tracking-widest text-gray-600 font-bold">
+            <!-- ======================================================================
+            * NAYA ADDITION #2: NAVIGATION MENU ME '[ CONVERTER ]' ADD KIYA GAYA
+            * KYA KAR RAHA HAIN: Purane 6 links[cite: 1] ke sath 7va link '[ CONVERTER ]' add kiya hai jo ek dropdown hai.
+            * WORKING RULES:
+            *   1. Main header text '[ CONVERTER ]' par CLICK karne se 'converter.html' khulega jahan saare info hain.
+            *   2. Mouse HOVER karne se dropdown khulega jisme 'JPEG TO PNG', 'PNG TO JPEG' etc. hain.
+            *   3. Dropdown ke kisi item pe click karne se direct wahi preference khulegi (e.g. converter.html?mode=jpeg2png).
+            * PYTHON FILE PAR ASAR: Koi nahi, backend routes same rahenge.
+            ====================================================================== -->
+            <nav class="hidden md:flex items-center gap-6 text-sm tracking-widest text-gray-600 font-bold">
                 <a href="home.html" class="hover:text-indGreen transition">[ HOME ]</a>
                 <a href="index.html" class="hover:text-indGreen transition">[ RESIZE ]</a>
                 <a href="#" class="hover:text-indGreen transition">[ CROP ]</a>
+                
+                <!-- NEW CONVERTER DROPDOWN CONTAINER -->
+                <div class="dropdown-container relative py-2">
+                    <!-- MAIN HEADER LINK: Click karne pe converter.html (All converters page) khulega -->
+                    <a href="converter.html" class="hover:text-indOrange text-indText font-black transition flex items-center gap-1 border-b-2 border-transparent hover:border-indOrange">
+                        [ CONVERTER ▼ ]
+                    </a>
+                    
+                    <!-- DROPDOWN OPTIONS: Hover karne pe dikhenge -->
+                    <div class="dropdown-menu bg-white border-2 border-gray-300 shadow-2xl rounded-sm p-2">
+                        <div class="text-[10px] text-gray-400 font-black px-3 py-1 border-b border-gray-200">SELECT FORMAT</div>
+                        <a href="converter.html?mode=jpg2png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPG TO PNG</a>
+                        <a href="converter.html?mode=jpeg2png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPEG TO PNG</a>
+                        <a href="converter.html?mode=png2jpeg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; PNG TO JPEG</a>
+                        <a href="converter.html?mode=webp2jpeg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; WEBP TO JPEG</a>
+                        <div class="border-t border-gray-200 my-1"></div>
+                        <a href="converter.html?mode=universal" class="block px-3 py-2 text-xs bg-orange-50 text-indOrange hover:bg-indOrange hover:text-white transition font-black">&gt;&gt; UNIVERSAL CONVERTER</a>
+                    </div>
+                </div>
+
                 <a href="#features" class="hover:text-indGreen transition">[ FEATURES ]</a>
                 <a href="#" class="hover:text-indGreen transition">[ MORE ]</a>
                 <a href="#footer" class="hover:text-indGreen transition">[ CONTACT ]</a>
             </nav>
 
-            <!-- 
-            ======================================================================
-            * KYA KAR RAHA HAIN: "Open Tool" ka main Call-to-Action (CTA) button, jo directly tool
-            *                     (index.html) tak le jaata hai.
-            * KYUN KAR RAHA HAIN: Landing page ka ek hi maqsad hota hai - user ko product use karwana.
-            *                     Isliye ye button sabse zyada chamakdar (indOrange) hai.
-            * THEME CHANGE: class="hardware-btn" laga di hai (upar style block me define ki thi) taaki
-            *                     ye button "3D physical switch" jaisa lage, purane soft rounded-full CTA
-            *                     ki tarah nahi.
-            * CHANGE SE KYA HOGA (EFFECT): href="index.html" is button ko main tool se jodta hai. Agar
-            *                     tool wali file ka naam badlega, to yahan bhi badalna padega.
-            ======================================================================
-            -->
+            <!-- CTA BUTTON[cite: 1] -->
             <div>
                 <a href="index_02.html" class="hardware-btn bg-indOrange text-white px-6 py-2.5 rounded font-black tracking-wider transition flex items-center gap-2">
                     RESIZE IMAGE &gt;&gt;
@@ -315,35 +195,13 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
         </div>
     </header>
 
+    <!-- MAIN CONTENT: Zero changes made here to preserve exact original landing page[cite: 1] -->
     <main class="flex-grow">
-        <!-- 
-        ======================================================================
-        * KYA KAR RAHA HAIN: HERO SECTION - website khulte hi sabse bada/pehla area, jisme main
-        *                     heading aur photo hoti hai.
-        * KYUN KAR RAHA HAIN: First impression best hona chahiye - user 3 second me samajh jaye ki
-        *                     website karti kya hai.
-        * THEME CHANGE: Poore hero content ko ek "Machine Casing" ke andar daala hai (indPanel wala
-        *                     grey border box, jiske andar white "screen" hai) - jaise koi hardware
-        *                     device ka control-panel ho. Ye document-6 (industrial home) ke hero
-        *                     "outer casing + inner white screen" pattern se liya gaya hai.
-        * "grid-cols-1 lg:grid-cols-2" KA MATLAB: Mobile me content 1 column (upar-neeche) dikhega,
-        *                     laptop/desktop (lg) me 2 column (aamne-saamne) dikhega.
-        ======================================================================
-        -->
-        <!--
-        ======================================================================
-        * FIRST-SCREEN UX:
-        * SEE      -> restrained visual order and one dominant action.
-        * UNDERSTAND -> exact task named in the headline and tool preview.
-        * BELIEVE  -> specific capabilities placed beside the action.
-        * ACT      -> the existing index1.html CTA remains unchanged.
-        ======================================================================
-        -->
+        <!-- HERO SECTION[cite: 1] -->
         <section id="hero" class="max-w-[1400px] mx-auto px-6 pt-10 pb-8">
             <div class="w-full bg-indPanel p-3 rounded-lg border-4 border-gray-300 shadow-2xl">
                 <div class="bg-white p-7 md:p-10 lg:p-12 border-2 border-gray-300 shadow-inner grid grid-cols-1 lg:grid-cols-[1.02fr_0.98fr] gap-10 lg:gap-14 items-center">
 
-                    <!-- LEFT: exact outcome, context, action, and nearby proof. -->
                     <div class="text-center lg:text-left">
                         <div class="inline-flex items-center gap-2 border border-green-200 bg-green-50 px-3 py-2 text-indGreen font-bold text-[11px] sm:text-xs tracking-[0.14em]">
                             <span class="w-2 h-2 bg-indGreen" aria-hidden="true"></span>
@@ -372,7 +230,6 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
                             </a>
                         </div>
 
-                        <!-- Proof appears where the visitor decides whether to click. -->
                         <div class="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left max-w-2xl mx-auto lg:mx-0">
                             <div class="trust-signal border-t border-gray-300 pt-3">
                                 <span class="trust-signal-mark">01</span>
@@ -389,7 +246,6 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
                         </div>
                     </div>
 
-                    <!-- RIGHT: a category-matching product preview replaces the unrelated stock photo. -->
                     <div class="hero-img-hover relative w-full">
                         <div class="bg-gray-300 p-2 border-2 border-gray-400 shadow-2xl">
                             <div class="bg-white border-2 border-gray-300">
@@ -450,7 +306,6 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
                 </div>
             </div>
 
-            <!-- Immediate comprehension strip: one line for what, control, result, and next action. -->
             <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border border-gray-300 bg-white shadow-sm">
                 <div class="p-4 border-b sm:border-r border-gray-300 sm:border-b-0">
                     <p class="text-[10px] text-indGreen font-black tracking-[0.18em]">01 // WHAT</p>
@@ -471,8 +326,7 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
             </div>
         </section>
 
-        <!-- FEATURE SECTION: ordered by the visitor's most common decision needs. -->
-        <!-- Clear capabilities: concrete labels reduce interpretation effort. -->
+        <!-- FEATURE SECTION[cite: 1] -->
         <section id="features" class="max-w-[1400px] mx-auto px-6 py-14">
             <div class="mb-10 border-b border-gray-300 pb-5 text-center">
                 <p class="text-indGreen text-xs font-black tracking-[0.22em] mb-2">WHAT YOU CAN CONTROL</p>
@@ -518,7 +372,7 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
             </div>
         </section>
 
-        <!-- Three visible steps reduce uncertainty before the user opens the tool. -->
+        <!-- HOW IT WORKS SECTION[cite: 1] -->
         <section id="how-it-works" class="max-w-[1400px] mx-auto px-6 py-14">
             <div class="mb-10 border-b border-gray-300 pb-5 text-center">
                 <p class="text-indGreen text-xs font-black tracking-[0.22em] mb-2">ONE TASK // THREE STEPS</p>
@@ -563,25 +417,12 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
                 </a>
             </div>
         </section>
-
     </main>
 
-    <!-- 
-    ======================================================================
-    * KYA KAR RAHA HAIN: FOOTER SECTION - website ka sabse nichla hissa, jisme brand info, quick
-    *                     links, aur legal/contact info hai. Content 3 columns me same hai jaisa
-    *                     original home.html me tha.
-    * KYUN KAR RAHA HAIN: Har website me Privacy Policy, Terms, aur contact info hona chahiye -
-    *                     legally aur professionally zaroori hai.
-    * THEME CHANGE: Pehle footer dark-brown/black (#1A1311) tha. Ab industrial theme ke hisaab se
-    *                     halka grey (bg-gray-100) hai, jo poore page ke light look se match karta hai.
-    ======================================================================
-    -->
+    <!-- FOOTER SECTION[cite: 1] -->
     <footer id="footer" class="bg-gray-100 border-t border-gray-300 pt-12 pb-8 mt-8">
         <div class="max-w-[1400px] mx-auto px-6">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10 border-b border-gray-300 pb-10">
-
-                <!-- Footer Column 1: Brand Info -->
                 <div class="space-y-4">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 bg-indOrange text-white rounded-sm flex items-center justify-center text-sm shadow-md font-black">/></div>
@@ -592,23 +433,16 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
                     </p>
                 </div>
 
-                <!-- 
-                Footer Column 2: Quick Links - jaise original me the, waise hi rakhe hain.
-                href links zaroorat ke hisaab se update kiye ja sakte hain.
-                -->
                 <div>
                     <h4 class="font-bold text-lg mb-4 text-indOrange tracking-wide">QUICK_LINKS</h4>
                     <ul class="space-y-2 text-sm text-gray-600 font-bold">
                         <li><a href="home.html" class="hover:text-indOrange transition">&gt; Home</a></li>
                         <li><a href="#features" class="hover:text-indOrange transition">&gt; Features</a></li>
                         <li><a href="index_02.html" class="hover:text-indOrange transition">&gt; The Resizer Tool</a></li>
+                        <li><a href="converter.html" class="hover:text-indOrange transition">&gt; Format Converter</a></li>
                     </ul>
                 </div>
 
-                <!-- 
-                Footer Column 3: Legal & Contact - Privacy Policy, Terms of Service, aur email link.
-                'mailto:' prefix lagane se click karte hi user ki default email-app khul jaati hai.
-                -->
                 <div>
                     <h4 class="font-bold text-lg mb-4 text-indOrange tracking-wide">LEGAL_&amp;_CONTACT</h4>
                     <ul class="space-y-2 text-sm text-gray-600 font-bold">
@@ -619,12 +453,10 @@ EFFECT: Agar ye class hata doge, to click karte hi page turant jump kar jayega, 
                 </div>
             </div>
 
-            <!-- Copyright Line -->
             <div class="text-center text-gray-500 text-xs font-bold tracking-widest">
                 &copy; 2026 ImageReducer // ALL RIGHTS RESERVED.
             </div>
         </div>
     </footer>
-
 </body>
 </html>
