@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <!-- 
 ======================================================================
-* KYA KAR RAHA HAIN: HYBRID 3 - "Eclipse Grid" (Jigsaw Grid + Circular Radar)
-* KYUN: CSS Grid use kiya hai (jigsaw ki tarah), par main Universal tool ek bada Circle hai. 
-*       Ye circle square dabbo ke beech me "Eclipse" (grahan) jaisa lagta hai. Very contrasting geometry!
+* KYA KAR RAHA HAIN: HYBRID 4 - "Tech Tree" (Timeline flow + Clipped Shapes)
+* KYUN: Upar Universal Converter hai jisse lines nikal kar niche wale modules me ja rahi hain. 
+*       Hierarchy (tree structure) dikhata hai.
 ======================================================================
 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImageReducer // Eclipse Grid</title>
+    <title>ImageReducer // Tech Tree</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -18,45 +18,60 @@
     </script>
     <style>
         body { background-color: #F9FAFB; background-image: linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px); background-size: 40px 40px; }
+        .clip-slant { clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0% 100%); }
     </style>
 </head>
-<body class="text-indText font-mono min-h-screen p-8">
+<body class="text-indText font-mono min-h-screen py-12 flex flex-col items-center">
 
-    <div class="max-w-[1200px] mx-auto">
-        <h1 class="text-4xl font-black mb-10 text-indText uppercase">Eclipse Engine</h1>
+    <div class="w-full max-w-[1000px] flex flex-col items-center">
+        
+        <!-- UNIVERSAL NODE (Root) -->
+        <div class="w-[400px] bg-indText p-1 clip-slant shadow-xl z-10 relative">
+            <div class="bg-white p-8 clip-slant border-2 border-gray-400 text-center flex flex-col items-center cursor-pointer hover:border-indOrange transition">
+                <span class="text-3xl text-indOrange font-black mb-2">+</span>
+                <h2 class="text-2xl font-black">ROOT_UNIVERSAL</h2>
+            </div>
+        </div>
 
-        <!-- Asymmetric CSS Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center justify-items-center">
+        <!-- 
+        * KYA: SVG Lines for Tree Branches 
+        * KYUN: Timeline/flow dikhane ke liye
+        -->
+        <svg class="w-full h-[100px] -mt-2 -mb-2 z-0" preserveAspectRatio="none">
+            <!-- Center line -->
+            <line x1="50%" y1="0" x2="50%" y2="100%" stroke="#111827" stroke-width="3" stroke-dasharray="6,6"/>
+            <!-- Left Branch -->
+            <line x1="50%" y1="50%" x2="20%" y2="50%" stroke="#111827" stroke-width="3" stroke-dasharray="6,6"/>
+            <line x1="20%" y1="50%" x2="20%" y2="100%" stroke="#111827" stroke-width="3" stroke-dasharray="6,6"/>
+            <!-- Right Branch -->
+            <line x1="50%" y1="50%" x2="80%" y2="50%" stroke="#111827" stroke-width="3" stroke-dasharray="6,6"/>
+            <line x1="80%" y1="50%" x2="80%" y2="100%" stroke="#111827" stroke-width="3" stroke-dasharray="6,6"/>
+        </svg>
+
+        <!-- CHILD NODES (Stamps in Slanted boxes) -->
+        <div class="w-full flex justify-between px-10 relative z-10">
             
-            <!-- STAMPED BOX 1: Left Square -->
-            <div class="w-full bg-indPanel p-2 border-2 border-gray-300 shadow-sm group cursor-pointer hover:border-indOrange transition-colors">
-                <div class="bg-white p-6 border-2 border-dashed border-gray-400 flex flex-col items-start min-h-[200px]">
-                    <div class="border-2 border-gray-300 text-gray-400 text-sm font-black px-2 py-1 -rotate-12 group-hover:text-indOrange mb-4">J&gt;P</div>
-                    <h3 class="text-2xl font-black mb-2">JPG TO PNG</h3>
-                    <p class="text-xs font-bold text-gray-500">Lossless Extraction</p>
+            <div class="w-[280px] bg-indPanel p-1 clip-slant shadow-md group cursor-pointer">
+                <div class="bg-white p-6 clip-slant border-2 border-dashed border-gray-400 flex items-center justify-between">
+                    <div class="border border-gray-300 text-gray-400 text-[10px] font-black px-1 -rotate-12 group-hover:text-indOrange">J&gt;P</div>
+                    <h3 class="text-lg font-black text-right">JPG > PNG</h3>
                 </div>
             </div>
 
-            <!-- 
-            * KYA: UNIVERSAL CIRCLE. Col-span-1 par center me hai. Circle (rounded-full)
-            * KYUN: Square grid ke bich ek bada gol circle attention kheenchta hai.
-            -->
-            <div class="w-[300px] h-[300px] bg-indText p-2 rounded-full shadow-2xl flex items-center justify-center cursor-pointer hover:scale-105 transition-transform relative z-10 border-4 border-indOrange">
-                <div class="w-full h-full bg-white rounded-full border-4 border-dashed border-gray-400 flex flex-col items-center justify-center p-6 text-center">
-                    <span class="text-5xl text-indOrange font-black mb-2">+</span>
-                    <h2 class="text-2xl font-black">UNIVERSAL<br/>SPHERE</h2>
+            <div class="w-[280px] bg-indPanel p-1 clip-slant shadow-md group cursor-pointer">
+                <div class="bg-white p-6 clip-slant border-2 border-dashed border-gray-400 flex items-center justify-center">
+                    <h3 class="text-lg font-black">WEBP > JPG</h3>
+                    <div class="border border-gray-300 text-gray-400 text-[10px] font-black px-1 -rotate-12 group-hover:text-indOrange ml-2">W&gt;J</div>
                 </div>
             </div>
 
-            <!-- STAMPED BOX 2: Right Square -->
-            <div class="w-full bg-indPanel p-2 border-2 border-gray-300 shadow-sm group cursor-pointer hover:border-indOrange transition-colors">
-                <div class="bg-white p-6 border-2 border-dashed border-gray-400 flex flex-col items-end text-right min-h-[200px]">
-                    <div class="border-2 border-gray-300 text-gray-400 text-sm font-black px-2 py-1 -rotate-12 group-hover:text-indOrange mb-4">P&gt;J</div>
-                    <h3 class="text-2xl font-black mb-2">PNG TO JPG</h3>
-                    <p class="text-xs font-bold text-gray-500">Max Compression</p>
+            <div class="w-[280px] bg-indPanel p-1 clip-slant shadow-md group cursor-pointer">
+                <div class="bg-white p-6 clip-slant border-2 border-dashed border-gray-400 flex items-center justify-between">
+                    <h3 class="text-lg font-black">PNG > JPG</h3>
+                    <div class="border border-gray-300 text-gray-400 text-[10px] font-black px-1 -rotate-12 group-hover:text-indOrange">P&gt;J</div>
                 </div>
             </div>
-
+            
         </div>
     </div>
 </body>
