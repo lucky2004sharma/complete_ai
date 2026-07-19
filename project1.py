@@ -264,7 +264,7 @@ def detect_input_format(data: bytes, filename: str) -> str:
         #     return "JPG"
         # if extension == "jpeg":
         #     return "JPEG"
-        # समाधान (NEW CODE): दोनों एक्सटेंशन (.jpg और .jpeg) के लिए एक ही नॉर्मलाइज़्ड नाम "JPG" रिटर्न किया गया है ताकि वैलिडेशन कभी फेल न हो[cite: 2]।
+        # समाधान (NEW CODE): दोनों एक्सटेंशन (.jpg और .jpeg) के लिए एक ही नॉर्मलाइज़्ड नाम "JPG" रिटर्न किया गया है ताकि वैलिडेशन कभी फेल न हो।
         if extension in {"jpg", "jpeg"}:
             return "JPG"
         raise ValueError("JPEG image filename must end in .jpg or .jpeg.")
@@ -281,9 +281,9 @@ def validate_expected_format(detected: str, expected_value: Any) -> None:
     if expected is None:
         return
 
-    # समस्या (OLD CODE): यहाँ सिर्फ exact string match चेक होता था। अगर detected="JPG" और expected="JPEG" होता था, तो असली JPEG फाइल होने के बावजूद 400 Bad Request एरर आ जाता था[cite: 2]।
+    # समस्या (OLD CODE): यहाँ सिर्फ exact string match चेक होता था। अगर detected="JPG" और expected="JPEG" होता था, तो असली JPEG फाइल होने के बावजूद 400 Bad Request एरर आ जाता था।
     # if detected != expected:
-    # समाधान (NEW CODE): चूंकि JPG और JPEG दोनों एक ही इमेज फॉर्मेट (JPEG) हैं, इसलिए अगर दोनों में से कोई भी हो तो उसे आपस में compatible मानकर वैलिडेशन पास किया गया है[cite: 2]।
+    # समाधान (NEW CODE): चूंकि JPG और JPEG दोनों एक ही इमेज फॉर्मेट (JPEG) हैं, इसलिए अगर दोनों में से कोई भी हो तो उसे आपस में compatible मानकर वैलिडेशन पास किया गया है।
     if detected != expected and not (detected in {"JPG", "JPEG"} and expected in {"JPG", "JPEG"}):
         raise ValueError(
             f"FORMAT MISMATCH: selected input is {expected}, but uploaded file is {detected}. "
@@ -317,12 +317,12 @@ def open_image_bytes(data: bytes, detected_format: Optional[str] = None) -> Imag
     if actual_format == "SVG":
         try:
             import cairosvg  # type: ignore[import]
-        # समस्या (OLD CODE): यहाँ सिर्फ ImportError को कैच किया गया था। Windows सिस्टम पर अगर C-libraries (GTK+ / libcairo-2.dll) मौजूद नहीं होती हैं, तो 'import cairosvg' रनटाइम पर क्रैश होकर OSError (DLL load failed) देता है और सर्वर बंद हो जाता है[cite: 2]।
+        # समस्या (OLD CODE): यहाँ सिर्फ ImportError को कैच किया गया था। Windows सिस्टम पर अगर C-libraries (GTK+ / libcairo-2.dll) मौजूद नहीं होती हैं, तो 'import cairosvg' रनटाइम पर क्रैश होकर OSError (DLL load failed) देता है और सर्वर बंद हो जाता है।
         # except ImportError as exc:
         #     raise ValueError(
         #         "SVG input needs CairoSVG. Run: py -m pip install cairosvg"
         #     ) from exc
-        # समाधान (NEW CODE): Windows पर C-libraries (DLL) न होने पर आने वाले OSError को भी कैच किया गया है ताकि सर्वर क्रैश न हो और यूजर को स्पष्ट कारण पता चले[cite: 2]।
+        # समाधान (NEW CODE): Windows पर C-libraries (DLL) न होने पर आने वाले OSError को भी कैच किया गया है ताकि सर्वर क्रैश न हो और यूजर को स्पष्ट कारण पता चले।
         except (ImportError, OSError) as exc:
             raise ValueError(
                 "SVG processing failed. Please install CairoSVG and its external GTK+/Cairo C-libraries (DLLs on Windows)."
@@ -365,7 +365,7 @@ def calculate_requested_dimensions(
     image: Image.Image,
     width_value: Any,
     height_value: Any,
-) -> Tuple[int, int]:
+    ) -> Tuple[int, int]:
     """Blank/one-side/both-side resize inputs se final width-height nikalta hai."""
 
     original_width, original_height = image.size
