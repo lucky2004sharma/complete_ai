@@ -259,10 +259,14 @@ def detect_input_format(data: bytes, filename: str) -> str:
     # filename extension final identity decide karti hai.
     if pillow_format == "JPEG":
         extension = str(filename or "").lower().rsplit(".", 1)[-1]
-        if extension == "jpg":
+        # समस्या (OLD CODE): यहाँ .jpg को "JPG" और .jpeg को "JPEG" अलग-अलग रिटर्न किया गया था। जब यूजर UI में 'JPG' चुनकर 'photo.jpeg' अपलोड करता था तो validate_expected_format() में "FORMAT MISMATCH" का 400 Bad Request एरर आता था।
+        # if extension == "jpg":
+        #     return "JPG"
+        # if extension == "jpeg":
+        #     return "JPEG"
+        # समाधान (NEW CODE): दोनों एक्सटेंशन (.jpg और .jpeg) के लिए एक ही नॉर्मलाइज़्ड नाम "JPG" रिटर्न किया गया है ताकि वैलिडेशन कभी फेल न हो[cite: 2]।
+        if extension in {"jpg", "jpeg"}:
             return "JPG"
-        if extension == "jpeg":
-            return "JPEG"
         raise ValueError("JPEG image filename must end in .jpg or .jpeg.")
 
     return detected
@@ -277,7 +281,10 @@ def validate_expected_format(detected: str, expected_value: Any) -> None:
     if expected is None:
         return
 
-    if detected != expected:
+    # समस्या (OLD CODE): यहाँ सिर्फ exact string match चेक होता था। अगर detected="JPG" और expected="JPEG" होता था, तो असली JPEG फाइल होने के बावजूद 400 Bad Request एरर आ जाता था[cite: 2]।
+    # if detected != expected:
+    # समाधान (NEW CODE): चूंकि JPG और JPEG दोनों एक ही इमेज फॉर्मेट (JPEG) हैं, इसलिए अगर दोनों में से कोई भी हो तो उसे आपस में compatible मानकर वैलिडेशन पास किया गया है[cite: 2]।
+    if detected != expected and not (detected in {"JPG", "JPEG"} and expected in {"JPG", "JPEG"}):
         raise ValueError(
             f"FORMAT MISMATCH: selected input is {expected}, but uploaded file is {detected}. "
             "Remove/reset the photo and start again with the correct route."
@@ -309,10 +316,16 @@ def open_image_bytes(data: bytes, detected_format: Optional[str] = None) -> Imag
 
     if actual_format == "SVG":
         try:
-            import cairosvg
-        except ImportError as exc:
+            import cairosvg  # type: ignore[import]
+        # समस्या (OLD CODE): यहाँ सिर्फ ImportError को कैच किया गया था। Windows सिस्टम पर अगर C-libraries (GTK+ / libcairo-2.dll) मौजूद नहीं होती हैं, तो 'import cairosvg' रनटाइम पर क्रैश होकर OSError (DLL load failed) देता है और सर्वर बंद हो जाता है[cite: 2]।
+        # except ImportError as exc:
+        #     raise ValueError(
+        #         "SVG input needs CairoSVG. Run: py -m pip install cairosvg"
+        #     ) from exc
+        # समाधान (NEW CODE): Windows पर C-libraries (DLL) न होने पर आने वाले OSError को भी कैच किया गया है ताकि सर्वर क्रैश न हो और यूजर को स्पष्ट कारण पता चले[cite: 2]।
+        except (ImportError, OSError) as exc:
             raise ValueError(
-                "SVG input needs CairoSVG. Run: py -m pip install cairosvg"
+                "SVG processing failed. Please install CairoSVG and its external GTK+/Cairo C-libraries (DLLs on Windows)."
             ) from exc
 
         try:
@@ -854,7 +867,8 @@ def create_app() -> Any:
             format=detected,
             width=image.width,
             height=image.height,
-            dimensions=f"{image.width} Ã— {image.height} px",
+            # Encoding fix: real multiplication sign use kiya hai; "Ã—" UTF-8 mojibake tha.
+            dimensions=f"{image.width} × {image.height} px",
             size_bytes=len(data),
             dpi=image_dpi_from_info(data, detected),
         )
