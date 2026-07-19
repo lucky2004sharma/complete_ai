@@ -1218,31 +1218,46 @@
                 // Python se exactly compressed file (Blob format image bytes memory map) catch kiya.
                 const blob = await response.blob();
                 
-                // EXACT SIZE MATCHING BUG FIX: Python ki original memory image size file ki properties '.size' array byte map karti hai, divide with 1024 -> exact size!
-                const finalKb = (blob.size / 1024).toFixed(1);
+                // ==================================================================
+                // * EXACT SIZE MATCHING (NO 5% TOLERANCE / NO ESTIMATE)
+                // * KYA: Blob ki real byte length hi final truth hai. 50 KB ka exact
+                //   result 50 * 1024 = 51,200 bytes hona chahiye.
+                // * EFFECT: 2 decimal display se 50.00 KB clearly visible rahega;
+                //   actual equality check neeche integer bytes par hota hai.
+                // ==================================================================
+                const finalKb = (blob.size / 1024).toFixed(2);
                 
                 // Location 1 aur Location 2 UI parameters Update KB Format string append ke sath "KB" assign karo.
                 document.getElementById('newSize').innerText = `${finalKb} KB`;
                 document.getElementById('outSizeSummary').innerText = `${finalKb} KB`; 
 
-                // Format String Extraction
-                const backendExt = blob.type.split('/')[1] || 'jpeg';
+                // Python response header canonical format deta hai (JPG/JPEG/TIF naming safe).
+                const backendExt = response.headers.get('X-Output-Format') || blob.type.split('/')[1] || 'jpeg';
                 document.getElementById('newFormat').innerText = backendExt;
                 document.getElementById('outFormat').innerText = backendExt;
 
                 // Quality Label Change for visual representation
                 const targetKb = document.getElementById('targetKbInput').value;
                 if(targetKb) {
-                    document.getElementById('outQual').innerText = "Overridden (Target Forced)";
+                    // IF: Exact expected bytes aur received bytes unequal hain to result
+                    // download se pehle reject hoga; approximate output accept nahi hoga.
+                    const expectedBytes = Math.round(Number(targetKb) * 1024);
+                    if(blob.size !== expectedBytes) {
+                        throw new Error(`Exact target failed: expected ${expectedBytes} bytes but received ${blob.size} bytes.`);
+                    }
+                    document.getElementById('outQual').innerText = `Exact Target (${blob.size.toLocaleString()} bytes)`;
+                    document.getElementById('outSizeSummary').innerText = `${finalKb} KB // EXACT MATCH`;
                 } else {
                     document.getElementById('outQual').innerText = document.getElementById('qualitySlider').value + "%";
                 }
 
-                const w = document.getElementById('widthInput').value || beforeImg.naturalWidth;
-                const h = document.getElementById('heightInput').value || beforeImg.naturalHeight;
+                // Target bahut chhota ho to Python size priority ke liye dimensions
+                // reduce kar sakta hai. Header actual output dimensions batata hai.
+                const w = response.headers.get('X-Output-Width') || document.getElementById('widthInput').value || beforeImg.naturalWidth;
+                const h = response.headers.get('X-Output-Height') || document.getElementById('heightInput').value || beforeImg.naturalHeight;
                 document.getElementById('newDim').innerText = `${w} x ${h}`;
                 
-                const dpi = document.getElementById('manualDpi').value || 72;
+                const dpi = response.headers.get('X-Output-DPI') || document.getElementById('manualDpi').value || 72;
                 document.getElementById('newDpiVal').innerText = dpi;
                 document.getElementById('outResolution').innerText = dpi + " DPI";
 

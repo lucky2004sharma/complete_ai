@@ -524,6 +524,45 @@
       .result-grid b.match { color: #15803D; }
       .download-button { margin-top: 10px; background: var(--text); }
       .download-button:disabled { opacity: .45; cursor: not-allowed; }
+
+      /* ======================================================================
+         KYA: Uploaded photo ke baad source-format controls ko visually lock karta hai.
+         KYUN: PNG payload ko dropdown badal kar JPEG source claim nahi karna chahiye.
+         CHANGE EFFECT: UI lock ke saath Python backend bhi real file verify karega.
+      ====================================================================== */
+      .source-format-locked { border-color: var(--green) !important; background: #F0FDF4 !important; color: #166534 !important; cursor: not-allowed !important; }
+      .source-format-locked:disabled { opacity: .76; }
+      .input-lock-note { margin-top: 8px; padding: 8px 10px; border: 2px solid var(--green); background: #F0FDF4; color: #166534; border-radius: 6px; font-size: 8px; font-weight: 900; line-height: 1.55; }
+
+      /* ======================================================================
+         KYA: Apply ke baad actual Python output photo download se pehle dikhata hai.
+         KYUN: User result visually double-check karke zarurat par re-edit kar sake.
+      ====================================================================== */
+      .result-preview-stage { position: relative; min-height: 190px; display: grid; place-items: center; margin-top: 8px; overflow: hidden; border: 2px solid var(--line); background: linear-gradient(45deg,#F3F4F6 25%,transparent 25%),linear-gradient(-45deg,#F3F4F6 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#F3F4F6 75%),linear-gradient(-45deg,transparent 75%,#F3F4F6 75%); background-size: 18px 18px; background-position: 0 0,0 9px,9px -9px,-9px 0; border-radius: 6px; }
+      .result-preview-stage img { display: block; max-width: 100%; max-height: 290px; object-fit: contain; }
+      .result-preview-message { display: none; max-width: 260px; padding: 14px; color: var(--muted); font-size: 8px; font-weight: 900; line-height: 1.6; text-align: center; }
+      .result-preview-stage.preview-unavailable img { display: none; }
+      .result-preview-stage.preview-unavailable .result-preview-message { display: block; }
+
+      /* ======================================================================
+         // PAYLOAD_STATISTICS_COMPARISON
+         Original Source aur Target Output ka exact side-by-side data.
+      ====================================================================== */
+      .payload-comparison { margin-top: 12px; padding-top: 12px; border-top: 2px dashed var(--line); }
+      .payload-comparison-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--text); font-size: 8px; font-weight: 900; letter-spacing: .06em; }
+      .payload-comparison-title span { color: var(--green); }
+      .payload-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+      .payload-column { border: 2px solid var(--line); background: var(--white); border-radius: 6px; overflow: hidden; }
+      .payload-column h3 { margin: 0; padding: 9px 10px; border-bottom: 2px solid var(--line); background: var(--panel-2); color: var(--text); font-size: 9px; }
+      .payload-stat { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 31px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+      .payload-stat:last-child { border-bottom: 0; }
+      .payload-stat small { color: var(--muted); font-size: 7px; font-weight: 900; }
+      .payload-stat b { color: var(--text); font-size: 8px; text-align: right; overflow-wrap: anywhere; }
+      .payload-stat b.exact-match { color: #15803D; }
+
+      @media (max-width: 520px) {
+        .payload-columns { grid-template-columns: 1fr; }
+      }
     </style>
   </head>
   <body>
@@ -565,10 +604,17 @@
           rotation: 0,
           zoom: 1,
           lockRatio: true,
-          undoSnapshot: null,
-          redoSnapshot: null,
+          /*
+           * KYA: Single snapshot ki jagah arrays hain. Har rotate/edit ek item push karega.
+           * EFFECT: 4 rotations = 4 undo steps; undo ke baad redo bhi 4 steps chalega.
+           */
+          undoStack: [],
+          redoStack: [],
           resultBlob: null,
-          resultMeta: null
+          resultMeta: null,
+          resultUrl: null,
+          originalFormat: null,
+          originalDpi: 72
         };
 
         function normalize(value) {
@@ -620,7 +666,8 @@
                   </section>
 
                   <section class="machine-panel">
-                    <div class="panel-label"><b>02 // LIVE_PREVIEW</b><span>ORIGINAL IMAGE</span></div>
+                    <!-- KYA: Yeh working/edit preview hai; original statistics comparison me unchanged rahengi. -->
+                    <div class="panel-label"><b>02 // LIVE_PREVIEW</b><span>EDIT WORKING COPY</span></div>
                     <div class="preview-stage zoomable" data-preview-stage>
                       <div class="preview-empty"><div class="file-shape">IMG</div><b>PREVIEW WAITING</b><small>Upload a supported image to inspect it here.</small></div>
                       <img data-preview-image alt="Uploaded image preview">
@@ -629,8 +676,9 @@
                     <div class="zoom-row"><span>ZOOM</span><input type="range" id="zoomControl" min="100" max="300" value="100" disabled><span id="zoomText">100%</span></div>
                     <div class="canvas-toolbar">
                       <button type="button" id="btnRotate" disabled>↻ ROTATE 90°</button>
-                      <button type="button" id="btnUndo" disabled>↶ UNDO</button>
-                      <button type="button" id="btnRedo" disabled>↷ REDO</button>
+                      <!-- Undo/Redo label me live step count JS update karega: e.g. UNDO (4). -->
+                      <button type="button" id="btnUndo" disabled>↶ UNDO (0)</button>
+                      <button type="button" id="btnRedo" disabled>↷ REDO (0)</button>
                     </div>
                     <div class="preview-foot"><span>INPUT: <em data-route-from>JPG</em></span><span>OUTPUT: <em data-route-to>PNG</em></span></div>
                   </section>
@@ -642,7 +690,9 @@
                       <button class="swap-button" type="button" data-swap aria-label="Swap formats">⇄</button>
                       <div class="field"><label for="toFormat">OUTPUT FORMAT</label><select id="toFormat" aria-label="Output format"></select></div>
                     </div>
-                    <div class="locked-box"><span>LOCKED</span>OUTPUT WILL BE FORCED TO <b data-route-to>PNG</b>.</div>
+                    <!-- Input file aane ke baad source fixed; output user change kar sakta hai. -->
+                    <div class="locked-box"><span>OUTPUT</span>RESULT WILL BE FORCED TO <b data-route-to>PNG</b>.</div>
+                    <div class="input-lock-note" data-input-lock-note>INPUT FORMAT WILL LOCK AFTER A VALID PHOTO IS UPLOADED.</div>
                     <div class="field-row">
                       <div class="field"><label for="widthControl">WIDTH <span>PX</span></label><input id="widthControl" type="number" min="1" placeholder="AUTO"></div>
                       <div class="field"><label for="heightControl">HEIGHT <span>PX</span></label><input id="heightControl" type="number" min="1" placeholder="AUTO"></div>
@@ -653,15 +703,48 @@
                       <div class="field"><label for="dpiControl">DPI</label><select id="dpiControl"><option value="72">72 (Web)</option><option value="150">150 (Print)</option><option value="300">300 (High-res)</option></select></div>
                     </div>
                     <div class="field"><label for="qualityControl">QUALITY <span id="qualityText">92%</span></label><input id="qualityControl" type="range" min="40" max="100" value="92"></div>
-                    <button class="hardware-btn execute-button" type="button" data-execute>CONVERT JPG → PNG</button>
+                    <!-- Apply Python preview banata hai; download automatically start nahi hota. -->
+                    <button class="hardware-btn execute-button" type="button" data-execute>APPLY CHANGES // PREVIEW JPG → PNG</button>
                     <div class="system-status" data-status role="status">READY // Select a route or upload one image.</div>
                     <div class="result-panel" data-result-panel>
                       <div class="panel-label"><b>04 // RESULT_SUMMARY</b><span data-result-match>MATCHES TARGET</span></div>
+                      <!-- Actual backend blob preview. TIF browser support na ho to fallback message. -->
+                      <div class="result-preview-stage" data-result-preview-stage>
+                        <img data-result-preview alt="Applied converted output preview">
+                        <p class="result-preview-message" data-result-preview-message>THIS BROWSER CANNOT DISPLAY THIS OUTPUT FORMAT, BUT THE VERIFIED FILE IS READY. CHECK THE STATISTICS AND DOWNLOAD IT.</p>
+                      </div>
                       <div class="result-grid">
                         <div><p>Dimensions</p><b data-result-dims>—</b></div>
                         <div><p>File Size</p><b data-result-size>—</b></div>
                         <div><p>Format</p><b data-result-format>—</b></div>
                         <div><p>DPI</p><b data-result-dpi>—</b></div>
+                      </div>
+
+                      <!-- =====================================================
+                           // PAYLOAD_STATISTICS_COMPARISON
+                           Original file values upload se aur target values
+                           Python response se aati hain; estimate use nahi hota.
+                      ====================================================== -->
+                      <div class="payload-comparison">
+                        <div class="payload-comparison-title"><b>// PAYLOAD_STATISTICS_COMPARISON</b><span>ORIGINAL ↔ APPLIED</span></div>
+                        <div class="payload-columns">
+                          <section class="payload-column" aria-label="Original source statistics">
+                            <h3>Original Source</h3>
+                            <div class="payload-stat"><small>FILE SIZE</small><b data-original-stat-size>—</b></div>
+                            <div class="payload-stat"><small>FORMAT</small><b data-original-stat-format>—</b></div>
+                            <div class="payload-stat"><small>DIMENSIONS</small><b data-original-stat-dims>—</b></div>
+                            <div class="payload-stat"><small>WIDTH / BREADTH</small><b data-original-stat-width>—</b></div>
+                            <div class="payload-stat"><small>HEIGHT</small><b data-original-stat-height>—</b></div>
+                          </section>
+                          <section class="payload-column" aria-label="Target output statistics">
+                            <h3>Target Output</h3>
+                            <div class="payload-stat"><small>FILE SIZE</small><b data-target-stat-size>—</b></div>
+                            <div class="payload-stat"><small>FORMAT</small><b data-target-stat-format>—</b></div>
+                            <div class="payload-stat"><small>DIMENSIONS</small><b data-target-stat-dims>—</b></div>
+                            <div class="payload-stat"><small>WIDTH / BREADTH</small><b data-target-stat-width>—</b></div>
+                            <div class="payload-stat"><small>HEIGHT</small><b data-target-stat-height>—</b></div>
+                          </section>
+                        </div>
                       </div>
                       <button class="hardware-btn execute-button download-button" type="button" data-download disabled>⬇ DOWNLOAD RESULT</button>
                     </div>
@@ -785,6 +868,38 @@
           });
         }
 
+        /* ====================================================================
+           KYA: Valid file upload ke baad INPUT selector, source rails, swap aur
+           Universal-start buttons lock karta hai. OUTPUT selector unlocked hai.
+           KYUN: Current bytes PNG hain to unhe UI se JPEG source rename na kiya ja sake.
+           CLEAR FILE EFFECT: clearFile() ke baad state.file null hoga aur sab unlock.
+        ==================================================================== */
+        function updateSourceLockUI() {
+          const locked = Boolean(state.file);
+          const fromSelect = document.getElementById("fromFormat");
+
+          if (fromSelect) {
+            fromSelect.disabled = locked;
+            fromSelect.classList.toggle("source-format-locked", locked);
+          }
+
+          document.querySelectorAll("[data-swap], [data-universal]").forEach(function (button) {
+            button.disabled = locked;
+            button.classList.toggle("source-format-locked", locked);
+          });
+
+          document.querySelectorAll(".format-choice[data-source]").forEach(function (button) {
+            button.disabled = locked && button.dataset.source !== state.from;
+            button.classList.toggle("source-format-locked", locked && button.dataset.source === state.from);
+          });
+
+          document.querySelectorAll("[data-input-lock-note]").forEach(function (node) {
+            node.textContent = locked
+              ? "INPUT LOCKED TO " + state.from + " // Remove the current photo before changing source format."
+              : "INPUT FORMAT WILL LOCK AFTER A VALID PHOTO IS UPLOADED.";
+          });
+        }
+
         function syncRoute() {
           if (state.from === state.to) state.to = formats.find(function (item) { return item.id !== state.from; }).id;
           document.querySelectorAll("[data-route-from]").forEach(function (node) { node.textContent = state.from; });
@@ -793,7 +908,7 @@
           document.querySelectorAll("[data-input-mode]").forEach(function (node) { node.textContent = state.universal ? "AUTO-DETECT" : "STRICT " + state.from; });
           document.querySelectorAll("[data-drop-title]").forEach(function (node) { node.textContent = state.universal ? "DROP ANY SUPPORTED IMAGE" : "DROP " + state.from + " IMAGE"; });
           document.querySelectorAll("[data-validation-copy]").forEach(function (node) { node.textContent = state.universal ? "Input will be detected from the file" : state.from + " input expected"; });
-          document.querySelectorAll("[data-execute]").forEach(function (node) { node.textContent = "CONVERT " + state.from + " → " + state.to; });
+          document.querySelectorAll("[data-execute]").forEach(function (node) { node.textContent = "APPLY CHANGES // PREVIEW " + state.from + " → " + state.to; });
           document.querySelectorAll("[data-route-summary]").forEach(function (node) { node.textContent = state.from + " → " + state.to; });
           document.querySelectorAll("[data-route-summary-code]").forEach(function (node) { node.textContent = ticketCode(state.from, state.to); });
           document.querySelectorAll("[data-route-note]").forEach(function (node) { node.textContent = formatInfo(state.to).note; });
@@ -809,14 +924,33 @@
           document.querySelectorAll("[data-target]").forEach(function (button) { button.classList.toggle("active", button.dataset.target === state.to); });
           document.querySelectorAll(".route-card").forEach(function (button) { button.classList.toggle("active", button.dataset.from === state.from && button.dataset.to === state.to); });
           document.querySelectorAll(".matrix-cell button").forEach(function (button) { button.classList.toggle("active", button.dataset.from === state.from && button.dataset.to === state.to); });
-          setStatus("READY // Route selected: " + state.from + " to " + state.to + ". Upload one image to continue.");
+          updateSourceLockUI();
+          setStatus(state.file
+            ? "FILE READY // Input remains locked to " + state.from + "; target output is now " + state.to + ". Apply changes to preview."
+            : "READY // Route selected: " + state.from + " to " + state.to + ". Upload one image to continue.");
         }
 
         function chooseRoute(from, to, scroll) {
+          const requestedFrom = normalize(from);
+
+          /*
+           * IF BLOCK: Photo already selected hai aur naya route doosra source maangta
+           * hai to state change hone se PEHLE request block hoti hai. Existing photo
+           * reset/lost nahi hoti; user remove button se consciously new start karega.
+           */
+          if (state.file && requestedFrom !== state.from) {
+            showFormatWarning("INPUT LOCKED // Current photo is " + state.from + ". Remove/reset it before selecting " + requestedFrom + " as input.");
+            syncRoute();
+            setStatus("INPUT LOCKED // " + state.from + " photo cannot be treated as " + requestedFrom + ". Remove the current photo and start again.", "error");
+            return;
+          }
+
           state.universal = false;
-          state.from = normalize(from);
+          state.from = requestedFrom;
           state.to = normalize(to);
           if (state.from === state.to) state.to = formats.find(function (item) { return item.id !== state.from; }).id;
+          showFormatWarning("");
+          invalidateAppliedResult();
           renderRouteDirectories();
           syncRoute();
           if (scroll) {
@@ -826,6 +960,13 @@
         }
 
         function setUniversal(scroll) {
+          /* Valid file ke beech Universal mode source identity hata deta; isliye block. */
+          if (state.file) {
+            showFormatWarning("INPUT LOCKED // Remove the current " + state.from + " photo before starting Universal mode.");
+            setStatus("INPUT LOCKED // Remove the current photo before changing source mode.", "error");
+            return;
+          }
+
           state.universal = true;
           document.querySelectorAll("[data-input-mode]").forEach(function (node) { node.textContent = "AUTO-DETECT"; });
           syncRoute();
@@ -873,9 +1014,61 @@
           const redoBtn = document.getElementById("btnRedo");
           const zoomControl = document.getElementById("zoomControl");
           if (rotateBtn) rotateBtn.disabled = !hasImage;
-          if (undoBtn) undoBtn.disabled = !state.undoSnapshot;
-          if (redoBtn) redoBtn.disabled = !state.redoSnapshot;
+
+          /*
+           * KYA: Array length button enable/disable aur visible step counter dono banati hai.
+           * EXAMPLE: undoStack.length 4 hai to button "UNDO (4)" aur 4 clicks work.
+           */
+          if (undoBtn) {
+            undoBtn.disabled = state.undoStack.length === 0;
+            undoBtn.textContent = "↶ UNDO (" + state.undoStack.length + ")";
+          }
+          if (redoBtn) {
+            redoBtn.disabled = state.redoStack.length === 0;
+            redoBtn.textContent = "↷ REDO (" + state.redoStack.length + ")";
+          }
           if (zoomControl) zoomControl.disabled = !hasImage;
+        }
+
+        /* ====================================================================
+           KYA: Original Source comparison cells ko one function se update karta hai.
+           KYUN: Browser preview aur Python /inspect dono same UI data update kar sakte hain.
+        ==================================================================== */
+        function updateOriginalStatistics(file, format, width, height, dpi) {
+          state.originalWidth = Number(width) || state.originalWidth || 0;
+          state.originalHeight = Number(height) || state.originalHeight || 0;
+          state.originalFormat = format || state.originalFormat || "—";
+          state.originalDpi = Number(dpi) || state.originalDpi || 72;
+
+          document.querySelectorAll("[data-original-stat-size]").forEach(function (node) { node.textContent = humanSize(file.size); });
+          document.querySelectorAll("[data-original-stat-format]").forEach(function (node) { node.textContent = state.originalFormat; });
+          document.querySelectorAll("[data-original-stat-dims]").forEach(function (node) {
+            node.textContent = state.originalWidth && state.originalHeight ? state.originalWidth + " × " + state.originalHeight + " px" : "READING…";
+          });
+          document.querySelectorAll("[data-original-stat-width]").forEach(function (node) { node.textContent = state.originalWidth ? state.originalWidth + " px" : "READING…"; });
+          document.querySelectorAll("[data-original-stat-height]").forEach(function (node) { node.textContent = state.originalHeight ? state.originalHeight + " px" : "READING…"; });
+        }
+
+        /*
+         * KYA: Python /inspect real decoder se TIF/SVG samet source dimensions padhta hai.
+         * KYUN: Kuch browsers TIFF preview nahi dikhate, lekin statistics phir bhi exact honi chahiye.
+         * CATCH EFFECT: Server off ho to normal browser-supported preview continue karega.
+         */
+        async function inspectSourceFile(file, expectedFormat) {
+          const formData = new FormData();
+          formData.append("image", file, file.name);
+          formData.append("expected_input_format", expectedFormat);
+
+          try {
+            const response = await fetch("http://127.0.0.1:5000/inspect", { method: "POST", body: formData });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.error || "Source inspection failed.");
+
+            updateOriginalStatistics(file, payload.format, payload.width, payload.height, payload.dpi);
+            document.querySelectorAll("[data-file-dims]").forEach(function (node) { node.textContent = payload.width + " × " + payload.height + " px"; });
+          } catch (error) {
+            setStatus("SOURCE READY // Browser preview loaded. Python inspection is unavailable: " + error.message, "processing");
+          }
         }
 
         function chooseFile(file) {
@@ -898,9 +1091,9 @@
             if (state.to === state.from) state.to = formats.find(function (item) { return item.id !== state.from; }).id;
             renderRouteDirectories();
             syncRoute();
-          } else if (detected !== state.from && !(detected === "JPEG" && state.from === "JPG") && !(detected === "JPG" && state.from === "JPEG")) {
+          } else if (detected !== state.from) {
             setStatus("FORMAT MISMATCH // This route expects " + state.from + ", but the selected file appears to be " + detected + ".", "error");
-            showFormatWarning("FORMAT MISMATCH // This route expects " + state.from + ", but the selected file appears to be " + detected + ".");
+            showFormatWarning("FORMAT MISMATCH // This route expects " + state.from + ", but the selected file appears to be " + detected + ". Remove/reset and start with the correct source route.");
             const input = document.getElementById("hybridFileInput");
             if (input) input.value = "";
             return;
@@ -911,12 +1104,19 @@
           state.workingCanvas = null;
           state.rotation = 0;
           state.zoom = 1;
-          state.undoSnapshot = null;
-          state.redoSnapshot = null;
+          state.undoStack = [];
+          state.redoStack = [];
+          if (state.resultUrl) URL.revokeObjectURL(state.resultUrl);
+          state.resultUrl = null;
           state.resultBlob = null;
           state.resultMeta = null;
+          state.originalFormat = detected;
+          state.originalWidth = 0;
+          state.originalHeight = 0;
           hideResultPanel();
           updateToolbarState();
+          updateSourceLockUI();
+          updateOriginalStatistics(file, detected, 0, 0, 72);
 
           document.querySelectorAll("[data-file-meta]").forEach(function (node) { node.classList.add("visible"); });
           document.querySelectorAll("[data-file-name]").forEach(function (node) { node.textContent = file.name; });
@@ -939,10 +1139,12 @@
               const hInput = document.getElementById("heightControl");
               if (wInput) wInput.placeholder = String(node.naturalWidth);
               if (hInput) hInput.placeholder = String(node.naturalHeight);
+              updateOriginalStatistics(file, detected, node.naturalWidth, node.naturalHeight, state.originalDpi);
               updateToolbarState();
             };
             node.onerror = function () { setStatus("PREVIEW LIMIT // This format needs the production decoder. The route remains configured.", "processing"); };
           });
+          inspectSourceFile(file, state.from);
           setStatus("FILE READY // " + file.name + " is queued for " + state.from + " → " + state.to + ".");
         }
 
@@ -955,10 +1157,16 @@
           state.workingCanvas = null;
           state.rotation = 0;
           state.zoom = 1;
-          state.undoSnapshot = null;
-          state.redoSnapshot = null;
+          state.undoStack = [];
+          state.redoStack = [];
+          if (state.resultUrl) URL.revokeObjectURL(state.resultUrl);
+          state.resultUrl = null;
           state.resultBlob = null;
           state.resultMeta = null;
+          state.originalFormat = null;
+          state.originalWidth = 0;
+          state.originalHeight = 0;
+          state.originalDpi = 72;
           document.querySelectorAll("[data-file-meta]").forEach(function (node) { node.classList.remove("visible"); });
           document.querySelectorAll("[data-preview-stage]").forEach(function (stage) { stage.classList.remove("has-image"); });
           document.querySelectorAll("[data-preview-image]").forEach(function (node) { node.removeAttribute("src"); node.style.transform = "scale(1)"; });
@@ -966,6 +1174,7 @@
           showFormatWarning("");
           hideResultPanel();
           updateToolbarState();
+          updateSourceLockUI();
           setStatus("READY // Select a route or upload one image.");
         }
 
@@ -994,18 +1203,30 @@
           setTimeout(function () { URL.revokeObjectURL(url); }, 1800);
         }
 
-        function cloneCanvas(source) {
-          const copy = document.createElement("canvas");
-          copy.width = source.width;
-          copy.height = source.height;
-          copy.getContext("2d").drawImage(source, 0, 0);
-          return copy;
+        /*
+         * KYA: Current canvas reference + rotation ek history snapshot me pack hoti hai.
+         * KYUN CLONE NAHI: Rotate function purane canvas ko mutate nahi karti; naya canvas
+         * banati hai. Purana reference safely history me reh sakta aur memory double nahi hoti.
+         */
+        function currentEditSnapshot() {
+          return { canvas: state.workingCanvas, rotation: state.rotation };
+        }
+
+        /* Undo/Redo snapshot ko actual working preview me restore karta hai. */
+        function restoreEditSnapshot(snapshot) {
+          state.workingCanvas = snapshot.canvas;
+          state.rotation = snapshot.rotation;
+          updatePreviewFromWorkingCanvas();
+          invalidateAppliedResult();
+          updateToolbarState();
         }
 
         function rotateImage() {
           if (!state.workingCanvas) return;
-          state.undoSnapshot = cloneCanvas(state.workingCanvas);
-          state.redoSnapshot = null;
+
+          /* Har edit se PEHLE current state undo array me push hoti hai. */
+          state.undoStack.push(currentEditSnapshot());
+          state.redoStack = [];
           const source = state.workingCanvas;
           const rotated = document.createElement("canvas");
           rotated.width = source.height;
@@ -1017,30 +1238,29 @@
           state.workingCanvas = rotated;
           state.rotation = (state.rotation + 90) % 360;
           updatePreviewFromWorkingCanvas();
+          invalidateAppliedResult();
           updateToolbarState();
-          setStatus("ROTATED // Image is now rotated " + state.rotation + "° from the original.");
+          setStatus("ROTATED // Image is " + state.rotation + "° from original. " + state.undoStack.length + " undo step(s) available.");
         }
 
         function undoEdit() {
-          if (!state.undoSnapshot) return;
-          state.redoSnapshot = cloneCanvas(state.workingCanvas);
-          state.workingCanvas = state.undoSnapshot;
-          state.undoSnapshot = null;
-          state.rotation = (state.rotation + 270) % 360;
-          updatePreviewFromWorkingCanvas();
-          updateToolbarState();
-          setStatus("UNDONE // Reverted the last rotate.");
+          if (state.undoStack.length === 0 || !state.workingCanvas) return;
+
+          /* Current state redo me save; previous undo state pop karke restore. */
+          state.redoStack.push(currentEditSnapshot());
+          const previous = state.undoStack.pop();
+          restoreEditSnapshot(previous);
+          setStatus("UNDONE // " + state.undoStack.length + " undo and " + state.redoStack.length + " redo step(s) remain.");
         }
 
         function redoEdit() {
-          if (!state.redoSnapshot) return;
-          state.undoSnapshot = cloneCanvas(state.workingCanvas);
-          state.workingCanvas = state.redoSnapshot;
-          state.redoSnapshot = null;
-          state.rotation = (state.rotation + 90) % 360;
-          updatePreviewFromWorkingCanvas();
-          updateToolbarState();
-          setStatus("REDONE // Re-applied the rotate.");
+          if (state.redoStack.length === 0 || !state.workingCanvas) return;
+
+          /* Current state undo me save; next redo state pop karke restore. */
+          state.undoStack.push(currentEditSnapshot());
+          const next = state.redoStack.pop();
+          restoreEditSnapshot(next);
+          setStatus("REDONE // " + state.undoStack.length + " undo and " + state.redoStack.length + " redo step(s) remain.");
         }
 
         function applyZoom(percent) {
@@ -1066,6 +1286,20 @@
         function hideResultPanel() {
           document.querySelectorAll("[data-result-panel]").forEach(function (node) { node.classList.remove("visible"); });
           document.querySelectorAll("[data-download]").forEach(function (node) { node.disabled = true; });
+          document.querySelectorAll("[data-result-preview-stage]").forEach(function (node) { node.classList.remove("preview-unavailable"); });
+        }
+
+        /*
+         * KYA: Apply ke baad user koi route/edit/setting change kare to old result invalid.
+         * KYUN: Purane blob ko naye controls ke statistics ke saath download nahi hona chahiye.
+         */
+        function invalidateAppliedResult() {
+          if (state.resultUrl) URL.revokeObjectURL(state.resultUrl);
+          state.resultUrl = null;
+          state.resultBlob = null;
+          state.resultMeta = null;
+          document.querySelectorAll("[data-result-preview]").forEach(function (node) { node.removeAttribute("src"); });
+          hideResultPanel();
         }
 
         function showResultPanel(meta) {
@@ -1074,9 +1308,31 @@
           document.querySelectorAll("[data-result-format]").forEach(function (node) { node.textContent = meta.format; });
           document.querySelectorAll("[data-result-dpi]").forEach(function (node) { node.textContent = meta.dpi + " DPI"; });
           document.querySelectorAll("[data-result-match]").forEach(function (node) {
-            node.textContent = meta.targetMatched === null ? "NO TARGET SET" : (meta.targetMatched ? "MATCHES TARGET" : "CLOSEST POSSIBLE");
+            node.textContent = meta.targetMatched === null ? "NO TARGET SET" : (meta.targetMatched ? "EXACT TARGET MATCH" : "TARGET MISMATCH");
             node.parentElement.querySelector("[data-result-size]").className = meta.targetMatched === false ? "" : "match";
           });
+
+          /* Target comparison columns actual response blob/header values se fill. */
+          document.querySelectorAll("[data-target-stat-size]").forEach(function (node) {
+            node.textContent = humanSize(meta.sizeBytes) + " // " + meta.sizeBytes.toLocaleString() + " bytes";
+            node.classList.toggle("exact-match", meta.targetMatched === true);
+          });
+          document.querySelectorAll("[data-target-stat-format]").forEach(function (node) { node.textContent = meta.format; });
+          document.querySelectorAll("[data-target-stat-dims]").forEach(function (node) { node.textContent = meta.width + " × " + meta.height + " px"; });
+          document.querySelectorAll("[data-target-stat-width]").forEach(function (node) { node.textContent = meta.width + " px"; });
+          document.querySelectorAll("[data-target-stat-height]").forEach(function (node) { node.textContent = meta.height + " px"; });
+
+          /* Actual output blob ko preview URL banakar download se pehle display. */
+          if (state.resultUrl) URL.revokeObjectURL(state.resultUrl);
+          state.resultUrl = URL.createObjectURL(state.resultBlob);
+          document.querySelectorAll("[data-result-preview]").forEach(function (node) {
+            const stage = node.closest("[data-result-preview-stage]");
+            if (stage) stage.classList.remove("preview-unavailable");
+            node.onload = function () { if (stage) stage.classList.remove("preview-unavailable"); };
+            node.onerror = function () { if (stage) stage.classList.add("preview-unavailable"); };
+            node.src = state.resultUrl;
+          });
+
           document.querySelectorAll("[data-result-panel]").forEach(function (node) { node.classList.add("visible"); });
           document.querySelectorAll("[data-download]").forEach(function (node) { node.disabled = false; });
         }
@@ -1134,22 +1390,33 @@
         }
 
         async function executeConversion() {
-          if (!state.file || !state.workingCanvas) {
+          if (!state.file) {
             setStatus("ACTION NEEDED // Upload an image before applying a conversion.", "error");
             const dropzone = document.querySelector("[data-dropzone]");
             if (dropzone) dropzone.scrollIntoView({ behavior: "smooth", block: "center" });
             return;
           }
+
+          /* Button lock duplicate/spam conversion request ko prevent karta hai. */
+          const applyButton = document.querySelector("[data-execute]");
+          const applyButtonText = applyButton ? applyButton.textContent : "";
+          if (applyButton) {
+            applyButton.disabled = true;
+            applyButton.textContent = "APPLYING // PYTHON ENGINE…";
+          }
+
           setStatus("PROCESSING // Sending to Backend Python Engine for " + state.to + " output…", "processing");
           try {
             const widthInput = document.getElementById("widthControl");
             const heightInput = document.getElementById("heightControl");
             const requestedWidth = widthInput && Number(widthInput.value);
             const requestedHeight = heightInput && Number(heightInput.value);
-            let width = requestedWidth || state.workingCanvas.width;
-            let height = requestedHeight || state.workingCanvas.height;
-            if (requestedWidth && !requestedHeight) height = Math.round(width * (state.workingCanvas.height / state.workingCanvas.width));
-            if (requestedHeight && !requestedWidth) width = Math.round(height * (state.workingCanvas.width / state.workingCanvas.height));
+            const baseWidth = state.workingCanvas ? state.workingCanvas.width : state.originalWidth;
+            const baseHeight = state.workingCanvas ? state.workingCanvas.height : state.originalHeight;
+            let width = requestedWidth || baseWidth;
+            let height = requestedHeight || baseHeight;
+            if (requestedWidth && !requestedHeight && baseWidth && baseHeight) height = Math.round(width * (baseHeight / baseWidth));
+            if (requestedHeight && !requestedWidth && baseWidth && baseHeight) width = Math.round(height * (baseWidth / baseHeight));
 
             const targetKbInput = document.getElementById("targetKb");
             const targetKb = targetKbInput && Number(targetKbInput.value);
@@ -1159,11 +1426,22 @@
             const dpi = dpiNode ? Number(dpiNode.value) : 72;
 
             const formData = new FormData();
-            const canvasBlobData = await new Promise(resolve => state.workingCanvas.toBlob(resolve, state.file.type || 'image/png'));
-            formData.append('image', canvasBlobData, state.file.name);
-            
-            formData.append('width', width);
-            formData.append('height', height);
+
+            /*
+             * source_image ALWAYS untouched original hai—Python isi se input format lock verify karega.
+             * image edited PNG canvas hai. Browser TIF decode na kare to original hi working image banti hai.
+             */
+            formData.append("source_image", state.file, state.file.name);
+            if (state.workingCanvas) {
+              const canvasBlobData = await new Promise(function (resolve) { state.workingCanvas.toBlob(resolve, "image/png"); });
+              if (!canvasBlobData) throw new Error("Browser could not prepare the edited preview.");
+              formData.append("image", canvasBlobData, "edited-working-copy.png");
+            } else {
+              formData.append("image", state.file, state.file.name);
+            }
+
+            if (width) formData.append('width', width);
+            if (height) formData.append('height', height);
             formData.append('dpi', dpi);
             formData.append('quality', quality);
             formData.append('output_format', state.to);
@@ -1183,22 +1461,34 @@
             const blob = await response.blob();
             let targetMatched = null;
             if (targetKb) {
-              targetMatched = blob.size <= targetKb * 1024 * 1.05;
+              /* Highest priority exact check: tolerance/5% approximation bilkul nahi. */
+              targetMatched = blob.size === Math.round(targetKb * 1024);
             }
+
+            /* Python may reduce dimensions only when exact target otherwise impossible. */
+            const actualWidth = Number(response.headers.get("X-Output-Width")) || width;
+            const actualHeight = Number(response.headers.get("X-Output-Height")) || height;
+            const actualFormat = response.headers.get("X-Output-Format") || state.to;
+            const actualDpi = Number(response.headers.get("X-Output-DPI")) || dpi;
 
             state.resultBlob = blob;
             state.resultMeta = {
-              width: width,
-              height: height,
-              format: state.to,
-              dpi: dpi,
+              width: actualWidth,
+              height: actualHeight,
+              format: actualFormat,
+              dpi: actualDpi,
               sizeBytes: blob.size,
               targetMatched: targetKb ? targetMatched : null
             };
             showResultPanel(state.resultMeta);
-            setStatus("APPLIED // " + state.to + " result ready at " + width + "×" + height + " px, " + humanSize(blob.size) + ". Review RESULT_SUMMARY, then download.");
+            setStatus("APPLIED // " + actualFormat + " result is " + actualWidth + "×" + actualHeight + " px and " + humanSize(blob.size) + (targetKb ? " // EXACT " + blob.size.toLocaleString() + " BYTE TARGET MATCH." : ".") + " Review preview/statistics before download.");
           } catch (error) {
             setStatus("BACKEND ERROR // " + error.message, "error");
+          } finally {
+            if (applyButton) {
+              applyButton.disabled = false;
+              applyButton.textContent = applyButtonText;
+            }
           }
         }
 
@@ -1229,7 +1519,10 @@
           document.querySelectorAll("[data-remove-file]").forEach(function (button) { button.addEventListener("click", clearFile); });
           const quality = document.getElementById("qualityControl");
           const qualityText = document.getElementById("qualityText");
-          if (quality && qualityText) quality.addEventListener("input", function () { qualityText.textContent = quality.value + "%"; });
+          if (quality && qualityText) quality.addEventListener("input", function () {
+            qualityText.textContent = quality.value + "%";
+            invalidateAppliedResult();
+          });
 
           const rotateBtn = document.getElementById("btnRotate");
           const undoBtn = document.getElementById("btnUndo");
@@ -1242,11 +1535,23 @@
           if (zoomControl) zoomControl.addEventListener("input", function () { applyZoom(Number(zoomControl.value)); });
 
           const lockRatio = document.getElementById("lockRatio");
-          if (lockRatio) lockRatio.addEventListener("change", function () { state.lockRatio = lockRatio.checked; });
+          if (lockRatio) lockRatio.addEventListener("change", function () {
+            state.lockRatio = lockRatio.checked;
+            invalidateAppliedResult();
+          });
           const widthControl = document.getElementById("widthControl");
           const heightControl = document.getElementById("heightControl");
-          if (widthControl) widthControl.addEventListener("input", function () { syncLockedDimension("width"); });
-          if (heightControl) heightControl.addEventListener("input", function () { syncLockedDimension("height"); });
+          if (widthControl) widthControl.addEventListener("input", function () { syncLockedDimension("width"); invalidateAppliedResult(); });
+          if (heightControl) heightControl.addEventListener("input", function () { syncLockedDimension("height"); invalidateAppliedResult(); });
+
+          /*
+           * Target KB / DPI badalne ke baad purana applied blob valid result nahi hai.
+           * User ko APPLY CHANGES dobara click karke fresh preview verify karna hoga.
+           */
+          const targetKb = document.getElementById("targetKb");
+          const dpiControl = document.getElementById("dpiControl");
+          if (targetKb) targetKb.addEventListener("input", invalidateAppliedResult);
+          if (dpiControl) dpiControl.addEventListener("change", invalidateAppliedResult);
 
           const fileInput = document.getElementById("hybridFileInput");
           if (fileInput) fileInput.addEventListener("change", function (event) { chooseFile(event.target.files[0]); });
