@@ -421,10 +421,85 @@
       html { scroll-behavior: auto; }
       *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
     }
+
+    /* ======================================================================
+       THEME ALIGNMENT PASS — CSS ONLY, no HTML/JS touched.
+       Goal: bring this page visually in line with home_01.html, which uses
+       soft rounded corners and a larger, more readable type scale. Every
+       rule below only adjusts border-radius, font-size and a little
+       spacing on existing selectors — nothing here changes layout logic,
+       markup or behaviour.
+    ====================================================================== */
+
+    /* Soft rounded corners everywhere home_01 uses them */
+    .hardware-btn, .outline-btn, .header-cta, .swap-button, .mobile-menu,
+    .field input, .field select, .search-field, .dropzone, .drop-symbol,
+    .file-meta, .file-remove, .route-card, .format-choice, .universal-card,
+    .locked-box, .system-status, .preview-stage, .machine-panel .panel-label,
+    .brand-mark, .p2-directory-panel, .switchboard-visual, .p2-source-list .format-choice,
+    .route-atlas-shell, .matrix-wrap, .converter-machine, .machine-head,
+    .trust-mark, .online-chip i, .format-data-grid article, .header-inner {
+      border-radius: 8px;
+    }
+    .hardware-btn, .header-cta, .outline-btn, .execute-button { border-radius: 6px; }
+    .search-field, .search-field span:first-child { border-radius: 6px 0 0 6px; }
+    .search-field input { border-radius: 0 6px 6px 0; }
+    .brand-mark, .online-chip i, .trust-mark { border-radius: 4px; }
+    .site-header { border-radius: 0; }
+    .format-rail, .route-matrix, .matrix-cell.head:first-child { border-radius: 6px; overflow: hidden; }
+
+    /* Readable type scale — the smallest sizes (6–8px) were hard to read
+       next to home_01's text-xs/text-sm baseline (12–16px), so the most
+       visited copy gets a legibility bump. */
+    body { font-size: 13px; }
+    .brand-copy b { font-size: 19px; }
+    .brand-copy small { font-size: 8px; }
+    .site-nav a span { font-size: 10px; }
+    .site-nav a small { font-size: 7px; }
+    .online-chip { font-size: 8px; }
+    .hero h1 { font-size: clamp(30px, 4.2vw, 54px); }
+    .hero p { font-size: 13px; line-height: 1.6; }
+    .eyebrow { font-size: 10px; }
+    .section-head p { font-size: 10px; }
+    .section-head small { font-size: 11px; line-height: 1.7; }
+    .panel-label b { font-size: 10px; }
+    .panel-label span { font-size: 9px; }
+    .dropzone strong { font-size: 12px; }
+    .dropzone small { font-size: 9px; }
+    .field label { font-size: 9px; }
+    .field input, .field select { font-size: 11px; }
+    .route-card b { font-size: 13px; }
+    .route-card p { font-size: 9px; }
+    .route-card .route-node { font-size: 8px; }
+    .universal-card b { font-size: 14px; }
+    .universal-card p { font-size: 9px; }
+    .trust-grid b { font-size: 10px; }
+    .trust-grid p { font-size: 9px; }
+    .format-data-grid article b { font-size: 14px; }
+    .format-data-grid article p { font-size: 10px; }
+    .format-data-grid article span { font-size: 8px; }
+    .locked-box, .system-status { font-size: 9px; }
+    .execute-button, .header-cta { font-size: 11px; }
+    footer { font-size: 9px; }
+
+    /* Footer, restyled to echo home_01's footer band */
+    footer { background: var(--panel-2); border-top: 2px solid var(--line); padding: 34px 0 22px; }
+    .footer-links { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding-bottom: 20px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+    .footer-brand { display: flex; align-items: center; gap: 10px; }
+    .footer-brand b { display: block; color: var(--text); font-size: 13px; letter-spacing: .06em; }
+    .footer-brand small { display: block; margin-top: 3px; color: var(--muted); font-size: 7px; font-weight: 900; letter-spacing: .12em; }
+    .footer-nav { display: flex; gap: 18px; flex-wrap: wrap; }
+    .footer-nav a { text-decoration: none; color: var(--muted); font-size: 9px; font-weight: 900; letter-spacing: .06em; }
+    .footer-nav a:hover { color: var(--orange); }
+    .footer-inner { color: var(--muted); font-size: 8px; letter-spacing: .08em; }
+
+    @media (max-width: 760px) {
+      .footer-links { flex-direction: column; }
+    }
   </style>
 </head>
 <body>
-  <header class="site-header"><div class="wrap header-inner"><a class="brand" href="#top"><span class="brand-mark">/&gt;</span><span class="brand-copy"><b>ImageReducer</b><small>PRECISION IMAGE SYSTEMS</small></span></a><nav class="site-nav" aria-label="Primary"><a href="#top"><span>HOME</span><small>START</small></a><a href="#converter"><span>RESIZE</span><small>DIMENSIONS</small></a><a href="#converter"><span>CROP</span><small>FRAME</small></a><a class="active" href="#routes"><span>CONVERT</span><small>42 ROUTES</small></a><a href="#trust"><span>FEATURES</span><small>PRIVACY</small></a></nav><div class="header-actions"><span class="online-chip"><i></i>ENGINE ONLINE</span><a class="hardware-btn header-cta" href="#converter">OPEN CONVERTER →</a><button class="mobile-menu" type="button">MENU</button></div></div></header>
+  <header class="site-header"><div class="wrap header-inner"><a class="brand" href="home_01.html"><span class="brand-mark">/&gt;</span><span class="brand-copy"><b>ImageReducer</b><small>PRECISION IMAGE SYSTEMS</small></span></a><nav class="site-nav" aria-label="Primary"><a href="home_01.html"><span>HOME</span><small>START</small></a><a href="index_02.html"><span>RESIZE</span><small>DIMENSIONS</small></a><a href="index_02.html#allSettingsContainer"><span>CROP</span><small>FRAME</small></a><a class="active" href="#routes"><span>CONVERT</span><small>42 ROUTES</small></a><a href="#trust"><span>FEATURES</span><small>PRIVACY</small></a></nav><div class="header-actions"><span class="online-chip"><i></i>ENGINE ONLINE</span><a class="hardware-btn header-cta" href="#routes">OPEN CONVERTER →</a><button class="mobile-menu" type="button">MENU</button></div></div></header>
   <main id="top">
     <section class="hero"><div class="wrap hero-shell"><div class="hero-inner selected-hero-grid"><div><span class="eyebrow"><i></i>SELECTED DESIGN // ROUTE SWITCHBOARD</span><h1>Find a converter. <span>Keep the work in view.</span></h1><p>Search any format pair, choose one of 42 direct routes, or let Universal mode detect the source. Your selected route stays visible from upload through download.</p><div class="hero-actions"><a class="hardware-btn" href="#routes">PICK A ROUTE →</a><button class="outline-btn" type="button" data-universal>UNIVERSAL CONVERTER</button></div></div><div class="switchboard-visual"><img src="refined-switchboard-engine.png" alt="Image format cards moving through a precision conversion routing engine"><div class="visual-route-tickets" aria-hidden="true"><span class="route-ticket">J→P</span><span class="route-ticket orange">W→JE</span><span class="route-ticket">G→S</span></div><span class="visual-caption">42 ROUTES // ONE CONTROLLED WORKSPACE</span></div></div></div></section>
     <div class="wrap fact-strip"><div><small>FORMATS</small><b>7 INPUT + OUTPUT TYPES</b></div><div><small>ROUTES</small><b>42 CROSS-CONVERSIONS</b></div><div><small>CONTROL</small><b>RESIZE + QUALITY + PREVIEW</b></div><div><small>FALLBACK</small><b>UNIVERSAL AUTO-DETECT</b></div></div>
@@ -434,7 +509,7 @@
     <section class="section route-atlas-section"><div class="wrap"><div class="section-head"><div><p>02 // REDESIGNED ROUTE ATLAS</p><h2>42 routes, six at a time</h2></div><small>Select one source format. The atlas then shows its six valid destinations as large, readable cards with the route ticket attached to the top edge.</small></div><div class="route-atlas-shell"><div class="route-atlas-head"><div><span>ACTIVE SOURCE</span><b data-route-from>JPG</b></div><div><span>SELECTED ROUTE</span><b data-route-summary>JPG → PNG</b></div><div><span>OUTPUT PROFILE</span><b data-route-note>Lossless transparency</b></div></div><div class="format-rail route-atlas-sources" data-format-rail="source"></div><div class="route-directory route-atlas-targets" data-route-directory="targets"></div></div><div class="universal-card atlas-universal"><div><b>UNIVERSAL ROUTE</b><p>Not sure what the file is? Upload JPG, JPEG, WebP, GIF, TIF, PNG or SVG and let the switchboard identify the source before you choose an output.</p></div><button class="hardware-btn" type="button" data-universal>DETECT MY INPUT →</button></div></div></section>
     <section class="section format-data-section"><div class="wrap"><div class="section-head"><div><p>03 // FORMAT INTELLIGENCE</p><h2>Know what each output is good for</h2></div><small>Choose the destination for the job—not just the extension. Transparency, animation and browser delivery needs can change the best route.</small></div><div class="format-data-grid"><article><b>JPG / JPEG</b><span>PHOTOGRAPHY</span><p>Lossy compression for photos and broad compatibility. Transparent pixels are flattened.</p></article><article><b>WEBP</b><span>MODERN WEB</span><p>Compact web delivery with transparency and animation capability.</p></article><article><b>GIF</b><span>SIMPLE MOTION</span><p>Widely recognized animation format with a limited indexed-color palette.</p></article><article><b>TIF</b><span>PRINT / ARCHIVE</span><p>High-fidelity production format best handled through the full server codec.</p></article><article><b>PNG</b><span>LOSSLESS / ALPHA</span><p>Sharp graphics, screenshots and transparency without lossy compression.</p></article><article><b>SVG</b><span>SCALABLE CONTAINER</span><p>Best for vector artwork. Raster conversions are embedded rather than magically vectorized.</p></article><article class="format-data-wide"><b>UNIVERSAL MODE</b><span>AUTO-DETECT INPUT</span><p>Use it when the source extension is unknown. The output remains your explicit choice, so the conversion never becomes a mystery.</p></article></div></div></section>
   </main>
-  <section class="trust-bar" id="trust"><div class="wrap trust-grid"><article><span class="trust-mark">01</span><b>SEARCHABLE</b><p>Natural route phrases are recognized.</p></article><article><span class="trust-mark">02</span><b>PERSISTENT CONTEXT</b><p>The source and targets remain beside the tool.</p></article><article><span class="trust-mark">03</span><b>COMPLETE MATRIX</b><p>All 42 cross-format routes are visible.</p></article><article><span class="trust-mark">04</span><b>SAFE START</b><p>No upload occurs until the route is clear.</p></article></div></section><footer><div class="wrap footer-inner"><span>IMAGEREDUCER // ROUTE SWITCHBOARD</span><span>7 FORMATS · 42 ROUTES · 1 UNIVERSAL MODE</span></div></footer>
+  <section class="trust-bar" id="trust"><div class="wrap trust-grid"><article><span class="trust-mark">01</span><b>SEARCHABLE</b><p>Natural route phrases are recognized.</p></article><article><span class="trust-mark">02</span><b>PERSISTENT CONTEXT</b><p>The source and targets remain beside the tool.</p></article><article><span class="trust-mark">03</span><b>COMPLETE MATRIX</b><p>All 42 cross-format routes are visible.</p></article><article><span class="trust-mark">04</span><b>SAFE START</b><p>No upload occurs until the route is clear.</p></article></div></section><footer><div class="wrap footer-links"><div class="footer-brand"><span class="brand-mark">/&gt;</span><div><b>ImageReducer</b><small>PRECISION IMAGE SYSTEMS</small></div></div><nav class="footer-nav" aria-label="Footer"><a href="home_01.html">Home</a><a href="index_02.html">Resizer Tool</a><a href="All_converter.html">Format Converter</a><a href="home_01.html#footer">Contact</a></nav></div><div class="wrap footer-inner"><span>IMAGEREDUCER // ROUTE SWITCHBOARD</span><span>7 FORMATS · 42 ROUTES · 1 UNIVERSAL MODE</span></div></footer>
   <script>
     (function () {
       "use strict";

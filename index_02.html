@@ -138,6 +138,19 @@
         input[type=range]:disabled::-webkit-slider-thumb { border-color: #9CA3AF; background: #E5E7EB; cursor: not-allowed;}
         input[type=range]:disabled::-webkit-slider-runnable-track { cursor: not-allowed; }
 
+        /* Dropdown menu styling — matched from home_01.html so the CONVERTER nav item behaves the same way here */
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            min-width: 240px;
+            z-index: 100;
+        }
+        .dropdown-container:hover .dropdown-menu {
+            display: block;
+        }
+
         /* INSPECT (Fullscreen) Modal styling */
         .compare-modal {
             position: fixed; inset: 0; z-index: 9999; background: rgba(17, 24, 39, 0.98);
@@ -165,19 +178,51 @@
     * KYUN KAR RAHA HAIN: User ko website ka naam aur status pata chale.
     ======================================================================
     -->
-    <header class="max-w-[1400px] mx-auto flex items-center justify-between mb-8 bg-white p-4 border-2 border-gray-300 rounded shadow-sm">
-        <a href="home_01.html" class="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity duration-300">
-            <div class="w-12 h-12 bg-indOrange text-white rounded flex items-center justify-center text-xl font-black shadow-md">/></div>
-            <div>
-                <h1 class="text-3xl font-black text-indText tracking-tight">SYS.IMG_CORE</h1>
-                <p class="text-gray-500 font-bold text-xs mt-0.5 tracking-wider">// INTELLIGENT RESIZE &amp; OPTIMIZATION ENGINE</p>
+    <header class="w-full sticky top-0 z-50 bg-white border-b border-gray-300 shadow-sm -mx-4 md:-mx-8 px-4 md:px-8 mb-8">
+        <div class="max-w-[1400px] mx-auto py-4 flex items-center justify-between gap-4 flex-wrap">
+
+            <!-- WEBSITE LOGO -->
+            <a href="home_01.html" class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition">
+                <div class="w-8 h-8 bg-indOrange text-white rounded-sm flex items-center justify-center font-black shadow-md">/></div>
+                <span class="text-xl font-bold tracking-widest text-indOrange">ImageReducer</span>
+            </a>
+
+            <!-- NAVIGATION MENU: matches home_01.html so the site feels like one connected system -->
+            <nav class="hidden md:flex items-center gap-6 text-sm tracking-widest text-gray-600 font-bold">
+                <a href="home_01.html" class="hover:text-indGreen transition">[ HOME ]</a>
+                <a href="index_02.html" class="text-indOrange font-black border-b-2 border-indOrange transition">[ RESIZE ]</a>
+                <a href="#allSettingsContainer" class="hover:text-indGreen transition">[ CROP ]</a>
+
+                <div class="dropdown-container relative py-2">
+                    <a href="All_converter.html" class="hover:text-indOrange text-indText font-black transition flex items-center gap-1 border-b-2 border-transparent hover:border-indOrange">
+                        [ CONVERTER &#9660; ]
+                    </a>
+                    <div class="dropdown-menu bg-white border-2 border-gray-300 shadow-2xl rounded-sm p-2">
+                        <div class="text-[10px] text-gray-400 font-black px-3 py-1 border-b border-gray-200">SELECT FORMAT</div>
+                        <a href="All_converter.html?from=jpg&amp;to=png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPG TO PNG</a>
+                        <a href="All_converter.html?from=jpeg&amp;to=png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPEG TO PNG</a>
+                        <a href="All_converter.html?from=png&amp;to=jpg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; PNG TO JPEG</a>
+                        <a href="All_converter.html?from=webp&amp;to=jpg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; WEBP TO JPEG</a>
+                        <div class="border-t border-gray-200 my-1"></div>
+                        <a href="All_converter.html?mode=universal" class="block px-3 py-2 text-xs bg-orange-50 text-indOrange hover:bg-indOrange hover:text-white transition font-black">&gt;&gt; UNIVERSAL CONVERTER</a>
+                    </div>
+                </div>
+
+                <a href="home_01.html#features" class="hover:text-indGreen transition">[ FEATURES ]</a>
+                <a href="home_01.html#footer" class="hover:text-indGreen transition">[ CONTACT ]</a>
+            </nav>
+
+            <div class="flex items-center gap-3">
+                <div class="hidden lg:block text-indGreen font-bold text-xs tracking-widest">&gt; SYSTEM: ONLINE</div>
+                <div class="px-3 py-1 bg-gray-100 border-2 border-gray-300 text-indText font-black rounded text-xs">V2.0_SYNCED</div>
             </div>
-        </a>
-        <div class="flex items-center gap-3">
-            <div class="hidden sm:block text-indGreen font-bold text-xs tracking-widest">&gt; SYSTEM: ONLINE</div>
-            <div class="px-3 py-1 bg-gray-100 border-2 border-gray-300 text-indText font-black rounded text-xs">V2.0_SYNCED</div>
         </div>
     </header>
+
+    <div class="max-w-[1400px] mx-auto mb-8 px-0">
+        <h1 class="text-2xl md:text-3xl font-black text-indText tracking-tight">SYS.IMG_CORE</h1>
+        <p class="text-gray-500 font-bold text-xs mt-0.5 tracking-wider">// INTELLIGENT RESIZE &amp; OPTIMIZATION ENGINE</p>
+    </div>
 
     <!-- 
     ======================================================================
@@ -500,6 +545,46 @@
 
         </section>
     </main>
+
+    <!-- FOOTER SECTION: matched from home_01.html so all three pages share one visual system -->
+    <footer id="footer" class="bg-gray-100 border-t border-gray-300 pt-12 pb-8 mt-10 -mx-4 md:-mx-8 px-4 md:px-8">
+        <div class="max-w-[1400px] mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10 border-b border-gray-300 pb-10">
+                <div class="space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-indOrange text-white rounded-sm flex items-center justify-center text-sm shadow-md font-black">/></div>
+                        <span class="text-xl font-black tracking-widest text-indText">ImageReducer</span>
+                    </div>
+                    <p class="text-gray-600 text-sm font-bold max-w-xs">
+                        A focused image utility for resizing, compression, target file size and DPI control—built around a clear three-step workflow.
+                    </p>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-lg mb-4 text-indOrange tracking-wide">QUICK_LINKS</h4>
+                    <ul class="space-y-2 text-sm text-gray-600 font-bold">
+                        <li><a href="home_01.html" class="hover:text-indOrange transition">&gt; Home</a></li>
+                        <li><a href="home_01.html#features" class="hover:text-indOrange transition">&gt; Features</a></li>
+                        <li><a href="index_02.html" class="hover:text-indOrange transition">&gt; The Resizer Tool</a></li>
+                        <li><a href="All_converter.html" class="hover:text-indOrange transition">&gt; Format Converter</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-lg mb-4 text-indOrange tracking-wide">LEGAL_&amp;_CONTACT</h4>
+                    <ul class="space-y-2 text-sm text-gray-600 font-bold">
+                        <li><a href="#" class="hover:text-indText transition">&gt; Privacy Policy</a></li>
+                        <li><a href="#" class="hover:text-indText transition">&gt; Terms of Service</a></li>
+                        <li><a href="mailto:hello@resizer.com" class="hover:text-indText transition">&gt; hello@resizer.com</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="text-center text-gray-500 text-xs font-bold tracking-widest">
+                &copy; 2026 ImageReducer // ALL RIGHTS RESERVED.
+            </div>
+        </div>
+    </footer>
 
     <!-- Compare Modal (Independent Zoom & Double Tap) -->
     <div id="compareModal" class="compare-modal">

@@ -158,26 +158,26 @@
             * PYTHON FILE PAR ASAR: Koi nahi, backend routes same rahenge.
             ====================================================================== -->
             <nav class="hidden md:flex items-center gap-6 text-sm tracking-widest text-gray-600 font-bold">
-                <a href="home.html" class="hover:text-indGreen transition">[ HOME ]</a>
-                <a href="index.html" class="hover:text-indGreen transition">[ RESIZE ]</a>
+                <a href="home_01.html" class="hover:text-indGreen transition">[ HOME ]</a>
+                <a href="index_02.html" class="hover:text-indGreen transition">[ RESIZE ]</a>
                 <a href="#" class="hover:text-indGreen transition">[ CROP ]</a>
                 
                 <!-- NEW CONVERTER DROPDOWN CONTAINER -->
                 <div class="dropdown-container relative py-2">
                     <!-- MAIN HEADER LINK: Click karne pe converter.html (All converters page) khulega -->
-                    <a href="converter.html" class="hover:text-indOrange text-indText font-black transition flex items-center gap-1 border-b-2 border-transparent hover:border-indOrange">
+                    <a href="All_converter.html" class="hover:text-indOrange text-indText font-black transition flex items-center gap-1 border-b-2 border-transparent hover:border-indOrange">
                         [ CONVERTER ▼ ]
                     </a>
                     
                     <!-- DROPDOWN OPTIONS: Hover karne pe dikhenge -->
                     <div class="dropdown-menu bg-white border-2 border-gray-300 shadow-2xl rounded-sm p-2">
                         <div class="text-[10px] text-gray-400 font-black px-3 py-1 border-b border-gray-200">SELECT FORMAT</div>
-                        <a href="converter.html?mode=jpg2png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPG TO PNG</a>
-                        <a href="converter.html?mode=jpeg2png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPEG TO PNG</a>
-                        <a href="converter.html?mode=png2jpeg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; PNG TO JPEG</a>
-                        <a href="converter.html?mode=webp2jpeg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; WEBP TO JPEG</a>
+                        <a href="All_converter.html?from=jpg&amp;to=png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPG TO PNG</a>
+                        <a href="All_converter.html?from=jpeg&amp;to=png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPEG TO PNG</a>
+                        <a href="All_converter.html?from=png&amp;to=jpg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; PNG TO JPEG</a>
+                        <a href="All_converter.html?from=webp&amp;to=jpg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; WEBP TO JPEG</a>
                         <div class="border-t border-gray-200 my-1"></div>
-                        <a href="converter.html?mode=universal" class="block px-3 py-2 text-xs bg-orange-50 text-indOrange hover:bg-indOrange hover:text-white transition font-black">&gt;&gt; UNIVERSAL CONVERTER</a>
+                        <a href="All_converter.html?mode=universal" class="block px-3 py-2 text-xs bg-orange-50 text-indOrange hover:bg-indOrange hover:text-white transition font-black">&gt;&gt; UNIVERSAL CONVERTER</a>
                     </div>
                 </div>
 
@@ -417,6 +417,149 @@
                 </a>
             </div>
         </section>
+
+        <!-- BUILD GUIDE SECTION: Added per request — practical, plain-language notes on planning a small website -->
+        <section id="build-guide" class="max-w-[1400px] mx-auto px-6 py-14">
+            <div class="mb-10 border-b border-gray-300 pb-5 text-center">
+                <p class="text-indGreen text-xs font-black tracking-[0.22em] mb-2">BEFORE YOU LAUNCH</p>
+                <h2 class="text-2xl lg:text-3xl font-black text-indOrange tracking-widest uppercase mb-3">WEBSITE_BUILD_GUIDE</h2>
+                <p class="text-gray-600 font-medium text-sm lg:text-base max-w-3xl mx-auto">A short, practical checklist for planning a site and writing pages people actually read — useful context whether you're setting up a tool like this one or a full business site.</p>
+            </div>
+
+            <!-- 7-step setup checklist -->
+            <div class="mb-12">
+                <p class="text-[10px] text-indGreen font-black tracking-[0.18em] mb-4 text-center sm:text-left">SEVEN SETUP STEPS</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                        <div class="bg-white p-5 h-full border border-gray-200">
+                            <span class="text-indOrange font-black text-xs">01</span>
+                            <p class="mt-2 text-sm font-black text-indText">Define the site's purpose</p>
+                            <p class="mt-1 text-xs text-gray-600 leading-relaxed">Decide who it's for and what you want a visitor to do before you write a single page.</p>
+                        </div>
+                    </div>
+                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                        <div class="bg-white p-5 h-full border border-gray-200">
+                            <span class="text-indOrange font-black text-xs">02</span>
+                            <p class="mt-2 text-sm font-black text-indText">Choose a site builder</p>
+                            <p class="mt-1 text-xs text-gray-600 leading-relaxed">Pick a platform that matches your comfort with code and the features the site needs.</p>
+                        </div>
+                    </div>
+                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                        <div class="bg-white p-5 h-full border border-gray-200">
+                            <span class="text-indOrange font-black text-xs">03</span>
+                            <p class="mt-2 text-sm font-black text-indText">Register a domain</p>
+                            <p class="mt-1 text-xs text-gray-600 leading-relaxed">Something short, easy to say out loud, and close to your brand name.</p>
+                        </div>
+                    </div>
+                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                        <div class="bg-white p-5 h-full border border-gray-200">
+                            <span class="text-indOrange font-black text-xs">04</span>
+                            <p class="mt-2 text-sm font-black text-indText">Pick a hosting plan</p>
+                            <p class="mt-1 text-xs text-gray-600 leading-relaxed">Match the plan to expected traffic; you can usually upgrade later without a rebuild.</p>
+                        </div>
+                    </div>
+                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                        <div class="bg-white p-5 h-full border border-gray-200">
+                            <span class="text-indOrange font-black text-xs">05</span>
+                            <p class="mt-2 text-sm font-black text-indText">Customize a template</p>
+                            <p class="mt-1 text-xs text-gray-600 leading-relaxed">Start from a layout that fits your content type, then adjust colors and fonts to match your brand.</p>
+                        </div>
+                    </div>
+                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                        <div class="bg-white p-5 h-full border border-gray-200">
+                            <span class="text-indOrange font-black text-xs">06</span>
+                            <p class="mt-2 text-sm font-black text-indText">Plan the site structure</p>
+                            <p class="mt-1 text-xs text-gray-600 leading-relaxed">Sketch your pages and how they link together before you start filling them in.</p>
+                        </div>
+                    </div>
+                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                        <div class="bg-white p-5 h-full border border-gray-200">
+                            <span class="text-indOrange font-black text-xs">07</span>
+                            <p class="mt-2 text-sm font-black text-indText">Add the essential pages</p>
+                            <p class="mt-1 text-xs text-gray-600 leading-relaxed">Home, services, about and contact cover most of what a visitor is looking for.</p>
+                        </div>
+                    </div>
+                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                        <div class="bg-white p-5 h-full border border-gray-200">
+                            <span class="text-indGreen font-black text-xs">+</span>
+                            <p class="mt-2 text-sm font-black text-indText">Build a content strategy</p>
+                            <p class="mt-1 text-xs text-gray-600 leading-relaxed">Cover your offerings and the one thing that makes you different from the competition.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- What to write on each page -->
+            <div class="mb-12 border border-gray-300 bg-white shadow-sm p-6 lg:p-8">
+                <p class="text-[10px] text-indGreen font-black tracking-[0.18em] mb-1">WRITE FOR THE READER, NOT FOR YOURSELF</p>
+                <h3 class="text-xl font-black text-indText uppercase tracking-wide mb-4">What to include on each page</h3>
+                <p class="text-sm text-gray-600 font-medium leading-relaxed mb-6 max-w-3xl">Say clearly what you do, who it's for and how it helps — lead with the most useful information first, the same way a news article puts the key facts in the opening lines.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="border-t-4 border-t-indOrange border border-gray-200 p-5">
+                        <p class="text-xs font-black text-indOrange tracking-wider mb-2">HOMEPAGE</p>
+                        <ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside">
+                            <li>A headline that says what you offer in a handful of words</li>
+                            <li>One or two lines on how it helps the visitor</li>
+                            <li>A clear next step ("Try the tool", "Get in touch")</li>
+                            <li>A short testimonial or trust signal if you have one</li>
+                        </ul>
+                    </div>
+                    <div class="border-t-4 border-t-indGreen border border-gray-200 p-5">
+                        <p class="text-xs font-black text-indGreen tracking-wider mb-2">SERVICES / TOOL PAGE</p>
+                        <ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside">
+                            <li>What it does and the specific problem it solves</li>
+                            <li>Any pricing or limits, stated upfront</li>
+                            <li>The steps involved, in plain order</li>
+                        </ul>
+                    </div>
+                    <div class="border-t-4 border-t-indOrange border border-gray-200 p-5">
+                        <p class="text-xs font-black text-indOrange tracking-wider mb-2">ABOUT PAGE</p>
+                        <ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside">
+                            <li>Why the project exists and who built it</li>
+                            <li>Anything that supports credibility</li>
+                            <li>A human touch — a name, a photo, a short note</li>
+                        </ul>
+                    </div>
+                    <div class="border-t-4 border-t-indGreen border border-gray-200 p-5">
+                        <p class="text-xs font-black text-indGreen tracking-wider mb-2">CONTACT PAGE</p>
+                        <ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside">
+                            <li>An email address or contact form</li>
+                            <li>Response hours, if relevant</li>
+                            <li>Anything else visitors ask for most often</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Writing tips -->
+            <div class="border border-gray-300 bg-gray-50 p-6 lg:p-8">
+                <p class="text-[10px] text-indGreen font-black tracking-[0.18em] mb-1">HOW TO WRITE FOR THE WEB</p>
+                <h3 class="text-xl font-black text-indText uppercase tracking-wide mb-5">Five habits that make pages easier to read</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div class="bg-white border border-gray-200 p-4">
+                        <p class="text-sm font-black text-indText mb-1">Keep it scannable</p>
+                        <p class="text-xs text-gray-600 leading-relaxed">Short paragraphs and bullet points beat long blocks of text.</p>
+                    </div>
+                    <div class="bg-white border border-gray-200 p-4">
+                        <p class="text-sm font-black text-indText mb-1">Use clear headings</p>
+                        <p class="text-xs text-gray-600 leading-relaxed">Break sections up so a skimming reader still gets the gist.</p>
+                    </div>
+                    <div class="bg-white border border-gray-200 p-4">
+                        <p class="text-sm font-black text-indText mb-1">Speak to "you"</p>
+                        <p class="text-xs text-gray-600 leading-relaxed">Write toward the reader's problem, not just your own story.</p>
+                    </div>
+                    <div class="bg-white border border-gray-200 p-4">
+                        <p class="text-sm font-black text-indText mb-1">Skip the jargon</p>
+                        <p class="text-xs text-gray-600 leading-relaxed">Plain words move faster than technical ones ever will.</p>
+                    </div>
+                    <div class="bg-white border border-gray-200 p-4">
+                        <p class="text-sm font-black text-indText mb-1">Lead with verbs</p>
+                        <p class="text-xs text-gray-600 leading-relaxed">"Resize", "download", "compare" — action words tell readers what happens next.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- FOOTER SECTION[cite: 1] -->
@@ -436,10 +579,10 @@
                 <div>
                     <h4 class="font-bold text-lg mb-4 text-indOrange tracking-wide">QUICK_LINKS</h4>
                     <ul class="space-y-2 text-sm text-gray-600 font-bold">
-                        <li><a href="home.html" class="hover:text-indOrange transition">&gt; Home</a></li>
+                        <li><a href="home_01.html" class="hover:text-indOrange transition">&gt; Home</a></li>
                         <li><a href="#features" class="hover:text-indOrange transition">&gt; Features</a></li>
                         <li><a href="index_02.html" class="hover:text-indOrange transition">&gt; The Resizer Tool</a></li>
-                        <li><a href="converter.html" class="hover:text-indOrange transition">&gt; Format Converter</a></li>
+                        <li><a href="All_converter.html" class="hover:text-indOrange transition">&gt; Format Converter</a></li>
                     </ul>
                 </div>
 
