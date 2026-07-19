@@ -1,983 +1,983 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Route Switchboard — ImageReducer</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700;900&display=swap');
+  <!doctype html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Route Switchboard — ImageReducer</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700;900&display=swap');
 
-    :root {
-      --bg: #F9FAFB;
-      --panel: #E5E7EB;
-      --panel-2: #F3F4F6;
-      --text: #111827;
-      --muted: #6B7280;
-      --line: #D1D5DB;
-      --line-strong: #9CA3AF;
-      --orange: #FF6D00;
-      --green: #16A34A;
-      --white: #FFFFFF;
-      --danger: #DC2626;
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      color: var(--text);
-      background-color: var(--bg);
-      background-image:
-        linear-gradient(rgba(17, 24, 39, .05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(17, 24, 39, .05) 1px, transparent 1px);
-      background-size: 40px 40px;
-      font-family: "Roboto Mono", "Courier New", monospace;
-      -webkit-font-smoothing: antialiased;
-    }
-    button, input, select { font: inherit; }
-    button, a, label, select { -webkit-tap-highlight-color: transparent; }
-    a { color: inherit; }
-    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, label:focus-within {
-      outline: 3px solid var(--text);
-      outline-offset: 3px;
-    }
-    .wrap { width: min(1400px, calc(100% - 32px)); margin-inline: auto; }
-    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-
-    /* Theme-locked header derived from home_01 */
-    .site-header {
-      position: sticky;
-      top: 0;
-      z-index: 80;
-      background: rgba(255,255,255,.98);
-      border-bottom: 2px solid var(--line);
-      box-shadow: 0 3px 12px rgba(17,24,39,.06);
-    }
-    .header-inner { min-height: 74px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 28px; }
-    .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; }
-    .brand-mark {
-      width: 38px;
-      height: 38px;
-      display: grid;
-      place-items: center;
-      background: var(--orange);
-      color: var(--white);
-      font-size: 14px;
-      font-weight: 900;
-      box-shadow: 3px 3px 0 var(--text);
-    }
-    .brand-copy b { display: block; color: var(--orange); font-size: 17px; letter-spacing: .08em; }
-    .brand-copy small { display: block; color: var(--muted); margin-top: 3px; font-size: 7px; font-weight: 900; letter-spacing: .14em; }
-    .site-nav { justify-self: center; display: flex; align-items: stretch; min-height: 74px; }
-    .site-nav a {
-      position: relative;
-      min-width: 86px;
-      padding: 0 13px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 5px;
-      text-decoration: none;
-      color: #4B5563;
-      border-inline-start: 1px solid #E5E7EB;
-      text-align: center;
-    }
-    .site-nav a:last-child { border-inline-end: 1px solid #E5E7EB; }
-    .site-nav a span { font-size: 9px; font-weight: 900; letter-spacing: .08em; }
-    .site-nav a small { color: #9CA3AF; font-size: 6px; font-weight: 700; letter-spacing: .12em; }
-    .site-nav a:hover { color: var(--orange); background: #FFF7ED; }
-    .site-nav a.active { color: var(--text); background: var(--panel-2); }
-    .site-nav a.active::after { content: ""; position: absolute; height: 4px; background: var(--orange); inset: auto 10px 0; }
-    .header-actions { display: flex; align-items: center; gap: 10px; }
-    .online-chip { display: flex; align-items: center; gap: 7px; color: #15803D; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
-    .online-chip i { width: 8px; height: 8px; background: var(--green); box-shadow: 0 0 0 4px rgba(22,163,74,.1); }
-    .header-cta { padding: 12px 15px; font-size: 9px; }
-    .mobile-menu { display: none; width: 42px; height: 42px; border: 2px solid var(--line); background: var(--white); font-weight: 900; }
-
-    .hardware-btn {
-      border: 0;
-      background: var(--orange);
-      color: var(--white);
-      font-weight: 900;
-      letter-spacing: .06em;
-      cursor: pointer;
-      text-decoration: none;
-      box-shadow: inset 0 2px 0 rgba(255,255,255,.4), inset 0 -4px 0 rgba(0,0,0,.22), 0 4px 6px rgba(17,24,39,.22);
-      transition: transform .1s ease, box-shadow .1s ease;
-    }
-    .hardware-btn:active { transform: translateY(2px); box-shadow: inset 0 4px 6px rgba(0,0,0,.28); }
-    .outline-btn { border: 2px solid var(--line-strong); background: var(--white); color: var(--text); font-weight: 900; cursor: pointer; }
-    .outline-btn:hover { border-color: var(--orange); color: var(--orange); }
-
-    /* Common hero language */
-    .hero { padding: 34px 0 18px; }
-    .hero-shell { background: var(--panel); border: 4px solid var(--line); padding: 10px; box-shadow: 0 24px 54px rgba(17,24,39,.14); }
-    .hero-inner { background: var(--white); border: 2px solid var(--line); padding: clamp(26px, 4vw, 52px); }
-    .eyebrow { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #BBF7D0; background: #F0FDF4; color: #15803D; padding: 8px 10px; font-size: 8px; font-weight: 900; letter-spacing: .13em; }
-    .eyebrow i { width: 8px; height: 8px; background: var(--green); }
-    .hero h1 { margin: 20px 0 14px; max-width: 900px; font-size: clamp(36px, 4.8vw, 68px); line-height: 1.02; letter-spacing: -.055em; text-transform: uppercase; }
-    .hero h1 span { color: var(--orange); }
-    .hero p { max-width: 720px; margin: 0; color: #4B5563; font-size: 14px; line-height: 1.75; font-weight: 500; }
-    .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
-    .hero-actions a, .hero-actions button { min-height: 50px; display: inline-flex; align-items: center; justify-content: center; padding: 0 20px; font-size: 10px; }
-    .fact-strip { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 16px; background: var(--white); border: 2px solid var(--line); }
-    .fact-strip > div { min-height: 68px; padding: 13px; border-right: 1px solid var(--line); }
-    .fact-strip > div:last-child { border-right: 0; }
-    .fact-strip small { display: block; color: var(--green); font-size: 7px; font-weight: 900; letter-spacing: .13em; }
-    .fact-strip b { display: block; margin-top: 6px; font-size: 9px; }
-
-    /* Ticket identity */
-    .route-ticket {
-      position: relative;
-      display: inline-grid;
-      place-items: center;
-      min-width: 50px;
-      min-height: 38px;
-      padding: 6px 9px;
-      background: var(--white);
-      border: 2px solid var(--line-strong);
-      color: var(--text);
-      font-size: 10px;
-      font-weight: 900;
-      letter-spacing: .04em;
-      transform: rotate(-5deg);
-      box-shadow: 3px 3px 0 var(--panel);
-    }
-    .route-ticket::before { content: ""; position: absolute; inset: 3px; border: 1px dashed var(--line); pointer-events: none; }
-    .route-ticket.orange { border-color: var(--orange); color: var(--orange); }
-    .route-ticket.big { min-width: 82px; min-height: 58px; font-size: 15px; }
-    .ticket-pin { position: absolute; top: -15px; right: 14px; z-index: 4; }
-
-    /* Generated converter workspace inspired by JPG_TO_PNG_03 */
-    .converter-shell { background: var(--panel); border: 4px solid var(--line); padding: 10px; box-shadow: 0 22px 48px rgba(17,24,39,.13); }
-    .converter-machine { background: var(--white); border: 2px solid var(--line-strong); }
-    .machine-head { min-height: 54px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--panel-2); border-bottom: 2px solid var(--line); }
-    .machine-head b { display: flex; align-items: center; gap: 9px; font-size: 9px; letter-spacing: .08em; }
-    .machine-head b i { width: 9px; height: 9px; background: var(--green); }
-    .machine-head small { color: var(--muted); font-size: 7px; font-weight: 900; }
-    .machine-grid { display: grid; grid-template-columns: 280px minmax(340px, 1fr) 340px; }
-    .machine-panel { min-width: 0; min-height: 520px; padding: 18px; border-right: 2px solid var(--line); }
-    .machine-panel:last-child { border-right: 0; }
-    .panel-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--line); }
-    .panel-label b { font-size: 8px; letter-spacing: .1em; }
-    .panel-label span { color: var(--orange); font-size: 7px; font-weight: 900; }
-    .dropzone { min-height: 245px; margin-top: 14px; padding: 20px; border: 2px dashed var(--line-strong); background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; cursor: pointer; transition: .18s ease; }
-    .dropzone:hover, .dropzone.is-over { border-color: var(--orange); background: #FFF7ED; }
-    .drop-symbol { width: 54px; height: 54px; display: grid; place-items: center; background: var(--white); border: 2px solid var(--line); color: var(--orange); font-size: 23px; font-weight: 900; box-shadow: 4px 4px 0 var(--panel); }
-    .dropzone strong { margin-top: 13px; font-size: 10px; }
-    .dropzone small { margin-top: 7px; color: var(--muted); font-size: 7px; line-height: 1.6; }
-    .file-input { position: absolute; opacity: 0; pointer-events: none; }
-    .file-meta { display: none; grid-template-columns: 42px 1fr auto; align-items: center; gap: 8px; margin-top: 10px; padding: 9px; border: 2px solid var(--line); }
-    .file-meta.visible { display: grid; }
-    .file-meta img { width: 42px; height: 42px; object-fit: cover; background: var(--panel-2); border: 1px solid var(--line); }
-    .file-copy { min-width: 0; }
-    .file-copy b, .file-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .file-copy b { font-size: 8px; }
-    .file-copy small { margin-top: 4px; color: var(--muted); font-size: 7px; }
-    .file-remove { width: 30px; height: 30px; border: 1px solid var(--line); background: var(--white); cursor: pointer; }
-    .file-remove:hover { color: var(--danger); border-color: var(--danger); }
-    .preview-stage { height: 330px; margin-top: 14px; border: 2px solid var(--line); background-color: var(--panel-2); background-image: linear-gradient(rgba(17,24,39,.04) 1px, transparent 1px), linear-gradient(90deg,rgba(17,24,39,.04) 1px,transparent 1px); background-size: 22px 22px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
-    .preview-stage img { display: none; max-width: 92%; max-height: 92%; object-fit: contain; box-shadow: 0 12px 28px rgba(17,24,39,.15); }
-    .preview-stage.has-image img { display: block; }
-    .preview-stage.has-image .preview-empty { display: none; }
-    .preview-empty { text-align: center; color: var(--muted); }
-    .preview-empty .file-shape { width: 82px; height: 98px; margin: 0 auto 13px; display: grid; place-items: center; background: var(--white); border: 3px solid var(--line-strong); color: var(--line-strong); font-size: 18px; font-weight: 900; box-shadow: 7px 7px 0 var(--line); }
-    .preview-empty b { display: block; color: #4B5563; font-size: 8px; }
-    .preview-empty small { display: block; margin-top: 6px; font-size: 7px; }
-    .preview-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; }
-    .preview-foot span { flex: 1; padding: 9px; border: 1px solid var(--line); background: var(--white); font-size: 7px; font-weight: 900; }
-    .preview-foot span:last-child { text-align: right; }
-    .preview-foot em { color: var(--orange); font-style: normal; }
-    .field { margin-top: 13px; }
-    .field label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; color: var(--muted); font-size: 7px; font-weight: 900; letter-spacing: .08em; }
-    .field input, .field select { width: 100%; min-height: 44px; border: 2px solid var(--line); background: var(--white); color: var(--text); padding: 0 10px; font-size: 9px; font-weight: 900; }
-    .field input:focus, .field select:focus { border-color: var(--orange); }
-    .route-selectors { display: grid; grid-template-columns: 1fr 38px 1fr; align-items: end; gap: 6px; }
-    .swap-button { height: 44px; border: 2px solid var(--line); background: var(--panel-2); font-weight: 900; cursor: pointer; }
-    .swap-button:hover { border-color: var(--orange); color: var(--orange); }
-    .locked-box { margin-top: 13px; padding: 11px; border: 2px solid var(--line); background: var(--panel-2); font-size: 7px; line-height: 1.6; font-weight: 900; }
-    .locked-box span { display: inline-block; margin-right: 6px; padding: 4px 6px; background: var(--text); color: var(--white); }
-    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-    .execute-button { width: 100%; min-height: 54px; margin-top: 16px; }
-    .system-status { min-height: 54px; margin-top: 10px; padding: 10px 11px; border-left: 4px solid var(--green); background: #F0FDF4; color: #166534; font-size: 7px; font-weight: 700; line-height: 1.55; }
-    .system-status.error { border-color: var(--danger); background: #FEF2F2; color: #991B1B; }
-    .system-status.processing { border-color: var(--orange); background: #FFF7ED; color: #9A3412; }
-
-    /* Shared directory/matrix components */
-    .section { padding: 44px 0 60px; }
-    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 17px; }
-    .section-head p { margin: 0; color: var(--orange); font-size: 8px; font-weight: 900; letter-spacing: .13em; }
-    .section-head h2 { margin: 6px 0 0; font-size: clamp(25px, 3vw, 38px); line-height: 1.05; letter-spacing: -.04em; text-transform: uppercase; }
-    .section-head small { max-width: 520px; color: var(--muted); font-size: 8px; line-height: 1.6; }
-    .format-rail { display: grid; grid-template-columns: repeat(7, 1fr); border: 2px solid var(--line); background: var(--white); }
-    .format-choice { min-height: 68px; border: 0; border-right: 1px solid var(--line); background: var(--white); color: #4B5563; font-size: 10px; font-weight: 900; cursor: pointer; }
-    .format-choice:last-child { border-right: 0; }
-    .format-choice small { display: block; margin-top: 5px; color: #9CA3AF; font-size: 6px; }
-    .format-choice:hover { color: var(--orange); background: #FFF7ED; }
-    .format-choice.active { background: var(--text); color: var(--white); box-shadow: inset 0 -4px 0 var(--orange); }
-    .format-choice.active small { color: var(--line); }
-    .route-directory { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
-    .route-card { position: relative; min-height: 116px; padding: 26px 14px 14px; border: 2px solid var(--line); background: var(--white); text-align: left; cursor: pointer; overflow: visible; transition: transform .16s ease, border-color .16s ease, background .16s ease; }
-    .route-card:hover { border-color: var(--orange); transform: translateY(-2px); }
-    .route-card.active { border-color: var(--orange); background: #FFF7ED; box-shadow: inset 0 -4px 0 var(--orange); }
-    .route-card b { display: block; font-size: 11px; }
-    .route-card p { margin: 9px 0 0; max-width: 78%; color: var(--muted); font-size: 7px; line-height: 1.5; }
-    .route-card .route-node { display: block; margin-bottom: 8px; color: var(--green); font-size: 6px; font-weight: 900; letter-spacing: .12em; }
-    .route-card .route-ticket { position: absolute; z-index: 3; right: 10px; top: -14px; bottom: auto; min-width: 50px; min-height: 34px; font-size: 8px; }
-    .universal-card { min-height: 110px; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 22px; background: var(--text); color: var(--white); border-left: 8px solid var(--orange); }
-    .universal-card b { font-size: 13px; }
-    .universal-card p { margin: 6px 0 0; color: var(--line); font-size: 7px; line-height: 1.55; }
-    .universal-card button { min-height: 46px; padding: 0 15px; font-size: 8px; }
-    .search-field { display: flex; height: 48px; border: 2px solid var(--line); background: var(--white); }
-    .search-field span { width: 48px; display: grid; place-items: center; color: var(--orange); border-right: 1px solid var(--line); font-weight: 900; }
-    .search-field input { min-width: 0; flex: 1; border: 0; padding: 0 13px; outline: 0; color: var(--text); font-size: 9px; font-weight: 700; }
-    .matrix-wrap { overflow: auto; background: var(--panel); border: 4px solid var(--line); padding: 8px; }
-    .route-matrix { min-width: 780px; display: grid; grid-template-columns: 118px repeat(7, 1fr); background: var(--white); border: 2px solid var(--line-strong); }
-    .matrix-cell { min-height: 58px; padding: 6px; display: grid; place-items: center; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 8px; font-weight: 900; }
-    .matrix-cell.head { background: var(--text); color: var(--white); }
-    .matrix-cell.axis { justify-items: start; padding-left: 13px; background: var(--panel-2); }
-    .matrix-cell.same { background: var(--bg); color: #9CA3AF; }
-    .matrix-cell button { width: 100%; height: 100%; min-height: 42px; border: 0; background: var(--white); color: #4B5563; font-size: 7px; font-weight: 900; cursor: pointer; }
-    .matrix-cell button:hover, .matrix-cell button.active { background: #FFF7ED; color: var(--orange); box-shadow: inset 0 -3px 0 var(--orange); }
-
-    .trust-bar { background: var(--white); border-block: 2px solid var(--line); }
-    .trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
-    .trust-grid article { min-height: 116px; padding: 21px; border-right: 1px solid var(--line); }
-    .trust-grid article:last-child { border-right: 0; }
-    .trust-mark { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #BBF7D0; background: #F0FDF4; color: #15803D; font-size: 8px; font-weight: 900; }
-    .trust-grid b { display: block; margin-top: 11px; font-size: 8px; }
-    .trust-grid p { margin: 6px 0 0; color: var(--muted); font-size: 7px; line-height: 1.5; }
-    footer { padding: 25px 0; color: var(--muted); font-size: 7px; }
-    .footer-inner { display: flex; justify-content: space-between; gap: 16px; }
-
-    /* Prototype-specific compositions */
-    .p1-hero-grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: 34px; align-items: center; }
-    .p1-route-board { position: relative; min-height: 360px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-content: center; background-image: linear-gradient(rgba(17,24,39,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(17,24,39,.04) 1px,transparent 1px); background-size: 22px 22px; padding: 24px; border: 2px solid var(--line); }
-    .p1-route-board .mini-route { position: relative; min-height: 110px; padding: 18px; background: var(--white); border: 2px solid var(--line); box-shadow: 6px 6px 0 var(--panel); }
-    .p1-route-board .mini-route b { font-size: 11px; }
-    .p1-route-board .mini-route p { color: var(--muted); font-size: 7px; }
-    .p1-route-board .mini-route .route-ticket { position: absolute; top: -13px; right: 9px; }
-    .p1-route-board .mini-route.universal-mini { grid-column: span 2; background: var(--text); color: var(--white); border-left: 6px solid var(--orange); }
-    .p1-route-board .mini-route.universal-mini p { color: var(--line); }
-
-    .selected-hero-grid { display: grid; grid-template-columns: .82fr 1.18fr; gap: 28px; align-items: center; }
-    .switchboard-visual { position: relative; min-height: 390px; border: 2px solid var(--line); overflow: hidden; background: var(--panel-2); }
-    .switchboard-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .switchboard-visual .visual-caption { position: absolute; left: 14px; bottom: 14px; padding: 10px 12px; background: rgba(17,24,39,.94); color: var(--white); border-left: 5px solid var(--orange); font-size: 7px; font-weight: 900; }
-    .visual-route-tickets { position: absolute; inset: 15px 16px auto; display: flex; justify-content: flex-end; gap: 12px; pointer-events: none; }
-    .visual-route-tickets .route-ticket { min-width: 60px; }
-
-    .p2-main-grid { display: grid; grid-template-columns: 440px minmax(0, 1fr); gap: 14px; align-items: stretch; }
-    .p2-directory-panel { align-self: stretch; min-height: 820px; background: var(--white); border: 4px solid var(--line); padding: 12px; position: relative; display: flex; flex-direction: column; }
-    .p2-source-list { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-top: 10px; }
-    .p2-source-list .format-choice { min-height: 54px; border: 2px solid var(--line); }
-    .sidebar-label { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 2px solid var(--line); }
-    .sidebar-label span { font-size: 7px; font-weight: 900; letter-spacing: .1em; }
-    .sidebar-label small { color: var(--orange); font-size: 6px; font-weight: 900; }
-    .p2-target-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px 9px; margin-top: 20px; }
-    .p2-target-list .route-card { min-width: 0; min-height: 126px; padding: 30px 10px 11px; text-align: center; }
-    .p2-target-list .route-card b { font-size: 9px; white-space: nowrap; }
-    .p2-target-list .route-card p { margin-top: 7px; max-width: 100%; font-size: 6px; line-height: 1.45; }
-    .p2-target-list .route-node { margin-bottom: 8px; font-size: 5px; }
-    .p2-target-list .route-ticket { top: -13px; right: 50%; min-width: 48px; transform: translateX(50%) rotate(-4deg); }
-    .sidebar-universal { min-height: 92px; margin-top: auto; padding: 13px; }
-    .p2-main-grid > .converter-shell, .p2-main-grid .converter-machine { height: 100%; }
-    .p2-main-grid .machine-grid { grid-template-columns: 245px minmax(300px,1fr) 310px; height: calc(100% - 54px); }
-    .p2-main-grid .machine-panel { min-height: 750px; }
-
-    .route-atlas-shell { background: var(--panel); border: 4px solid var(--line); padding: 10px; box-shadow: 0 22px 48px rgba(17,24,39,.12); }
-    .route-atlas-head { display: grid; grid-template-columns: repeat(3,1fr); background: var(--text); color: var(--white); border-bottom: 4px solid var(--orange); }
-    .route-atlas-head > div { min-height: 76px; padding: 15px; border-right: 1px solid #374151; }
-    .route-atlas-head > div:last-child { border-right: 0; }
-    .route-atlas-head span { display: block; color: #9CA3AF; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
-    .route-atlas-head b { display: block; margin-top: 8px; font-size: 12px; }
-    .route-atlas-sources { border-top: 0; }
-    .route-atlas-targets { grid-template-columns: repeat(3,1fr); gap: 14px; margin: 24px 0 0; padding: 14px 4px 4px; }
-    .route-atlas-targets .route-card { min-height: 136px; padding: 28px 16px 16px; box-shadow: 5px 5px 0 var(--line); }
-    .route-atlas-targets .route-card b { font-size: 13px; }
-    .route-atlas-targets .route-card p { font-size: 8px; }
-    .route-atlas-targets .route-ticket { top: -16px; right: 14px; min-width: 60px; min-height: 40px; font-size: 10px; }
-    .atlas-universal { margin-top: 14px; }
-
-    .format-data-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
-    .format-data-grid article { min-height: 154px; padding: 20px; background: var(--white); border: 2px solid var(--line); box-shadow: inset 0 -4px 0 var(--panel); }
-    .format-data-grid article:hover { border-color: var(--orange); }
-    .format-data-grid article b { display: block; font-size: 13px; }
-    .format-data-grid article span { display: block; margin-top: 9px; color: var(--green); font-size: 7px; font-weight: 900; letter-spacing: .12em; }
-    .format-data-grid article p { margin: 12px 0 0; color: var(--muted); font-size: 8px; line-height: 1.65; }
-    .format-data-grid .format-data-wide { grid-column: span 3; min-height: auto; border-left: 7px solid var(--orange); }
-    .target-bay-grid { gap: 16px; padding-top: 12px; }
-    .target-bay-grid .route-card { min-height: 134px; padding-top: 28px; }
-
-    .p3-flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
-    .p3-step { position: relative; min-height: 110px; padding: 15px; background: var(--white); border: 2px solid var(--line); }
-    .p3-step::after { content: ">"; position: absolute; right: -10px; top: 43%; z-index: 2; width: 20px; height: 24px; display: grid; place-items: center; background: var(--orange); color: var(--white); font-weight: 900; }
-    .p3-step:last-child::after { display: none; }
-    .p3-step span { color: var(--orange); font-size: 7px; font-weight: 900; }
-    .p3-step b { display: block; margin-top: 10px; font-size: 10px; }
-    .p3-step p { margin: 7px 0 0; color: var(--muted); font-size: 7px; line-height: 1.5; }
-    .p3-compact .machine-grid { grid-template-columns: 1fr 1.1fr; }
-    .p3-compact .machine-panel:nth-child(2) { border-right: 0; }
-    .p3-compact .machine-panel:nth-child(3) { grid-column: span 2; min-height: auto; border-top: 2px solid var(--line); }
-    .p3-compact .config-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-    .p4-atlas { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
-    .p4-core { position: sticky; top: 92px; background: var(--panel); border: 4px solid var(--line); padding: 9px; }
-    .p4-core-inner { position: relative; background: var(--white); border: 2px solid var(--line-strong); padding: 19px; }
-    .p4-core .route-ticket { margin: 6px 0 16px; }
-    .p4-core h3 { margin: 0; font-size: 19px; }
-    .p4-core p { color: var(--muted); font-size: 8px; line-height: 1.6; }
-    .p4-core button { width: 100%; min-height: 48px; margin-top: 9px; }
-
-    .p5-hero-grid { display: grid; grid-template-columns: .82fr 1.18fr; gap: 26px; align-items: center; }
-    .p5-visual { position: relative; min-height: 360px; border: 2px solid var(--line); overflow: hidden; background: var(--panel-2); }
-    .p5-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .p5-visual .visual-caption { position: absolute; left: 14px; bottom: 14px; padding: 10px 12px; background: rgba(17,24,39,.94); color: var(--white); border-left: 5px solid var(--orange); font-size: 7px; font-weight: 900; }
-    .p5-workspace { display: grid; grid-template-columns: 165px minmax(0,1fr); gap: 12px; }
-    .p5-rail { background: var(--white); border: 4px solid var(--line); padding: 8px; align-self: start; position: sticky; top: 92px; }
-    .p5-rail .format-choice { width: 100%; min-height: 58px; border: 0; border-bottom: 1px solid var(--line); }
-    .p5-workspace .machine-grid { grid-template-columns: 260px minmax(320px,1fr) 330px; }
-
-    @media (max-width: 1180px) {
-      .site-nav a { min-width: 72px; padding-inline: 9px; }
-      .online-chip { display: none; }
-      .machine-grid, .p2-main-grid .machine-grid, .p5-workspace .machine-grid { grid-template-columns: 260px minmax(320px,1fr); }
-      .machine-panel:nth-child(2) { border-right: 0; }
-      .machine-panel:nth-child(3) { grid-column: span 2; min-height: auto; border-top: 2px solid var(--line); }
-      .machine-panel:nth-child(3) .field-row { grid-template-columns: repeat(3,1fr); }
-      .p4-atlas { grid-template-columns: 1fr; }
-      .p4-core { position: static; }
-    }
-    @media (max-width: 920px) {
-      .site-nav { display: none; }
-      .header-inner { grid-template-columns: auto 1fr auto; }
-      .header-actions { justify-self: end; }
-      .mobile-menu { display: block; }
-      .header-cta { display: none; }
-      .p1-hero-grid, .p5-hero-grid, .selected-hero-grid { grid-template-columns: 1fr; }
-      .p2-main-grid { grid-template-columns: 1fr; }
-      .p2-directory-panel, .p5-rail { position: static; }
-      .p2-main-grid > .converter-shell, .p2-main-grid .converter-machine, .p2-main-grid .machine-grid { height: auto; }
-      .p2-source-list { grid-template-columns: repeat(4,1fr); }
-      .p2-target-list { grid-template-columns: repeat(3,minmax(0,1fr)); }
-      .p2-directory-panel { min-height: auto; }
-      .p2-main-grid .machine-panel { min-height: auto; }
-      .p3-flow { grid-template-columns: 1fr 1fr; }
-      .p3-step:nth-child(2)::after { display: none; }
-      .p5-workspace { grid-template-columns: 1fr; }
-      .p5-rail { display: grid; grid-template-columns: repeat(7,1fr); }
-      .p5-rail .format-choice { border-bottom: 0; border-right: 1px solid var(--line); }
-    }
-    @media (max-width: 760px) {
-      .wrap { width: min(100% - 20px, 1400px); }
-      .brand-copy small { display: none; }
-      .hero { padding-top: 18px; }
-      .hero-shell, .converter-shell { padding: 6px; }
-      .hero-inner { padding: 24px 19px; }
-      .hero h1 { font-size: 38px; }
-      .fact-strip { grid-template-columns: 1fr 1fr; }
-      .fact-strip > div:nth-child(2) { border-right: 0; }
-      .fact-strip > div { border-bottom: 1px solid var(--line); }
-      .machine-grid, .p2-main-grid .machine-grid, .p3-compact .machine-grid, .p5-workspace .machine-grid { grid-template-columns: 1fr; }
-      .machine-panel, .machine-panel:nth-child(2) { border-right: 0; border-bottom: 2px solid var(--line); min-height: auto; }
-      .machine-panel:nth-child(3), .p3-compact .machine-panel:nth-child(3) { grid-column: auto; border-top: 0; }
-      .machine-panel:nth-child(3) .field-row { grid-template-columns: 1fr 1fr; }
-      .preview-stage { height: 330px; }
-      .format-rail { grid-template-columns: repeat(4,1fr); }
-      .format-choice { border-bottom: 1px solid var(--line); }
-      .route-directory { grid-template-columns: 1fr 1fr; }
-      .route-atlas-head { grid-template-columns: 1fr; }
-      .route-atlas-head > div { border-right: 0; border-bottom: 1px solid #374151; }
-      .route-atlas-targets { grid-template-columns: 1fr 1fr; }
-      .format-data-grid { grid-template-columns: 1fr 1fr; }
-      .format-data-grid .format-data-wide { grid-column: span 2; }
-      .section-head { align-items: start; flex-direction: column; }
-      .universal-card { align-items: flex-start; flex-direction: column; }
-      .trust-grid { grid-template-columns: 1fr 1fr; }
-      .trust-grid article:nth-child(2) { border-right: 0; }
-      .footer-inner { flex-direction: column; }
-      .p2-source-list { grid-template-columns: repeat(3,1fr); }
-      .p2-target-list { grid-template-columns: 1fr 1fr; }
-      .p3-compact .config-inline { grid-template-columns: 1fr; }
-      .p5-rail { grid-template-columns: repeat(4,1fr); }
-    }
-    @media (max-width: 460px) {
-      .brand-copy b { font-size: 14px; }
-      .hero h1 { font-size: 32px; }
-      .route-selectors, .field-row, .machine-panel:nth-child(3) .field-row { grid-template-columns: 1fr; }
-      .swap-button { height: 38px; }
-      .route-directory, .p2-target-list { grid-template-columns: 1fr; }
-      .route-atlas-targets, .format-data-grid { grid-template-columns: 1fr; }
-      .format-data-grid .format-data-wide { grid-column: auto; }
-      .format-rail, .p2-source-list, .p5-rail { grid-template-columns: repeat(3,1fr); }
-      .trust-grid { grid-template-columns: 1fr; }
-      .trust-grid article { border-right: 0; border-bottom: 1px solid var(--line); }
-      .p1-route-board, .p3-flow { grid-template-columns: 1fr; }
-      .p1-route-board .mini-route.universal-mini { grid-column: auto; }
-      .p3-step::after { display: none; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
-      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
-    }
-
-    /* ======================================================================
-       THEME ALIGNMENT PASS — CSS ONLY, no HTML/JS touched.
-       Goal: bring this page visually in line with home_01.html, which uses
-       soft rounded corners and a larger, more readable type scale. Every
-       rule below only adjusts border-radius, font-size and a little
-       spacing on existing selectors — nothing here changes layout logic,
-       markup or behaviour.
-    ====================================================================== */
-
-    /* Soft rounded corners everywhere home_01 uses them */
-    .hardware-btn, .outline-btn, .header-cta, .swap-button, .mobile-menu,
-    .field input, .field select, .search-field, .dropzone, .drop-symbol,
-    .file-meta, .file-remove, .route-card, .format-choice, .universal-card,
-    .locked-box, .system-status, .preview-stage, .machine-panel .panel-label,
-    .brand-mark, .p2-directory-panel, .switchboard-visual, .p2-source-list .format-choice,
-    .route-atlas-shell, .matrix-wrap, .converter-machine, .machine-head,
-    .trust-mark, .online-chip i, .format-data-grid article, .header-inner {
-      border-radius: 8px;
-    }
-    .hardware-btn, .header-cta, .outline-btn, .execute-button { border-radius: 6px; }
-    .search-field, .search-field span:first-child { border-radius: 6px 0 0 6px; }
-    .search-field input { border-radius: 0 6px 6px 0; }
-    .brand-mark, .online-chip i, .trust-mark { border-radius: 4px; }
-    .site-header { border-radius: 0; }
-    .format-rail, .route-matrix, .matrix-cell.head:first-child { border-radius: 6px; overflow: hidden; }
-
-    /* Readable type scale — the smallest sizes (6–8px) were hard to read
-       next to home_01's text-xs/text-sm baseline (12–16px), so the most
-       visited copy gets a legibility bump. */
-    body { font-size: 13px; }
-    .brand-copy b { font-size: 19px; }
-    .brand-copy small { font-size: 8px; }
-    .site-nav a span { font-size: 10px; }
-    .site-nav a small { font-size: 7px; }
-    .online-chip { font-size: 8px; }
-    .hero h1 { font-size: clamp(30px, 4.2vw, 54px); }
-    .hero p { font-size: 13px; line-height: 1.6; }
-    .eyebrow { font-size: 10px; }
-    .section-head p { font-size: 10px; }
-    .section-head small { font-size: 11px; line-height: 1.7; }
-    .panel-label b { font-size: 10px; }
-    .panel-label span { font-size: 9px; }
-    .dropzone strong { font-size: 12px; }
-    .dropzone small { font-size: 9px; }
-    .field label { font-size: 9px; }
-    .field input, .field select { font-size: 11px; }
-    .route-card b { font-size: 13px; }
-    .route-card p { font-size: 9px; }
-    .route-card .route-node { font-size: 8px; }
-    .universal-card b { font-size: 14px; }
-    .universal-card p { font-size: 9px; }
-    .trust-grid b { font-size: 10px; }
-    .trust-grid p { font-size: 9px; }
-    .format-data-grid article b { font-size: 14px; }
-    .format-data-grid article p { font-size: 10px; }
-    .format-data-grid article span { font-size: 8px; }
-    .locked-box, .system-status { font-size: 9px; }
-    .execute-button, .header-cta { font-size: 11px; }
-    footer { font-size: 9px; }
-
-    /* Footer, restyled to echo home_01's footer band */
-    footer { background: var(--panel-2); border-top: 2px solid var(--line); padding: 34px 0 22px; }
-    .footer-links { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding-bottom: 20px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
-    .footer-brand { display: flex; align-items: center; gap: 10px; }
-    .footer-brand b { display: block; color: var(--text); font-size: 13px; letter-spacing: .06em; }
-    .footer-brand small { display: block; margin-top: 3px; color: var(--muted); font-size: 7px; font-weight: 900; letter-spacing: .12em; }
-    .footer-nav { display: flex; gap: 18px; flex-wrap: wrap; }
-    .footer-nav a { text-decoration: none; color: var(--muted); font-size: 9px; font-weight: 900; letter-spacing: .06em; }
-    .footer-nav a:hover { color: var(--orange); }
-    .footer-inner { color: var(--muted); font-size: 8px; letter-spacing: .08em; }
-
-    @media (max-width: 760px) {
-      .footer-links { flex-direction: column; }
-    }
-  </style>
-</head>
-<body>
-  <header class="site-header"><div class="wrap header-inner"><a class="brand" href="home_01.html"><span class="brand-mark">/&gt;</span><span class="brand-copy"><b>ImageReducer</b><small>PRECISION IMAGE SYSTEMS</small></span></a><nav class="site-nav" aria-label="Primary"><a href="home_01.html"><span>HOME</span><small>START</small></a><a href="index_02.html"><span>RESIZE</span><small>DIMENSIONS</small></a><a href="index_02.html#allSettingsContainer"><span>CROP</span><small>FRAME</small></a><a class="active" href="#routes"><span>CONVERT</span><small>42 ROUTES</small></a><a href="#trust"><span>FEATURES</span><small>PRIVACY</small></a></nav><div class="header-actions"><span class="online-chip"><i></i>ENGINE ONLINE</span><a class="hardware-btn header-cta" href="#routes">OPEN CONVERTER →</a><button class="mobile-menu" type="button">MENU</button></div></div></header>
-  <main id="top">
-    <section class="hero"><div class="wrap hero-shell"><div class="hero-inner selected-hero-grid"><div><span class="eyebrow"><i></i>SELECTED DESIGN // ROUTE SWITCHBOARD</span><h1>Find a converter. <span>Keep the work in view.</span></h1><p>Search any format pair, choose one of 42 direct routes, or let Universal mode detect the source. Your selected route stays visible from upload through download.</p><div class="hero-actions"><a class="hardware-btn" href="#routes">PICK A ROUTE →</a><button class="outline-btn" type="button" data-universal>UNIVERSAL CONVERTER</button></div></div><div class="switchboard-visual"><img src="refined-switchboard-engine.png" alt="Image format cards moving through a precision conversion routing engine"><div class="visual-route-tickets" aria-hidden="true"><span class="route-ticket">J→P</span><span class="route-ticket orange">W→JE</span><span class="route-ticket">G→S</span></div><span class="visual-caption">42 ROUTES // ONE CONTROLLED WORKSPACE</span></div></div></div></section>
-    <div class="wrap fact-strip"><div><small>FORMATS</small><b>7 INPUT + OUTPUT TYPES</b></div><div><small>ROUTES</small><b>42 CROSS-CONVERSIONS</b></div><div><small>CONTROL</small><b>RESIZE + QUALITY + PREVIEW</b></div><div><small>FALLBACK</small><b>UNIVERSAL AUTO-DETECT</b></div></div>
-    <section class="section" id="routes"><div class="wrap"><div class="section-head"><div><p>01 // SEARCH + SELECT + CONVERT</p><h2>Converter switchboard</h2></div><small>Type “WebP to JPEG” or pick a source and target. The workbench updates immediately.</small></div>
-      <div class="p2-main-grid"><aside class="p2-directory-panel"><div class="panel-label"><b>ROUTE DIRECTORY</b><span data-route-summary>JPG → PNG</span></div><div class="search-field" style="margin-top:10px"><span>⌕</span><input data-route-search aria-label="Search converter route" placeholder="TYPE: GIF TO SVG"></div><div class="sidebar-label"><span>INPUT FORMAT</span><small>CHOOSE ONE</small></div><div class="p2-source-list" data-format-rail="source"></div><div class="sidebar-label"><span>HORIZONTAL TARGET BAY</span><small>6 OUTPUTS // 3 × 2</small></div><div class="p2-target-list" data-compact-targets aria-label="Six horizontal output choices"></div><div class="universal-card sidebar-universal"><div><b>UNIVERSAL</b><p>Upload first. The input type is detected automatically.</p></div><button class="hardware-btn" type="button" data-universal>USE →</button></div></aside><div id="converter" data-converter></div></div>
-    </div></section>
-    <section class="section route-atlas-section"><div class="wrap"><div class="section-head"><div><p>02 // REDESIGNED ROUTE ATLAS</p><h2>42 routes, six at a time</h2></div><small>Select one source format. The atlas then shows its six valid destinations as large, readable cards with the route ticket attached to the top edge.</small></div><div class="route-atlas-shell"><div class="route-atlas-head"><div><span>ACTIVE SOURCE</span><b data-route-from>JPG</b></div><div><span>SELECTED ROUTE</span><b data-route-summary>JPG → PNG</b></div><div><span>OUTPUT PROFILE</span><b data-route-note>Lossless transparency</b></div></div><div class="format-rail route-atlas-sources" data-format-rail="source"></div><div class="route-directory route-atlas-targets" data-route-directory="targets"></div></div><div class="universal-card atlas-universal"><div><b>UNIVERSAL ROUTE</b><p>Not sure what the file is? Upload JPG, JPEG, WebP, GIF, TIF, PNG or SVG and let the switchboard identify the source before you choose an output.</p></div><button class="hardware-btn" type="button" data-universal>DETECT MY INPUT →</button></div></div></section>
-    <section class="section format-data-section"><div class="wrap"><div class="section-head"><div><p>03 // FORMAT INTELLIGENCE</p><h2>Know what each output is good for</h2></div><small>Choose the destination for the job—not just the extension. Transparency, animation and browser delivery needs can change the best route.</small></div><div class="format-data-grid"><article><b>JPG / JPEG</b><span>PHOTOGRAPHY</span><p>Lossy compression for photos and broad compatibility. Transparent pixels are flattened.</p></article><article><b>WEBP</b><span>MODERN WEB</span><p>Compact web delivery with transparency and animation capability.</p></article><article><b>GIF</b><span>SIMPLE MOTION</span><p>Widely recognized animation format with a limited indexed-color palette.</p></article><article><b>TIF</b><span>PRINT / ARCHIVE</span><p>High-fidelity production format best handled through the full server codec.</p></article><article><b>PNG</b><span>LOSSLESS / ALPHA</span><p>Sharp graphics, screenshots and transparency without lossy compression.</p></article><article><b>SVG</b><span>SCALABLE CONTAINER</span><p>Best for vector artwork. Raster conversions are embedded rather than magically vectorized.</p></article><article class="format-data-wide"><b>UNIVERSAL MODE</b><span>AUTO-DETECT INPUT</span><p>Use it when the source extension is unknown. The output remains your explicit choice, so the conversion never becomes a mystery.</p></article></div></div></section>
-  </main>
-  <section class="trust-bar" id="trust"><div class="wrap trust-grid"><article><span class="trust-mark">01</span><b>SEARCHABLE</b><p>Natural route phrases are recognized.</p></article><article><span class="trust-mark">02</span><b>PERSISTENT CONTEXT</b><p>The source and targets remain beside the tool.</p></article><article><span class="trust-mark">03</span><b>COMPLETE MATRIX</b><p>All 42 cross-format routes are visible.</p></article><article><span class="trust-mark">04</span><b>SAFE START</b><p>No upload occurs until the route is clear.</p></article></div></section><footer><div class="wrap footer-links"><div class="footer-brand"><span class="brand-mark">/&gt;</span><div><b>ImageReducer</b><small>PRECISION IMAGE SYSTEMS</small></div></div><nav class="footer-nav" aria-label="Footer"><a href="home_01.html">Home</a><a href="index_02.html">Resizer Tool</a><a href="All_converter.html">Format Converter</a><a href="home_01.html#footer">Contact</a></nav></div><div class="wrap footer-inner"><span>IMAGEREDUCER // ROUTE SWITCHBOARD</span><span>7 FORMATS · 42 ROUTES · 1 UNIVERSAL MODE</span></div></footer>
-  <script>
-    (function () {
-      "use strict";
-
-      const formats = [
-        { id: "JPG", code: "J", extensions: ["jpg"], accept: ".jpg,image/jpeg", note: "Compact photo output" },
-        { id: "JPEG", code: "JE", extensions: ["jpeg"], accept: ".jpeg,image/jpeg", note: "Full-name JPEG route" },
-        { id: "WEBP", code: "W", extensions: ["webp"], accept: ".webp,image/webp", note: "Modern web delivery" },
-        { id: "GIF", code: "G", extensions: ["gif"], accept: ".gif,image/gif", note: "Animation-compatible route" },
-        { id: "TIF", code: "T", extensions: ["tif", "tiff"], accept: ".tif,.tiff,image/tiff", note: "Print and archive route" },
-        { id: "PNG", code: "P", extensions: ["png"], accept: ".png,image/png", note: "Lossless transparency" },
-        { id: "SVG", code: "S", extensions: ["svg"], accept: ".svg,image/svg+xml", note: "Scalable container route" }
-      ];
-
-      const formatIds = formats.map(function (item) { return item.id; });
-      const state = {
-        from: normalize(document.body.dataset.defaultFrom || "JPG"),
-        to: normalize(document.body.dataset.defaultTo || "PNG"),
-        universal: document.body.dataset.universal === "true",
-        file: null,
-        objectUrl: null,
-        originalWidth: 0,
-        originalHeight: 0
-      };
-
-      function normalize(value) {
-        const upper = String(value || "").toUpperCase();
-        if (upper === "TIFF") return "TIF";
-        return formatIds.includes(upper) ? upper : "JPG";
+      :root {
+        --bg: #F9FAFB;
+        --panel: #E5E7EB;
+        --panel-2: #F3F4F6;
+        --text: #111827;
+        --muted: #6B7280;
+        --line: #D1D5DB;
+        --line-strong: #9CA3AF;
+        --orange: #FF6D00;
+        --green: #16A34A;
+        --white: #FFFFFF;
+        --danger: #DC2626;
       }
 
-      function formatInfo(id) {
-        return formats.find(function (item) { return item.id === id; }) || formats[0];
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--text);
+        background-color: var(--bg);
+        background-image:
+          linear-gradient(rgba(17, 24, 39, .05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(17, 24, 39, .05) 1px, transparent 1px);
+        background-size: 40px 40px;
+        font-family: "Roboto Mono", "Courier New", monospace;
+        -webkit-font-smoothing: antialiased;
+      }
+      button, input, select { font: inherit; }
+      button, a, label, select { -webkit-tap-highlight-color: transparent; }
+      a { color: inherit; }
+      button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, label:focus-within {
+        outline: 3px solid var(--text);
+        outline-offset: 3px;
+      }
+      .wrap { width: min(1400px, calc(100% - 32px)); margin-inline: auto; }
+      .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+      /* Theme-locked header derived from home_01 */
+      .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 80;
+        background: rgba(255,255,255,.98);
+        border-bottom: 2px solid var(--line);
+        box-shadow: 0 3px 12px rgba(17,24,39,.06);
+      }
+      .header-inner { min-height: 74px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 28px; }
+      .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; }
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        background: var(--orange);
+        color: var(--white);
+        font-size: 14px;
+        font-weight: 900;
+        box-shadow: 3px 3px 0 var(--text);
+      }
+      .brand-copy b { display: block; color: var(--orange); font-size: 17px; letter-spacing: .08em; }
+      .brand-copy small { display: block; color: var(--muted); margin-top: 3px; font-size: 7px; font-weight: 900; letter-spacing: .14em; }
+      .site-nav { justify-self: center; display: flex; align-items: stretch; min-height: 74px; }
+      .site-nav a {
+        position: relative;
+        min-width: 86px;
+        padding: 0 13px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 5px;
+        text-decoration: none;
+        color: #4B5563;
+        border-inline-start: 1px solid #E5E7EB;
+        text-align: center;
+      }
+      .site-nav a:last-child { border-inline-end: 1px solid #E5E7EB; }
+      .site-nav a span { font-size: 9px; font-weight: 900; letter-spacing: .08em; }
+      .site-nav a small { color: #9CA3AF; font-size: 6px; font-weight: 700; letter-spacing: .12em; }
+      .site-nav a:hover { color: var(--orange); background: #FFF7ED; }
+      .site-nav a.active { color: var(--text); background: var(--panel-2); }
+      .site-nav a.active::after { content: ""; position: absolute; height: 4px; background: var(--orange); inset: auto 10px 0; }
+      .header-actions { display: flex; align-items: center; gap: 10px; }
+      .online-chip { display: flex; align-items: center; gap: 7px; color: #15803D; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
+      .online-chip i { width: 8px; height: 8px; background: var(--green); box-shadow: 0 0 0 4px rgba(22,163,74,.1); }
+      .header-cta { padding: 12px 15px; font-size: 9px; }
+      .mobile-menu { display: none; width: 42px; height: 42px; border: 2px solid var(--line); background: var(--white); font-weight: 900; }
+
+      .hardware-btn {
+        border: 0;
+        background: var(--orange);
+        color: var(--white);
+        font-weight: 900;
+        letter-spacing: .06em;
+        cursor: pointer;
+        text-decoration: none;
+        box-shadow: inset 0 2px 0 rgba(255,255,255,.4), inset 0 -4px 0 rgba(0,0,0,.22), 0 4px 6px rgba(17,24,39,.22);
+        transition: transform .1s ease, box-shadow .1s ease;
+      }
+      .hardware-btn:active { transform: translateY(2px); box-shadow: inset 0 4px 6px rgba(0,0,0,.28); }
+      .outline-btn { border: 2px solid var(--line-strong); background: var(--white); color: var(--text); font-weight: 900; cursor: pointer; }
+      .outline-btn:hover { border-color: var(--orange); color: var(--orange); }
+
+      /* Common hero language */
+      .hero { padding: 34px 0 18px; }
+      .hero-shell { background: var(--panel); border: 4px solid var(--line); padding: 10px; box-shadow: 0 24px 54px rgba(17,24,39,.14); }
+      .hero-inner { background: var(--white); border: 2px solid var(--line); padding: clamp(26px, 4vw, 52px); }
+      .eyebrow { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #BBF7D0; background: #F0FDF4; color: #15803D; padding: 8px 10px; font-size: 8px; font-weight: 900; letter-spacing: .13em; }
+      .eyebrow i { width: 8px; height: 8px; background: var(--green); }
+      .hero h1 { margin: 20px 0 14px; max-width: 900px; font-size: clamp(36px, 4.8vw, 68px); line-height: 1.02; letter-spacing: -.055em; text-transform: uppercase; }
+      .hero h1 span { color: var(--orange); }
+      .hero p { max-width: 720px; margin: 0; color: #4B5563; font-size: 14px; line-height: 1.75; font-weight: 500; }
+      .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+      .hero-actions a, .hero-actions button { min-height: 50px; display: inline-flex; align-items: center; justify-content: center; padding: 0 20px; font-size: 10px; }
+      .fact-strip { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 16px; background: var(--white); border: 2px solid var(--line); }
+      .fact-strip > div { min-height: 68px; padding: 13px; border-right: 1px solid var(--line); }
+      .fact-strip > div:last-child { border-right: 0; }
+      .fact-strip small { display: block; color: var(--green); font-size: 7px; font-weight: 900; letter-spacing: .13em; }
+      .fact-strip b { display: block; margin-top: 6px; font-size: 9px; }
+
+      /* Ticket identity */
+      .route-ticket {
+        position: relative;
+        display: inline-grid;
+        place-items: center;
+        min-width: 50px;
+        min-height: 38px;
+        padding: 6px 9px;
+        background: var(--white);
+        border: 2px solid var(--line-strong);
+        color: var(--text);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: .04em;
+        transform: rotate(-5deg);
+        box-shadow: 3px 3px 0 var(--panel);
+      }
+      .route-ticket::before { content: ""; position: absolute; inset: 3px; border: 1px dashed var(--line); pointer-events: none; }
+      .route-ticket.orange { border-color: var(--orange); color: var(--orange); }
+      .route-ticket.big { min-width: 82px; min-height: 58px; font-size: 15px; }
+      .ticket-pin { position: absolute; top: -15px; right: 14px; z-index: 4; }
+
+      /* Generated converter workspace inspired by JPG_TO_PNG_03 */
+      .converter-shell { background: var(--panel); border: 4px solid var(--line); padding: 10px; box-shadow: 0 22px 48px rgba(17,24,39,.13); }
+      .converter-machine { background: var(--white); border: 2px solid var(--line-strong); }
+      .machine-head { min-height: 54px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--panel-2); border-bottom: 2px solid var(--line); }
+      .machine-head b { display: flex; align-items: center; gap: 9px; font-size: 9px; letter-spacing: .08em; }
+      .machine-head b i { width: 9px; height: 9px; background: var(--green); }
+      .machine-head small { color: var(--muted); font-size: 7px; font-weight: 900; }
+      .machine-grid { display: grid; grid-template-columns: 280px minmax(340px, 1fr) 340px; }
+      .machine-panel { min-width: 0; min-height: 520px; padding: 18px; border-right: 2px solid var(--line); }
+      .machine-panel:last-child { border-right: 0; }
+      .panel-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--line); }
+      .panel-label b { font-size: 8px; letter-spacing: .1em; }
+      .panel-label span { color: var(--orange); font-size: 7px; font-weight: 900; }
+      .dropzone { min-height: 245px; margin-top: 14px; padding: 20px; border: 2px dashed var(--line-strong); background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; cursor: pointer; transition: .18s ease; }
+      .dropzone:hover, .dropzone.is-over { border-color: var(--orange); background: #FFF7ED; }
+      .drop-symbol { width: 54px; height: 54px; display: grid; place-items: center; background: var(--white); border: 2px solid var(--line); color: var(--orange); font-size: 23px; font-weight: 900; box-shadow: 4px 4px 0 var(--panel); }
+      .dropzone strong { margin-top: 13px; font-size: 10px; }
+      .dropzone small { margin-top: 7px; color: var(--muted); font-size: 7px; line-height: 1.6; }
+      .file-input { position: absolute; opacity: 0; pointer-events: none; }
+      .file-meta { display: none; grid-template-columns: 42px 1fr auto; align-items: center; gap: 8px; margin-top: 10px; padding: 9px; border: 2px solid var(--line); }
+      .file-meta.visible { display: grid; }
+      .file-meta img { width: 42px; height: 42px; object-fit: cover; background: var(--panel-2); border: 1px solid var(--line); }
+      .file-copy { min-width: 0; }
+      .file-copy b, .file-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .file-copy b { font-size: 8px; }
+      .file-copy small { margin-top: 4px; color: var(--muted); font-size: 7px; }
+      .file-remove { width: 30px; height: 30px; border: 1px solid var(--line); background: var(--white); cursor: pointer; }
+      .file-remove:hover { color: var(--danger); border-color: var(--danger); }
+      .preview-stage { height: 330px; margin-top: 14px; border: 2px solid var(--line); background-color: var(--panel-2); background-image: linear-gradient(rgba(17,24,39,.04) 1px, transparent 1px), linear-gradient(90deg,rgba(17,24,39,.04) 1px,transparent 1px); background-size: 22px 22px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+      .preview-stage img { display: none; max-width: 92%; max-height: 92%; object-fit: contain; box-shadow: 0 12px 28px rgba(17,24,39,.15); }
+      .preview-stage.has-image img { display: block; }
+      .preview-stage.has-image .preview-empty { display: none; }
+      .preview-empty { text-align: center; color: var(--muted); }
+      .preview-empty .file-shape { width: 82px; height: 98px; margin: 0 auto 13px; display: grid; place-items: center; background: var(--white); border: 3px solid var(--line-strong); color: var(--line-strong); font-size: 18px; font-weight: 900; box-shadow: 7px 7px 0 var(--line); }
+      .preview-empty b { display: block; color: #4B5563; font-size: 8px; }
+      .preview-empty small { display: block; margin-top: 6px; font-size: 7px; }
+      .preview-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; }
+      .preview-foot span { flex: 1; padding: 9px; border: 1px solid var(--line); background: var(--white); font-size: 7px; font-weight: 900; }
+      .preview-foot span:last-child { text-align: right; }
+      .preview-foot em { color: var(--orange); font-style: normal; }
+      .field { margin-top: 13px; }
+      .field label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; color: var(--muted); font-size: 7px; font-weight: 900; letter-spacing: .08em; }
+      .field input, .field select { width: 100%; min-height: 44px; border: 2px solid var(--line); background: var(--white); color: var(--text); padding: 0 10px; font-size: 9px; font-weight: 900; }
+      .field input:focus, .field select:focus { border-color: var(--orange); }
+      .route-selectors { display: grid; grid-template-columns: 1fr 38px 1fr; align-items: end; gap: 6px; }
+      .swap-button { height: 44px; border: 2px solid var(--line); background: var(--panel-2); font-weight: 900; cursor: pointer; }
+      .swap-button:hover { border-color: var(--orange); color: var(--orange); }
+      .locked-box { margin-top: 13px; padding: 11px; border: 2px solid var(--line); background: var(--panel-2); font-size: 7px; line-height: 1.6; font-weight: 900; }
+      .locked-box span { display: inline-block; margin-right: 6px; padding: 4px 6px; background: var(--text); color: var(--white); }
+      .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+      .execute-button { width: 100%; min-height: 54px; margin-top: 16px; }
+      .system-status { min-height: 54px; margin-top: 10px; padding: 10px 11px; border-left: 4px solid var(--green); background: #F0FDF4; color: #166534; font-size: 7px; font-weight: 700; line-height: 1.55; }
+      .system-status.error { border-color: var(--danger); background: #FEF2F2; color: #991B1B; }
+      .system-status.processing { border-color: var(--orange); background: #FFF7ED; color: #9A3412; }
+
+      /* Shared directory/matrix components */
+      .section { padding: 44px 0 60px; }
+      .section-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 17px; }
+      .section-head p { margin: 0; color: var(--orange); font-size: 8px; font-weight: 900; letter-spacing: .13em; }
+      .section-head h2 { margin: 6px 0 0; font-size: clamp(25px, 3vw, 38px); line-height: 1.05; letter-spacing: -.04em; text-transform: uppercase; }
+      .section-head small { max-width: 520px; color: var(--muted); font-size: 8px; line-height: 1.6; }
+      .format-rail { display: grid; grid-template-columns: repeat(7, 1fr); border: 2px solid var(--line); background: var(--white); }
+      .format-choice { min-height: 68px; border: 0; border-right: 1px solid var(--line); background: var(--white); color: #4B5563; font-size: 10px; font-weight: 900; cursor: pointer; }
+      .format-choice:last-child { border-right: 0; }
+      .format-choice small { display: block; margin-top: 5px; color: #9CA3AF; font-size: 6px; }
+      .format-choice:hover { color: var(--orange); background: #FFF7ED; }
+      .format-choice.active { background: var(--text); color: var(--white); box-shadow: inset 0 -4px 0 var(--orange); }
+      .format-choice.active small { color: var(--line); }
+      .route-directory { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+      .route-card { position: relative; min-height: 116px; padding: 26px 14px 14px; border: 2px solid var(--line); background: var(--white); text-align: left; cursor: pointer; overflow: visible; transition: transform .16s ease, border-color .16s ease, background .16s ease; }
+      .route-card:hover { border-color: var(--orange); transform: translateY(-2px); }
+      .route-card.active { border-color: var(--orange); background: #FFF7ED; box-shadow: inset 0 -4px 0 var(--orange); }
+      .route-card b { display: block; font-size: 11px; }
+      .route-card p { margin: 9px 0 0; max-width: 78%; color: var(--muted); font-size: 7px; line-height: 1.5; }
+      .route-card .route-node { display: block; margin-bottom: 8px; color: var(--green); font-size: 6px; font-weight: 900; letter-spacing: .12em; }
+      .route-card .route-ticket { position: absolute; z-index: 3; right: 10px; top: -14px; bottom: auto; min-width: 50px; min-height: 34px; font-size: 8px; }
+      .universal-card { min-height: 110px; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 22px; background: var(--text); color: var(--white); border-left: 8px solid var(--orange); }
+      .universal-card b { font-size: 13px; }
+      .universal-card p { margin: 6px 0 0; color: var(--line); font-size: 7px; line-height: 1.55; }
+      .universal-card button { min-height: 46px; padding: 0 15px; font-size: 8px; }
+      .search-field { display: flex; height: 48px; border: 2px solid var(--line); background: var(--white); }
+      .search-field span { width: 48px; display: grid; place-items: center; color: var(--orange); border-right: 1px solid var(--line); font-weight: 900; }
+      .search-field input { min-width: 0; flex: 1; border: 0; padding: 0 13px; outline: 0; color: var(--text); font-size: 9px; font-weight: 700; }
+      .matrix-wrap { overflow: auto; background: var(--panel); border: 4px solid var(--line); padding: 8px; }
+      .route-matrix { min-width: 780px; display: grid; grid-template-columns: 118px repeat(7, 1fr); background: var(--white); border: 2px solid var(--line-strong); }
+      .matrix-cell { min-height: 58px; padding: 6px; display: grid; place-items: center; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 8px; font-weight: 900; }
+      .matrix-cell.head { background: var(--text); color: var(--white); }
+      .matrix-cell.axis { justify-items: start; padding-left: 13px; background: var(--panel-2); }
+      .matrix-cell.same { background: var(--bg); color: #9CA3AF; }
+      .matrix-cell button { width: 100%; height: 100%; min-height: 42px; border: 0; background: var(--white); color: #4B5563; font-size: 7px; font-weight: 900; cursor: pointer; }
+      .matrix-cell button:hover, .matrix-cell button.active { background: #FFF7ED; color: var(--orange); box-shadow: inset 0 -3px 0 var(--orange); }
+
+      .trust-bar { background: var(--white); border-block: 2px solid var(--line); }
+      .trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+      .trust-grid article { min-height: 116px; padding: 21px; border-right: 1px solid var(--line); }
+      .trust-grid article:last-child { border-right: 0; }
+      .trust-mark { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #BBF7D0; background: #F0FDF4; color: #15803D; font-size: 8px; font-weight: 900; }
+      .trust-grid b { display: block; margin-top: 11px; font-size: 8px; }
+      .trust-grid p { margin: 6px 0 0; color: var(--muted); font-size: 7px; line-height: 1.5; }
+      footer { padding: 25px 0; color: var(--muted); font-size: 7px; }
+      .footer-inner { display: flex; justify-content: space-between; gap: 16px; }
+
+      /* Prototype-specific compositions */
+      .p1-hero-grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: 34px; align-items: center; }
+      .p1-route-board { position: relative; min-height: 360px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-content: center; background-image: linear-gradient(rgba(17,24,39,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(17,24,39,.04) 1px,transparent 1px); background-size: 22px 22px; padding: 24px; border: 2px solid var(--line); }
+      .p1-route-board .mini-route { position: relative; min-height: 110px; padding: 18px; background: var(--white); border: 2px solid var(--line); box-shadow: 6px 6px 0 var(--panel); }
+      .p1-route-board .mini-route b { font-size: 11px; }
+      .p1-route-board .mini-route p { color: var(--muted); font-size: 7px; }
+      .p1-route-board .mini-route .route-ticket { position: absolute; top: -13px; right: 9px; }
+      .p1-route-board .mini-route.universal-mini { grid-column: span 2; background: var(--text); color: var(--white); border-left: 6px solid var(--orange); }
+      .p1-route-board .mini-route.universal-mini p { color: var(--line); }
+
+      .selected-hero-grid { display: grid; grid-template-columns: .82fr 1.18fr; gap: 28px; align-items: center; }
+      .switchboard-visual { position: relative; min-height: 390px; border: 2px solid var(--line); overflow: hidden; background: var(--panel-2); }
+      .switchboard-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .switchboard-visual .visual-caption { position: absolute; left: 14px; bottom: 14px; padding: 10px 12px; background: rgba(17,24,39,.94); color: var(--white); border-left: 5px solid var(--orange); font-size: 7px; font-weight: 900; }
+      .visual-route-tickets { position: absolute; inset: 15px 16px auto; display: flex; justify-content: flex-end; gap: 12px; pointer-events: none; }
+      .visual-route-tickets .route-ticket { min-width: 60px; }
+
+      .p2-main-grid { display: grid; grid-template-columns: 440px minmax(0, 1fr); gap: 14px; align-items: stretch; }
+      .p2-directory-panel { align-self: stretch; min-height: 820px; background: var(--white); border: 4px solid var(--line); padding: 12px; position: relative; display: flex; flex-direction: column; }
+      .p2-source-list { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-top: 10px; }
+      .p2-source-list .format-choice { min-height: 54px; border: 2px solid var(--line); }
+      .sidebar-label { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 2px solid var(--line); }
+      .sidebar-label span { font-size: 7px; font-weight: 900; letter-spacing: .1em; }
+      .sidebar-label small { color: var(--orange); font-size: 6px; font-weight: 900; }
+      .p2-target-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px 9px; margin-top: 20px; }
+      .p2-target-list .route-card { min-width: 0; min-height: 126px; padding: 30px 10px 11px; text-align: center; }
+      .p2-target-list .route-card b { font-size: 9px; white-space: nowrap; }
+      .p2-target-list .route-card p { margin-top: 7px; max-width: 100%; font-size: 6px; line-height: 1.45; }
+      .p2-target-list .route-node { margin-bottom: 8px; font-size: 5px; }
+      .p2-target-list .route-ticket { top: -13px; right: 50%; min-width: 48px; transform: translateX(50%) rotate(-4deg); }
+      .sidebar-universal { min-height: 92px; margin-top: auto; padding: 13px; }
+      .p2-main-grid > .converter-shell, .p2-main-grid .converter-machine { height: 100%; }
+      .p2-main-grid .machine-grid { grid-template-columns: 245px minmax(300px,1fr) 310px; height: calc(100% - 54px); }
+      .p2-main-grid .machine-panel { min-height: 750px; }
+
+      .route-atlas-shell { background: var(--panel); border: 4px solid var(--line); padding: 10px; box-shadow: 0 22px 48px rgba(17,24,39,.12); }
+      .route-atlas-head { display: grid; grid-template-columns: repeat(3,1fr); background: var(--text); color: var(--white); border-bottom: 4px solid var(--orange); }
+      .route-atlas-head > div { min-height: 76px; padding: 15px; border-right: 1px solid #374151; }
+      .route-atlas-head > div:last-child { border-right: 0; }
+      .route-atlas-head span { display: block; color: #9CA3AF; font-size: 7px; font-weight: 900; letter-spacing: .1em; }
+      .route-atlas-head b { display: block; margin-top: 8px; font-size: 12px; }
+      .route-atlas-sources { border-top: 0; }
+      .route-atlas-targets { grid-template-columns: repeat(3,1fr); gap: 14px; margin: 24px 0 0; padding: 14px 4px 4px; }
+      .route-atlas-targets .route-card { min-height: 136px; padding: 28px 16px 16px; box-shadow: 5px 5px 0 var(--line); }
+      .route-atlas-targets .route-card b { font-size: 13px; }
+      .route-atlas-targets .route-card p { font-size: 8px; }
+      .route-atlas-targets .route-ticket { top: -16px; right: 14px; min-width: 60px; min-height: 40px; font-size: 10px; }
+      .atlas-universal { margin-top: 14px; }
+
+      .format-data-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+      .format-data-grid article { min-height: 154px; padding: 20px; background: var(--white); border: 2px solid var(--line); box-shadow: inset 0 -4px 0 var(--panel); }
+      .format-data-grid article:hover { border-color: var(--orange); }
+      .format-data-grid article b { display: block; font-size: 13px; }
+      .format-data-grid article span { display: block; margin-top: 9px; color: var(--green); font-size: 7px; font-weight: 900; letter-spacing: .12em; }
+      .format-data-grid article p { margin: 12px 0 0; color: var(--muted); font-size: 8px; line-height: 1.65; }
+      .format-data-grid .format-data-wide { grid-column: span 3; min-height: auto; border-left: 7px solid var(--orange); }
+      .target-bay-grid { gap: 16px; padding-top: 12px; }
+      .target-bay-grid .route-card { min-height: 134px; padding-top: 28px; }
+
+      .p3-flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+      .p3-step { position: relative; min-height: 110px; padding: 15px; background: var(--white); border: 2px solid var(--line); }
+      .p3-step::after { content: ">"; position: absolute; right: -10px; top: 43%; z-index: 2; width: 20px; height: 24px; display: grid; place-items: center; background: var(--orange); color: var(--white); font-weight: 900; }
+      .p3-step:last-child::after { display: none; }
+      .p3-step span { color: var(--orange); font-size: 7px; font-weight: 900; }
+      .p3-step b { display: block; margin-top: 10px; font-size: 10px; }
+      .p3-step p { margin: 7px 0 0; color: var(--muted); font-size: 7px; line-height: 1.5; }
+      .p3-compact .machine-grid { grid-template-columns: 1fr 1.1fr; }
+      .p3-compact .machine-panel:nth-child(2) { border-right: 0; }
+      .p3-compact .machine-panel:nth-child(3) { grid-column: span 2; min-height: auto; border-top: 2px solid var(--line); }
+      .p3-compact .config-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+      .p4-atlas { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
+      .p4-core { position: sticky; top: 92px; background: var(--panel); border: 4px solid var(--line); padding: 9px; }
+      .p4-core-inner { position: relative; background: var(--white); border: 2px solid var(--line-strong); padding: 19px; }
+      .p4-core .route-ticket { margin: 6px 0 16px; }
+      .p4-core h3 { margin: 0; font-size: 19px; }
+      .p4-core p { color: var(--muted); font-size: 8px; line-height: 1.6; }
+      .p4-core button { width: 100%; min-height: 48px; margin-top: 9px; }
+
+      .p5-hero-grid { display: grid; grid-template-columns: .82fr 1.18fr; gap: 26px; align-items: center; }
+      .p5-visual { position: relative; min-height: 360px; border: 2px solid var(--line); overflow: hidden; background: var(--panel-2); }
+      .p5-visual img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      .p5-visual .visual-caption { position: absolute; left: 14px; bottom: 14px; padding: 10px 12px; background: rgba(17,24,39,.94); color: var(--white); border-left: 5px solid var(--orange); font-size: 7px; font-weight: 900; }
+      .p5-workspace { display: grid; grid-template-columns: 165px minmax(0,1fr); gap: 12px; }
+      .p5-rail { background: var(--white); border: 4px solid var(--line); padding: 8px; align-self: start; position: sticky; top: 92px; }
+      .p5-rail .format-choice { width: 100%; min-height: 58px; border: 0; border-bottom: 1px solid var(--line); }
+      .p5-workspace .machine-grid { grid-template-columns: 260px minmax(320px,1fr) 330px; }
+
+      @media (max-width: 1180px) {
+        .site-nav a { min-width: 72px; padding-inline: 9px; }
+        .online-chip { display: none; }
+        .machine-grid, .p2-main-grid .machine-grid, .p5-workspace .machine-grid { grid-template-columns: 260px minmax(320px,1fr); }
+        .machine-panel:nth-child(2) { border-right: 0; }
+        .machine-panel:nth-child(3) { grid-column: span 2; min-height: auto; border-top: 2px solid var(--line); }
+        .machine-panel:nth-child(3) .field-row { grid-template-columns: repeat(3,1fr); }
+        .p4-atlas { grid-template-columns: 1fr; }
+        .p4-core { position: static; }
+      }
+      @media (max-width: 920px) {
+        .site-nav { display: none; }
+        .header-inner { grid-template-columns: auto 1fr auto; }
+        .header-actions { justify-self: end; }
+        .mobile-menu { display: block; }
+        .header-cta { display: none; }
+        .p1-hero-grid, .p5-hero-grid, .selected-hero-grid { grid-template-columns: 1fr; }
+        .p2-main-grid { grid-template-columns: 1fr; }
+        .p2-directory-panel, .p5-rail { position: static; }
+        .p2-main-grid > .converter-shell, .p2-main-grid .converter-machine, .p2-main-grid .machine-grid { height: auto; }
+        .p2-source-list { grid-template-columns: repeat(4,1fr); }
+        .p2-target-list { grid-template-columns: repeat(3,minmax(0,1fr)); }
+        .p2-directory-panel { min-height: auto; }
+        .p2-main-grid .machine-panel { min-height: auto; }
+        .p3-flow { grid-template-columns: 1fr 1fr; }
+        .p3-step:nth-child(2)::after { display: none; }
+        .p5-workspace { grid-template-columns: 1fr; }
+        .p5-rail { display: grid; grid-template-columns: repeat(7,1fr); }
+        .p5-rail .format-choice { border-bottom: 0; border-right: 1px solid var(--line); }
+      }
+      @media (max-width: 760px) {
+        .wrap { width: min(100% - 20px, 1400px); }
+        .brand-copy small { display: none; }
+        .hero { padding-top: 18px; }
+        .hero-shell, .converter-shell { padding: 6px; }
+        .hero-inner { padding: 24px 19px; }
+        .hero h1 { font-size: 38px; }
+        .fact-strip { grid-template-columns: 1fr 1fr; }
+        .fact-strip > div:nth-child(2) { border-right: 0; }
+        .fact-strip > div { border-bottom: 1px solid var(--line); }
+        .machine-grid, .p2-main-grid .machine-grid, .p3-compact .machine-grid, .p5-workspace .machine-grid { grid-template-columns: 1fr; }
+        .machine-panel, .machine-panel:nth-child(2) { border-right: 0; border-bottom: 2px solid var(--line); min-height: auto; }
+        .machine-panel:nth-child(3), .p3-compact .machine-panel:nth-child(3) { grid-column: auto; border-top: 0; }
+        .machine-panel:nth-child(3) .field-row { grid-template-columns: 1fr 1fr; }
+        .preview-stage { height: 330px; }
+        .format-rail { grid-template-columns: repeat(4,1fr); }
+        .format-choice { border-bottom: 1px solid var(--line); }
+        .route-directory { grid-template-columns: 1fr 1fr; }
+        .route-atlas-head { grid-template-columns: 1fr; }
+        .route-atlas-head > div { border-right: 0; border-bottom: 1px solid #374151; }
+        .route-atlas-targets { grid-template-columns: 1fr 1fr; }
+        .format-data-grid { grid-template-columns: 1fr 1fr; }
+        .format-data-grid .format-data-wide { grid-column: span 2; }
+        .section-head { align-items: start; flex-direction: column; }
+        .universal-card { align-items: flex-start; flex-direction: column; }
+        .trust-grid { grid-template-columns: 1fr 1fr; }
+        .trust-grid article:nth-child(2) { border-right: 0; }
+        .footer-inner { flex-direction: column; }
+        .p2-source-list { grid-template-columns: repeat(3,1fr); }
+        .p2-target-list { grid-template-columns: 1fr 1fr; }
+        .p3-compact .config-inline { grid-template-columns: 1fr; }
+        .p5-rail { grid-template-columns: repeat(4,1fr); }
+      }
+      @media (max-width: 460px) {
+        .brand-copy b { font-size: 14px; }
+        .hero h1 { font-size: 32px; }
+        .route-selectors, .field-row, .machine-panel:nth-child(3) .field-row { grid-template-columns: 1fr; }
+        .swap-button { height: 38px; }
+        .route-directory, .p2-target-list { grid-template-columns: 1fr; }
+        .route-atlas-targets, .format-data-grid { grid-template-columns: 1fr; }
+        .format-data-grid .format-data-wide { grid-column: auto; }
+        .format-rail, .p2-source-list, .p5-rail { grid-template-columns: repeat(3,1fr); }
+        .trust-grid { grid-template-columns: 1fr; }
+        .trust-grid article { border-right: 0; border-bottom: 1px solid var(--line); }
+        .p1-route-board, .p3-flow { grid-template-columns: 1fr; }
+        .p1-route-board .mini-route.universal-mini { grid-column: auto; }
+        .p3-step::after { display: none; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
       }
 
-      function ticketCode(from, to) {
-        return formatInfo(from).code + "→" + formatInfo(to).code;
-      }
+      /* ======================================================================
+        THEME ALIGNMENT PASS — CSS ONLY, no HTML/JS touched.
+        Goal: bring this page visually in line with home_01.html, which uses
+        soft rounded corners and a larger, more readable type scale. Every
+        rule below only adjusts border-radius, font-size and a little
+        spacing on existing selectors — nothing here changes layout logic,
+        markup or behaviour.
+      ====================================================================== */
 
-      function queryInitialRoute() {
-        const params = new URLSearchParams(window.location.search);
-        if (params.get("mode") === "universal") state.universal = true;
-        if (params.get("from")) state.from = normalize(params.get("from"));
-        if (params.get("to")) state.to = normalize(params.get("to"));
-        if (state.from === state.to) state.to = formats.find(function (item) { return item.id !== state.from; }).id;
+      /* Soft rounded corners everywhere home_01 uses them */
+      .hardware-btn, .outline-btn, .header-cta, .swap-button, .mobile-menu,
+      .field input, .field select, .search-field, .dropzone, .drop-symbol,
+      .file-meta, .file-remove, .route-card, .format-choice, .universal-card,
+      .locked-box, .system-status, .preview-stage, .machine-panel .panel-label,
+      .brand-mark, .p2-directory-panel, .switchboard-visual, .p2-source-list .format-choice,
+      .route-atlas-shell, .matrix-wrap, .converter-machine, .machine-head,
+      .trust-mark, .online-chip i, .format-data-grid article, .header-inner {
+        border-radius: 8px;
       }
+      .hardware-btn, .header-cta, .outline-btn, .execute-button { border-radius: 6px; }
+      .search-field, .search-field span:first-child { border-radius: 6px 0 0 6px; }
+      .search-field input { border-radius: 0 6px 6px 0; }
+      .brand-mark, .online-chip i, .trust-mark { border-radius: 4px; }
+      .site-header { border-radius: 0; }
+      .format-rail, .route-matrix, .matrix-cell.head:first-child { border-radius: 6px; overflow: hidden; }
 
-      function converterMarkup() {
-        return `
-          <div class="converter-shell" id="converter">
-            <div class="converter-machine">
-              <div class="machine-head">
-                <b><i></i> CONVERSION_WORKSPACE // READY</b>
-                <small><span data-route-from>JPG</span>_TO_<span data-route-to>PNG</span> // DEVICE DEMO</small>
+      /* Readable type scale — the smallest sizes (6–8px) were hard to read
+        next to home_01's text-xs/text-sm baseline (12–16px), so the most
+        visited copy gets a legibility bump. */
+      body { font-size: 13px; }
+      .brand-copy b { font-size: 19px; }
+      .brand-copy small { font-size: 8px; }
+      .site-nav a span { font-size: 10px; }
+      .site-nav a small { font-size: 7px; }
+      .online-chip { font-size: 8px; }
+      .hero h1 { font-size: clamp(30px, 4.2vw, 54px); }
+      .hero p { font-size: 13px; line-height: 1.6; }
+      .eyebrow { font-size: 10px; }
+      .section-head p { font-size: 10px; }
+      .section-head small { font-size: 11px; line-height: 1.7; }
+      .panel-label b { font-size: 10px; }
+      .panel-label span { font-size: 9px; }
+      .dropzone strong { font-size: 12px; }
+      .dropzone small { font-size: 9px; }
+      .field label { font-size: 9px; }
+      .field input, .field select { font-size: 11px; }
+      .route-card b { font-size: 13px; }
+      .route-card p { font-size: 9px; }
+      .route-card .route-node { font-size: 8px; }
+      .universal-card b { font-size: 14px; }
+      .universal-card p { font-size: 9px; }
+      .trust-grid b { font-size: 10px; }
+      .trust-grid p { font-size: 9px; }
+      .format-data-grid article b { font-size: 14px; }
+      .format-data-grid article p { font-size: 10px; }
+      .format-data-grid article span { font-size: 8px; }
+      .locked-box, .system-status { font-size: 9px; }
+      .execute-button, .header-cta { font-size: 11px; }
+      footer { font-size: 9px; }
+
+      /* Footer, restyled to echo home_01's footer band */
+      footer { background: var(--panel-2); border-top: 2px solid var(--line); padding: 34px 0 22px; }
+      .footer-links { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding-bottom: 20px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+      .footer-brand { display: flex; align-items: center; gap: 10px; }
+      .footer-brand b { display: block; color: var(--text); font-size: 13px; letter-spacing: .06em; }
+      .footer-brand small { display: block; margin-top: 3px; color: var(--muted); font-size: 7px; font-weight: 900; letter-spacing: .12em; }
+      .footer-nav { display: flex; gap: 18px; flex-wrap: wrap; }
+      .footer-nav a { text-decoration: none; color: var(--muted); font-size: 9px; font-weight: 900; letter-spacing: .06em; }
+      .footer-nav a:hover { color: var(--orange); }
+      .footer-inner { color: var(--muted); font-size: 8px; letter-spacing: .08em; }
+
+      @media (max-width: 760px) {
+        .footer-links { flex-direction: column; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header"><div class="wrap header-inner"><a class="brand" href="home_01.html"><span class="brand-mark">/&gt;</span><span class="brand-copy"><b>ImageReducer</b><small>PRECISION IMAGE SYSTEMS</small></span></a><nav class="site-nav" aria-label="Primary"><a href="home_01.html"><span>HOME</span><small>START</small></a><a href="index_02.html"><span>RESIZE</span><small>DIMENSIONS</small></a><a href="index_02.html#allSettingsContainer"><span>CROP</span><small>FRAME</small></a><a class="active" href="#routes"><span>CONVERT</span><small>42 ROUTES</small></a><a href="#trust"><span>FEATURES</span><small>PRIVACY</small></a></nav><div class="header-actions"><span class="online-chip"><i></i>ENGINE ONLINE</span><a class="hardware-btn header-cta" href="#routes">OPEN CONVERTER →</a><button class="mobile-menu" type="button">MENU</button></div></div></header>
+    <main id="top">
+      <section class="hero"><div class="wrap hero-shell"><div class="hero-inner selected-hero-grid"><div><span class="eyebrow"><i></i>SELECTED DESIGN // ROUTE SWITCHBOARD</span><h1>Find a converter. <span>Keep the work in view.</span></h1><p>Search any format pair, choose one of 42 direct routes, or let Universal mode detect the source. Your selected route stays visible from upload through download.</p><div class="hero-actions"><a class="hardware-btn" href="#routes">PICK A ROUTE →</a><button class="outline-btn" type="button" data-universal>UNIVERSAL CONVERTER</button></div></div><div class="switchboard-visual"><img src="refined-switchboard-engine.png" alt="Image format cards moving through a precision conversion routing engine"><div class="visual-route-tickets" aria-hidden="true"><span class="route-ticket">J→P</span><span class="route-ticket orange">W→JE</span><span class="route-ticket">G→S</span></div><span class="visual-caption">42 ROUTES // ONE CONTROLLED WORKSPACE</span></div></div></div></section>
+      <div class="wrap fact-strip"><div><small>FORMATS</small><b>7 INPUT + OUTPUT TYPES</b></div><div><small>ROUTES</small><b>42 CROSS-CONVERSIONS</b></div><div><small>CONTROL</small><b>RESIZE + QUALITY + PREVIEW</b></div><div><small>FALLBACK</small><b>UNIVERSAL AUTO-DETECT</b></div></div>
+      <section class="section" id="routes"><div class="wrap"><div class="section-head"><div><p>01 // SEARCH + SELECT + CONVERT</p><h2>Converter switchboard</h2></div><small>Type “WebP to JPEG” or pick a source and target. The workbench updates immediately.</small></div>
+        <div class="p2-main-grid"><aside class="p2-directory-panel"><div class="panel-label"><b>ROUTE DIRECTORY</b><span data-route-summary>JPG → PNG</span></div><div class="search-field" style="margin-top:10px"><span>⌕</span><input data-route-search aria-label="Search converter route" placeholder="TYPE: GIF TO SVG"></div><div class="sidebar-label"><span>INPUT FORMAT</span><small>CHOOSE ONE</small></div><div class="p2-source-list" data-format-rail="source"></div><div class="sidebar-label"><span>HORIZONTAL TARGET BAY</span><small>6 OUTPUTS // 3 × 2</small></div><div class="p2-target-list" data-compact-targets aria-label="Six horizontal output choices"></div><div class="universal-card sidebar-universal"><div><b>UNIVERSAL</b><p>Upload first. The input type is detected automatically.</p></div><button class="hardware-btn" type="button" data-universal>USE →</button></div></aside><div id="converter" data-converter></div></div>
+      </div></section>
+      <section class="section route-atlas-section"><div class="wrap"><div class="section-head"><div><p>02 // REDESIGNED ROUTE ATLAS</p><h2>42 routes, six at a time</h2></div><small>Select one source format. The atlas then shows its six valid destinations as large, readable cards with the route ticket attached to the top edge.</small></div><div class="route-atlas-shell"><div class="route-atlas-head"><div><span>ACTIVE SOURCE</span><b data-route-from>JPG</b></div><div><span>SELECTED ROUTE</span><b data-route-summary>JPG → PNG</b></div><div><span>OUTPUT PROFILE</span><b data-route-note>Lossless transparency</b></div></div><div class="format-rail route-atlas-sources" data-format-rail="source"></div><div class="route-directory route-atlas-targets" data-route-directory="targets"></div></div><div class="universal-card atlas-universal"><div><b>UNIVERSAL ROUTE</b><p>Not sure what the file is? Upload JPG, JPEG, WebP, GIF, TIF, PNG or SVG and let the switchboard identify the source before you choose an output.</p></div><button class="hardware-btn" type="button" data-universal>DETECT MY INPUT →</button></div></div></section>
+      <section class="section format-data-section"><div class="wrap"><div class="section-head"><div><p>03 // FORMAT INTELLIGENCE</p><h2>Know what each output is good for</h2></div><small>Choose the destination for the job—not just the extension. Transparency, animation and browser delivery needs can change the best route.</small></div><div class="format-data-grid"><article><b>JPG / JPEG</b><span>PHOTOGRAPHY</span><p>Lossy compression for photos and broad compatibility. Transparent pixels are flattened.</p></article><article><b>WEBP</b><span>MODERN WEB</span><p>Compact web delivery with transparency and animation capability.</p></article><article><b>GIF</b><span>SIMPLE MOTION</span><p>Widely recognized animation format with a limited indexed-color palette.</p></article><article><b>TIF</b><span>PRINT / ARCHIVE</span><p>High-fidelity production format best handled through the full server codec.</p></article><article><b>PNG</b><span>LOSSLESS / ALPHA</span><p>Sharp graphics, screenshots and transparency without lossy compression.</p></article><article><b>SVG</b><span>SCALABLE CONTAINER</span><p>Best for vector artwork. Raster conversions are embedded rather than magically vectorized.</p></article><article class="format-data-wide"><b>UNIVERSAL MODE</b><span>AUTO-DETECT INPUT</span><p>Use it when the source extension is unknown. The output remains your explicit choice, so the conversion never becomes a mystery.</p></article></div></div></section>
+    </main>
+    <section class="trust-bar" id="trust"><div class="wrap trust-grid"><article><span class="trust-mark">01</span><b>SEARCHABLE</b><p>Natural route phrases are recognized.</p></article><article><span class="trust-mark">02</span><b>PERSISTENT CONTEXT</b><p>The source and targets remain beside the tool.</p></article><article><span class="trust-mark">03</span><b>COMPLETE MATRIX</b><p>All 42 cross-format routes are visible.</p></article><article><span class="trust-mark">04</span><b>SAFE START</b><p>No upload occurs until the route is clear.</p></article></div></section><footer><div class="wrap footer-links"><div class="footer-brand"><span class="brand-mark">/&gt;</span><div><b>ImageReducer</b><small>PRECISION IMAGE SYSTEMS</small></div></div><nav class="footer-nav" aria-label="Footer"><a href="home_01.html">Home</a><a href="index_02.html">Resizer Tool</a><a href="All_converter.html">Format Converter</a><a href="home_01.html#footer">Contact</a></nav></div><div class="wrap footer-inner"><span>IMAGEREDUCER // ROUTE SWITCHBOARD</span><span>7 FORMATS · 42 ROUTES · 1 UNIVERSAL MODE</span></div></footer>
+    <script>
+      (function () {
+        "use strict";
+
+        const formats = [
+          { id: "JPG", code: "J", extensions: ["jpg"], accept: ".jpg,image/jpeg", note: "Compact photo output" },
+          { id: "JPEG", code: "JE", extensions: ["jpeg"], accept: ".jpeg,image/jpeg", note: "Full-name JPEG route" },
+          { id: "WEBP", code: "W", extensions: ["webp"], accept: ".webp,image/webp", note: "Modern web delivery" },
+          { id: "GIF", code: "G", extensions: ["gif"], accept: ".gif,image/gif", note: "Animation-compatible route" },
+          { id: "TIF", code: "T", extensions: ["tif", "tiff"], accept: ".tif,.tiff,image/tiff", note: "Print and archive route" },
+          { id: "PNG", code: "P", extensions: ["png"], accept: ".png,image/png", note: "Lossless transparency" },
+          { id: "SVG", code: "S", extensions: ["svg"], accept: ".svg,image/svg+xml", note: "Scalable container route" }
+        ];
+
+        const formatIds = formats.map(function (item) { return item.id; });
+        const state = {
+          from: normalize(document.body.dataset.defaultFrom || "JPG"),
+          to: normalize(document.body.dataset.defaultTo || "PNG"),
+          universal: document.body.dataset.universal === "true",
+          file: null,
+          objectUrl: null,
+          originalWidth: 0,
+          originalHeight: 0
+        };
+
+        function normalize(value) {
+          const upper = String(value || "").toUpperCase();
+          if (upper === "TIFF") return "TIF";
+          return formatIds.includes(upper) ? upper : "JPG";
+        }
+
+        function formatInfo(id) {
+          return formats.find(function (item) { return item.id === id; }) || formats[0];
+        }
+
+        function ticketCode(from, to) {
+          return formatInfo(from).code + "→" + formatInfo(to).code;
+        }
+
+        function queryInitialRoute() {
+          const params = new URLSearchParams(window.location.search);
+          if (params.get("mode") === "universal") state.universal = true;
+          if (params.get("from")) state.from = normalize(params.get("from"));
+          if (params.get("to")) state.to = normalize(params.get("to"));
+          if (state.from === state.to) state.to = formats.find(function (item) { return item.id !== state.from; }).id;
+        }
+
+        function converterMarkup() {
+          return `
+            <div class="converter-shell" id="converter">
+              <div class="converter-machine">
+                <div class="machine-head">
+                  <b><i></i> CONVERSION_WORKSPACE // READY</b>
+                  <small><span data-route-from>JPG</span>_TO_<span data-route-to>PNG</span> // DEVICE DEMO</small>
+                </div>
+                <div class="machine-grid">
+                  <section class="machine-panel">
+                    <div class="panel-label"><b>01 // INPUT_PAYLOAD</b><span data-input-mode>STRICT JPG</span></div>
+                    <label class="dropzone" data-dropzone for="hybridFileInput">
+                      <span class="drop-symbol">↑</span>
+                      <strong data-drop-title>DROP JPG IMAGE</strong>
+                      <small>or click to browse<br>one image up to 25 MB</small>
+                    </label>
+                    <input class="file-input" id="hybridFileInput" type="file" accept=".jpg,image/jpeg">
+                    <div class="file-meta" data-file-meta>
+                      <img data-file-thumb alt="Selected image thumbnail">
+                      <span class="file-copy"><b data-file-name>NO_FILE</b><small data-file-size>—</small></span>
+                      <button class="file-remove" type="button" data-remove-file aria-label="Remove selected file">×</button>
+                    </div>
+                    <div class="locked-box"><span>VALIDATION</span><span data-validation-copy>JPG/JPEG input expected</span></div>
+                  </section>
+
+                  <section class="machine-panel">
+                    <div class="panel-label"><b>02 // LIVE_PREVIEW</b><span>ORIGINAL IMAGE</span></div>
+                    <div class="preview-stage" data-preview-stage>
+                      <div class="preview-empty"><div class="file-shape">IMG</div><b>PREVIEW WAITING</b><small>Upload a supported image to inspect it here.</small></div>
+                      <img data-preview-image alt="Uploaded image preview">
+                      <span class="ticket-pin route-ticket orange big" data-route-code>J→P</span>
+                    </div>
+                    <div class="preview-foot"><span>INPUT: <em data-route-from>JPG</em></span><span>OUTPUT: <em data-route-to>PNG</em></span></div>
+                  </section>
+
+                  <section class="machine-panel">
+                    <div class="panel-label"><b>03 // OUTPUT_CONTROL</b><span>LOCKED ROUTE</span></div>
+                    <div class="route-selectors">
+                      <div class="field"><label for="fromFormat">INPUT FORMAT</label><select id="fromFormat" aria-label="Input format"></select></div>
+                      <button class="swap-button" type="button" data-swap aria-label="Swap formats">⇄</button>
+                      <div class="field"><label for="toFormat">OUTPUT FORMAT</label><select id="toFormat" aria-label="Output format"></select></div>
+                    </div>
+                    <div class="locked-box"><span>LOCKED</span>OUTPUT WILL BE FORCED TO <b data-route-to>PNG</b>.</div>
+                    <div class="field-row">
+                      <div class="field"><label for="widthControl">WIDTH <span>PX</span></label><input id="widthControl" type="number" min="1" placeholder="AUTO"></div>
+                      <div class="field"><label for="heightControl">HEIGHT <span>PX</span></label><input id="heightControl" type="number" min="1" placeholder="AUTO"></div>
+                    </div>
+                    <div class="field-row">
+                      <div class="field"><label for="targetKb">TARGET SIZE <span>KB</span></label><input id="targetKb" type="number" min="1" placeholder="OPTIONAL"></div>
+                      <div class="field"><label for="qualityControl">QUALITY <span id="qualityText">92%</span></label><input id="qualityControl" type="range" min="40" max="100" value="92"></div>
+                    </div>
+                    <button class="hardware-btn execute-button" type="button" data-execute>CONVERT JPG → PNG</button>
+                    <div class="system-status" data-status role="status">READY // Select a route or upload one image.</div>
+                  </section>
+                </div>
               </div>
-              <div class="machine-grid">
-                <section class="machine-panel">
-                  <div class="panel-label"><b>01 // INPUT_PAYLOAD</b><span data-input-mode>STRICT JPG</span></div>
-                  <label class="dropzone" data-dropzone for="hybridFileInput">
-                    <span class="drop-symbol">↑</span>
-                    <strong data-drop-title>DROP JPG IMAGE</strong>
-                    <small>or click to browse<br>one image up to 25 MB</small>
-                  </label>
-                  <input class="file-input" id="hybridFileInput" type="file" accept=".jpg,image/jpeg">
-                  <div class="file-meta" data-file-meta>
-                    <img data-file-thumb alt="Selected image thumbnail">
-                    <span class="file-copy"><b data-file-name>NO_FILE</b><small data-file-size>—</small></span>
-                    <button class="file-remove" type="button" data-remove-file aria-label="Remove selected file">×</button>
-                  </div>
-                  <div class="locked-box"><span>VALIDATION</span><span data-validation-copy>JPG/JPEG input expected</span></div>
-                </section>
+            </div>`;
+        }
 
-                <section class="machine-panel">
-                  <div class="panel-label"><b>02 // LIVE_PREVIEW</b><span>ORIGINAL IMAGE</span></div>
-                  <div class="preview-stage" data-preview-stage>
-                    <div class="preview-empty"><div class="file-shape">IMG</div><b>PREVIEW WAITING</b><small>Upload a supported image to inspect it here.</small></div>
-                    <img data-preview-image alt="Uploaded image preview">
-                    <span class="ticket-pin route-ticket orange big" data-route-code>J→P</span>
-                  </div>
-                  <div class="preview-foot"><span>INPUT: <em data-route-from>JPG</em></span><span>OUTPUT: <em data-route-to>PNG</em></span></div>
-                </section>
-
-                <section class="machine-panel">
-                  <div class="panel-label"><b>03 // OUTPUT_CONTROL</b><span>LOCKED ROUTE</span></div>
-                  <div class="route-selectors">
-                    <div class="field"><label for="fromFormat">INPUT FORMAT</label><select id="fromFormat" aria-label="Input format"></select></div>
-                    <button class="swap-button" type="button" data-swap aria-label="Swap formats">⇄</button>
-                    <div class="field"><label for="toFormat">OUTPUT FORMAT</label><select id="toFormat" aria-label="Output format"></select></div>
-                  </div>
-                  <div class="locked-box"><span>LOCKED</span>OUTPUT WILL BE FORCED TO <b data-route-to>PNG</b>.</div>
-                  <div class="field-row">
-                    <div class="field"><label for="widthControl">WIDTH <span>PX</span></label><input id="widthControl" type="number" min="1" placeholder="AUTO"></div>
-                    <div class="field"><label for="heightControl">HEIGHT <span>PX</span></label><input id="heightControl" type="number" min="1" placeholder="AUTO"></div>
-                  </div>
-                  <div class="field-row">
-                    <div class="field"><label for="targetKb">TARGET SIZE <span>KB</span></label><input id="targetKb" type="number" min="1" placeholder="OPTIONAL"></div>
-                    <div class="field"><label for="qualityControl">QUALITY <span id="qualityText">92%</span></label><input id="qualityControl" type="range" min="40" max="100" value="92"></div>
-                  </div>
-                  <button class="hardware-btn execute-button" type="button" data-execute>CONVERT JPG → PNG</button>
-                  <div class="system-status" data-status role="status">READY // Select a route or upload one image.</div>
-                </section>
-              </div>
-            </div>
-          </div>`;
-      }
-
-      function renderConverter() {
-        document.querySelectorAll("[data-converter]").forEach(function (mount) {
-          mount.innerHTML = converterMarkup();
-        });
-      }
-
-      function fillSelect(select, selected) {
-        if (!select) return;
-        select.innerHTML = "";
-        formats.forEach(function (format) {
-          const option = document.createElement("option");
-          option.value = format.id;
-          option.textContent = format.id;
-          option.selected = format.id === selected;
-          select.appendChild(option);
-        });
-      }
-
-      function renderFormatRails() {
-        document.querySelectorAll("[data-format-rail]").forEach(function (rail) {
-          const role = rail.dataset.formatRail || "source";
-          rail.innerHTML = "";
-          formats.forEach(function (format) {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.className = "format-choice";
-            button.dataset[role] = format.id;
-            button.innerHTML = format.id + "<small>" + (role === "source" ? "6 OUTPUTS" : format.note.toUpperCase()) + "</small>";
-            button.addEventListener("click", function () {
-              if (role === "source") chooseRoute(format.id, state.to, false);
-              else chooseRoute(state.from, format.id, false);
-            });
-            rail.appendChild(button);
+        function renderConverter() {
+          document.querySelectorAll("[data-converter]").forEach(function (mount) {
+            mount.innerHTML = converterMarkup();
           });
-        });
-      }
+        }
 
-      function routeButton(from, to, compact) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "route-card" + (compact ? " compact" : "");
-        button.dataset.from = from;
-        button.dataset.to = to;
-        button.dataset.routeSearch = from + " TO " + to;
-        const targetNumber = String(formats.findIndex(function (item) { return item.id === to; }) + 1).padStart(2, "0");
-        button.innerHTML = "<small class=\"route-node\">OUTPUT NODE " + targetNumber + "</small><b>" + from + " → " + to + "</b><p>" + formatInfo(to).note + "</p><span class=\"route-ticket\">" + ticketCode(from, to) + "</span>";
-        button.addEventListener("click", function () { chooseRoute(from, to, true); });
-        return button;
-      }
+        function fillSelect(select, selected) {
+          if (!select) return;
+          select.innerHTML = "";
+          formats.forEach(function (format) {
+            const option = document.createElement("option");
+            option.value = format.id;
+            option.textContent = format.id;
+            option.selected = format.id === selected;
+            select.appendChild(option);
+          });
+        }
 
-      function renderRouteDirectories() {
-        document.querySelectorAll("[data-route-directory]").forEach(function (directory) {
-          const mode = directory.dataset.routeDirectory || "targets";
-          directory.innerHTML = "";
-          if (mode === "all") {
+        function renderFormatRails() {
+          document.querySelectorAll("[data-format-rail]").forEach(function (rail) {
+            const role = rail.dataset.formatRail || "source";
+            rail.innerHTML = "";
+            formats.forEach(function (format) {
+              const button = document.createElement("button");
+              button.type = "button";
+              button.className = "format-choice";
+              button.dataset[role] = format.id;
+              button.innerHTML = format.id + "<small>" + (role === "source" ? "6 OUTPUTS" : format.note.toUpperCase()) + "</small>";
+              button.addEventListener("click", function () {
+                if (role === "source") chooseRoute(format.id, state.to, false);
+                else chooseRoute(state.from, format.id, false);
+              });
+              rail.appendChild(button);
+            });
+          });
+        }
+
+        function routeButton(from, to, compact) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "route-card" + (compact ? " compact" : "");
+          button.dataset.from = from;
+          button.dataset.to = to;
+          button.dataset.routeSearch = from + " TO " + to;
+          const targetNumber = String(formats.findIndex(function (item) { return item.id === to; }) + 1).padStart(2, "0");
+          button.innerHTML = "<small class=\"route-node\">OUTPUT NODE " + targetNumber + "</small><b>" + from + " → " + to + "</b><p>" + formatInfo(to).note + "</p><span class=\"route-ticket\">" + ticketCode(from, to) + "</span>";
+          button.addEventListener("click", function () { chooseRoute(from, to, true); });
+          return button;
+        }
+
+        function renderRouteDirectories() {
+          document.querySelectorAll("[data-route-directory]").forEach(function (directory) {
+            const mode = directory.dataset.routeDirectory || "targets";
+            directory.innerHTML = "";
+            if (mode === "all") {
+              formats.forEach(function (source) {
+                formats.filter(function (target) { return target.id !== source.id; }).forEach(function (target) {
+                  directory.appendChild(routeButton(source.id, target.id, false));
+                });
+              });
+            } else {
+              formats.filter(function (target) { return target.id !== state.from; }).forEach(function (target) {
+                directory.appendChild(routeButton(state.from, target.id, true));
+              });
+            }
+          });
+        }
+
+        function renderMatrix() {
+          document.querySelectorAll("[data-route-matrix]").forEach(function (matrix) {
+            matrix.innerHTML = "";
+            const corner = document.createElement("div");
+            corner.className = "matrix-cell head";
+            corner.textContent = "INPUT ↓ / OUTPUT →";
+            matrix.appendChild(corner);
+            formats.forEach(function (format) {
+              const head = document.createElement("div");
+              head.className = "matrix-cell head";
+              head.textContent = format.id;
+              matrix.appendChild(head);
+            });
             formats.forEach(function (source) {
-              formats.filter(function (target) { return target.id !== source.id; }).forEach(function (target) {
-                directory.appendChild(routeButton(source.id, target.id, false));
+              const axis = document.createElement("div");
+              axis.className = "matrix-cell axis";
+              axis.textContent = source.id;
+              matrix.appendChild(axis);
+              formats.forEach(function (target) {
+                const cell = document.createElement("div");
+                cell.className = "matrix-cell" + (source.id === target.id ? " same" : "");
+                if (source.id === target.id) {
+                  cell.textContent = "— SAME —";
+                } else {
+                  const button = document.createElement("button");
+                  button.type = "button";
+                  button.dataset.from = source.id;
+                  button.dataset.to = target.id;
+                  button.textContent = ticketCode(source.id, target.id);
+                  button.setAttribute("aria-label", source.id + " to " + target.id);
+                  button.addEventListener("click", function () { chooseRoute(source.id, target.id, true); });
+                  cell.appendChild(button);
+                }
+                matrix.appendChild(cell);
               });
             });
-          } else {
-            formats.filter(function (target) { return target.id !== state.from; }).forEach(function (target) {
-              directory.appendChild(routeButton(state.from, target.id, true));
-            });
-          }
-        });
-      }
-
-      function renderMatrix() {
-        document.querySelectorAll("[data-route-matrix]").forEach(function (matrix) {
-          matrix.innerHTML = "";
-          const corner = document.createElement("div");
-          corner.className = "matrix-cell head";
-          corner.textContent = "INPUT ↓ / OUTPUT →";
-          matrix.appendChild(corner);
-          formats.forEach(function (format) {
-            const head = document.createElement("div");
-            head.className = "matrix-cell head";
-            head.textContent = format.id;
-            matrix.appendChild(head);
           });
-          formats.forEach(function (source) {
-            const axis = document.createElement("div");
-            axis.className = "matrix-cell axis";
-            axis.textContent = source.id;
-            matrix.appendChild(axis);
-            formats.forEach(function (target) {
-              const cell = document.createElement("div");
-              cell.className = "matrix-cell" + (source.id === target.id ? " same" : "");
-              if (source.id === target.id) {
-                cell.textContent = "— SAME —";
-              } else {
-                const button = document.createElement("button");
-                button.type = "button";
-                button.dataset.from = source.id;
-                button.dataset.to = target.id;
-                button.textContent = ticketCode(source.id, target.id);
-                button.setAttribute("aria-label", source.id + " to " + target.id);
-                button.addEventListener("click", function () { chooseRoute(source.id, target.id, true); });
-                cell.appendChild(button);
-              }
-              matrix.appendChild(cell);
-            });
+        }
+
+        function setStatus(message, type) {
+          document.querySelectorAll("[data-status]").forEach(function (node) {
+            node.textContent = message;
+            node.className = "system-status" + (type ? " " + type : "");
           });
-        });
-      }
-
-      function setStatus(message, type) {
-        document.querySelectorAll("[data-status]").forEach(function (node) {
-          node.textContent = message;
-          node.className = "system-status" + (type ? " " + type : "");
-        });
-      }
-
-      function syncRoute() {
-        if (state.from === state.to) state.to = formats.find(function (item) { return item.id !== state.from; }).id;
-        document.querySelectorAll("[data-route-from]").forEach(function (node) { node.textContent = state.from; });
-        document.querySelectorAll("[data-route-to]").forEach(function (node) { node.textContent = state.to; });
-        document.querySelectorAll("[data-route-code]").forEach(function (node) { node.textContent = ticketCode(state.from, state.to); });
-        document.querySelectorAll("[data-input-mode]").forEach(function (node) { node.textContent = state.universal ? "AUTO-DETECT" : "STRICT " + state.from; });
-        document.querySelectorAll("[data-drop-title]").forEach(function (node) { node.textContent = state.universal ? "DROP ANY SUPPORTED IMAGE" : "DROP " + state.from + " IMAGE"; });
-        document.querySelectorAll("[data-validation-copy]").forEach(function (node) { node.textContent = state.universal ? "Input will be detected from the file" : state.from + " input expected"; });
-        document.querySelectorAll("[data-execute]").forEach(function (node) { node.textContent = "CONVERT " + state.from + " → " + state.to; });
-        document.querySelectorAll("[data-route-summary]").forEach(function (node) { node.textContent = state.from + " → " + state.to; });
-        document.querySelectorAll("[data-route-summary-code]").forEach(function (node) { node.textContent = ticketCode(state.from, state.to); });
-        document.querySelectorAll("[data-route-note]").forEach(function (node) { node.textContent = formatInfo(state.to).note; });
-
-        const fromSelect = document.getElementById("fromFormat");
-        const toSelect = document.getElementById("toFormat");
-        if (fromSelect) fromSelect.value = state.from;
-        if (toSelect) toSelect.value = state.to;
-        const fileInput = document.getElementById("hybridFileInput");
-        if (fileInput) fileInput.accept = state.universal ? ".jpg,.jpeg,.webp,.gif,.tif,.tiff,.png,.svg,image/*" : formatInfo(state.from).accept;
-
-        document.querySelectorAll("[data-source]").forEach(function (button) { button.classList.toggle("active", button.dataset.source === state.from); });
-        document.querySelectorAll("[data-target]").forEach(function (button) { button.classList.toggle("active", button.dataset.target === state.to); });
-        document.querySelectorAll(".route-card").forEach(function (button) { button.classList.toggle("active", button.dataset.from === state.from && button.dataset.to === state.to); });
-        document.querySelectorAll(".matrix-cell button").forEach(function (button) { button.classList.toggle("active", button.dataset.from === state.from && button.dataset.to === state.to); });
-        setStatus("READY // Route selected: " + state.from + " to " + state.to + ". Upload one image to continue.");
-      }
-
-      function chooseRoute(from, to, scroll) {
-        state.universal = false;
-        state.from = normalize(from);
-        state.to = normalize(to);
-        if (state.from === state.to) state.to = formats.find(function (item) { return item.id !== state.from; }).id;
-        renderRouteDirectories();
-        syncRoute();
-        if (scroll) {
-          const converter = document.getElementById("converter");
-          if (converter) converter.scrollIntoView({ behavior: "smooth", block: "start" });
         }
-      }
 
-      function setUniversal(scroll) {
-        state.universal = true;
-        document.querySelectorAll("[data-input-mode]").forEach(function (node) { node.textContent = "AUTO-DETECT"; });
-        syncRoute();
-        setStatus("UNIVERSAL MODE // Upload first; the input format will be detected automatically.");
-        if (scroll) {
-          const converter = document.getElementById("converter");
-          if (converter) converter.scrollIntoView({ behavior: "smooth", block: "start" });
+        function syncRoute() {
+          if (state.from === state.to) state.to = formats.find(function (item) { return item.id !== state.from; }).id;
+          document.querySelectorAll("[data-route-from]").forEach(function (node) { node.textContent = state.from; });
+          document.querySelectorAll("[data-route-to]").forEach(function (node) { node.textContent = state.to; });
+          document.querySelectorAll("[data-route-code]").forEach(function (node) { node.textContent = ticketCode(state.from, state.to); });
+          document.querySelectorAll("[data-input-mode]").forEach(function (node) { node.textContent = state.universal ? "AUTO-DETECT" : "STRICT " + state.from; });
+          document.querySelectorAll("[data-drop-title]").forEach(function (node) { node.textContent = state.universal ? "DROP ANY SUPPORTED IMAGE" : "DROP " + state.from + " IMAGE"; });
+          document.querySelectorAll("[data-validation-copy]").forEach(function (node) { node.textContent = state.universal ? "Input will be detected from the file" : state.from + " input expected"; });
+          document.querySelectorAll("[data-execute]").forEach(function (node) { node.textContent = "CONVERT " + state.from + " → " + state.to; });
+          document.querySelectorAll("[data-route-summary]").forEach(function (node) { node.textContent = state.from + " → " + state.to; });
+          document.querySelectorAll("[data-route-summary-code]").forEach(function (node) { node.textContent = ticketCode(state.from, state.to); });
+          document.querySelectorAll("[data-route-note]").forEach(function (node) { node.textContent = formatInfo(state.to).note; });
+
+          const fromSelect = document.getElementById("fromFormat");
+          const toSelect = document.getElementById("toFormat");
+          if (fromSelect) fromSelect.value = state.from;
+          if (toSelect) toSelect.value = state.to;
+          const fileInput = document.getElementById("hybridFileInput");
+          if (fileInput) fileInput.accept = state.universal ? ".jpg,.jpeg,.webp,.gif,.tif,.tiff,.png,.svg,image/*" : formatInfo(state.from).accept;
+
+          document.querySelectorAll("[data-source]").forEach(function (button) { button.classList.toggle("active", button.dataset.source === state.from); });
+          document.querySelectorAll("[data-target]").forEach(function (button) { button.classList.toggle("active", button.dataset.target === state.to); });
+          document.querySelectorAll(".route-card").forEach(function (button) { button.classList.toggle("active", button.dataset.from === state.from && button.dataset.to === state.to); });
+          document.querySelectorAll(".matrix-cell button").forEach(function (button) { button.classList.toggle("active", button.dataset.from === state.from && button.dataset.to === state.to); });
+          setStatus("READY // Route selected: " + state.from + " to " + state.to + ". Upload one image to continue.");
         }
-      }
 
-      function extensionFromFile(file) {
-        const extension = String(file.name.split(".").pop() || "").toLowerCase();
-        const match = formats.find(function (format) { return format.extensions.includes(extension); });
-        return match ? match.id : null;
-      }
-
-      function humanSize(bytes) {
-        return bytes < 1024 * 1024 ? (bytes / 1024).toFixed(1) + " KB" : (bytes / (1024 * 1024)).toFixed(2) + " MB";
-      }
-
-      function chooseFile(file) {
-        if (!file) return;
-        if (file.size > 25 * 1024 * 1024) {
-          setStatus("ERROR // File exceeds the 25 MB prototype limit.", "error");
-          return;
-        }
-        const detected = extensionFromFile(file);
-        if (!detected) {
-          setStatus("FORMAT ERROR // Use JPG, JPEG, WebP, GIF, TIF, PNG or SVG.", "error");
-          return;
-        }
-        if (state.universal) {
-          state.from = detected;
+        function chooseRoute(from, to, scroll) {
           state.universal = false;
-          if (state.to === state.from) state.to = formats.find(function (item) { return item.id !== state.from; }).id;
+          state.from = normalize(from);
+          state.to = normalize(to);
+          if (state.from === state.to) state.to = formats.find(function (item) { return item.id !== state.from; }).id;
           renderRouteDirectories();
           syncRoute();
-        } else if (detected !== state.from && !(detected === "JPEG" && state.from === "JPG") && !(detected === "JPG" && state.from === "JPEG")) {
-          setStatus("FORMAT MISMATCH // This route expects " + state.from + ", but the selected file appears to be " + detected + ".", "error");
-          return;
-        }
-        state.file = file;
-        if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
-        state.objectUrl = URL.createObjectURL(file);
-        document.querySelectorAll("[data-file-meta]").forEach(function (node) { node.classList.add("visible"); });
-        document.querySelectorAll("[data-file-name]").forEach(function (node) { node.textContent = file.name; });
-        document.querySelectorAll("[data-file-size]").forEach(function (node) { node.textContent = humanSize(file.size) + " // " + detected; });
-        document.querySelectorAll("[data-file-thumb]").forEach(function (node) { node.src = state.objectUrl; });
-        document.querySelectorAll("[data-preview-image]").forEach(function (node) {
-          node.src = state.objectUrl;
-          node.onload = function () {
-            state.originalWidth = node.naturalWidth;
-            state.originalHeight = node.naturalHeight;
-            document.querySelectorAll("[data-preview-stage]").forEach(function (stage) { stage.classList.add("has-image"); });
-          };
-          node.onerror = function () { setStatus("PREVIEW LIMIT // This format needs the production decoder. The route remains configured.", "processing"); };
-        });
-        setStatus("FILE READY // " + file.name + " is queued for " + state.from + " → " + state.to + ".");
-      }
-
-      function clearFile() {
-        state.file = null;
-        const input = document.getElementById("hybridFileInput");
-        if (input) input.value = "";
-        if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
-        state.objectUrl = null;
-        document.querySelectorAll("[data-file-meta]").forEach(function (node) { node.classList.remove("visible"); });
-        document.querySelectorAll("[data-preview-stage]").forEach(function (stage) { stage.classList.remove("has-image"); });
-        document.querySelectorAll("[data-preview-image]").forEach(function (node) { node.removeAttribute("src"); });
-        setStatus("READY // Select a route or upload one image.");
-      }
-
-      function loadImage(file) {
-        return new Promise(function (resolve, reject) {
-          const image = new Image();
-          const url = URL.createObjectURL(file);
-          image.onload = function () { URL.revokeObjectURL(url); resolve(image); };
-          image.onerror = function () { URL.revokeObjectURL(url); reject(new Error("Browser could not decode this input.")); };
-          image.src = url;
-        });
-      }
-
-      function canvasBlob(canvas, type, quality) {
-        return new Promise(function (resolve) { canvas.toBlob(resolve, type, quality); });
-      }
-
-      function downloadBlob(blob, name) {
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = name;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(function () { URL.revokeObjectURL(url); }, 1800);
-      }
-
-      async function executeConversion() {
-        if (!state.file) {
-          setStatus("ACTION NEEDED // Upload an image before starting conversion.", "error");
-          const dropzone = document.querySelector("[data-dropzone]");
-          if (dropzone) dropzone.scrollIntoView({ behavior: "smooth", block: "center" });
-          return;
-        }
-        if (state.from === "TIF" || state.to === "TIF" || state.to === "GIF") {
-          setStatus("BACKEND ROUTE READY // TIFF and GIF output require the production codec service at /convert.", "processing");
-          return;
-        }
-        setStatus("PROCESSING // Decoding image and preparing " + state.to + " output…", "processing");
-        try {
-          const image = await loadImage(state.file);
-          const widthInput = document.getElementById("widthControl");
-          const heightInput = document.getElementById("heightControl");
-          const requestedWidth = widthInput && Number(widthInput.value);
-          const requestedHeight = heightInput && Number(heightInput.value);
-          let width = requestedWidth || image.naturalWidth || image.width;
-          let height = requestedHeight || image.naturalHeight || image.height;
-          if (requestedWidth && !requestedHeight) height = Math.round(width * (image.naturalHeight / image.naturalWidth));
-          if (requestedHeight && !requestedWidth) width = Math.round(height * (image.naturalWidth / image.naturalHeight));
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const context = canvas.getContext("2d");
-          if (state.to === "JPG" || state.to === "JPEG") {
-            context.fillStyle = "#FFFFFF";
-            context.fillRect(0, 0, width, height);
+          if (scroll) {
+            const converter = document.getElementById("converter");
+            if (converter) converter.scrollIntoView({ behavior: "smooth", block: "start" });
           }
-          context.drawImage(image, 0, 0, width, height);
-          const qualityNode = document.getElementById("qualityControl");
-          const quality = qualityNode ? Number(qualityNode.value) / 100 : .92;
-          let blob;
-          if (state.to === "SVG") {
-            const png = canvas.toDataURL("image/png");
-            const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '"><image width="100%" height="100%" href="' + png + '"/></svg>';
-            blob = new Blob([svg], { type: "image/svg+xml" });
-          } else {
-            const mime = (state.to === "JPG" || state.to === "JPEG") ? "image/jpeg" : state.to === "WEBP" ? "image/webp" : "image/png";
-            blob = await canvasBlob(canvas, mime, quality);
-          }
-          if (!blob) throw new Error("This browser could not create the selected output.");
-          const base = state.file.name.replace(/\.[^.]+$/, "");
-          downloadBlob(blob, base + "." + state.to.toLowerCase());
-          setStatus("COMPLETE // " + state.to + " file prepared and download started. " + width + "×" + height + " px.");
-        } catch (error) {
-          setStatus("FORMAT LIMIT // " + error.message + " Use the /convert backend for this route.", "error");
         }
-      }
 
-      function bindEvents() {
-        const fromSelect = document.getElementById("fromFormat");
-        const toSelect = document.getElementById("toFormat");
-        fillSelect(fromSelect, state.from);
-        fillSelect(toSelect, state.to);
-        if (fromSelect) fromSelect.addEventListener("change", function () { chooseRoute(fromSelect.value, state.to, false); });
-        if (toSelect) toSelect.addEventListener("change", function () { chooseRoute(state.from, toSelect.value, false); });
-        document.querySelectorAll("[data-swap]").forEach(function (button) { button.addEventListener("click", function () { chooseRoute(state.to, state.from, false); }); });
-        document.querySelectorAll("[data-universal]").forEach(function (button) { button.addEventListener("click", function () { setUniversal(true); }); });
-        document.querySelectorAll(".mini-route[data-source][data-target]").forEach(function (button) {
-          button.addEventListener("click", function () { chooseRoute(button.dataset.source, button.dataset.target, true); });
-        });
-        document.querySelectorAll("[data-execute]").forEach(function (button) { button.addEventListener("click", executeConversion); });
-        document.querySelectorAll("[data-remove-file]").forEach(function (button) { button.addEventListener("click", clearFile); });
-        const quality = document.getElementById("qualityControl");
-        const qualityText = document.getElementById("qualityText");
-        if (quality && qualityText) quality.addEventListener("input", function () { qualityText.textContent = quality.value + "%"; });
-        const fileInput = document.getElementById("hybridFileInput");
-        if (fileInput) fileInput.addEventListener("change", function (event) { chooseFile(event.target.files[0]); });
-        document.querySelectorAll("[data-dropzone]").forEach(function (dropzone) {
-          ["dragenter", "dragover"].forEach(function (type) { dropzone.addEventListener(type, function (event) { event.preventDefault(); dropzone.classList.add("is-over"); }); });
-          ["dragleave", "drop"].forEach(function (type) { dropzone.addEventListener(type, function (event) { event.preventDefault(); dropzone.classList.remove("is-over"); }); });
-          dropzone.addEventListener("drop", function (event) { chooseFile(event.dataTransfer.files[0]); });
-        });
-        document.querySelectorAll("[data-route-search]").forEach(function (input) {
-          input.addEventListener("input", function () {
-            const query = input.value.trim().toUpperCase();
-            const pair = query.match(/(JPG|JPEG|WEBP|GIF|TIF|TIFF|PNG|SVG)\s*(?:TO|→|>)\s*(JPG|JPEG|WEBP|GIF|TIF|TIFF|PNG|SVG)/);
-            if (pair && normalize(pair[1]) !== normalize(pair[2])) chooseRoute(pair[1], pair[2], false);
-            document.querySelectorAll("[data-route-search]").forEach(function (other) { if (other !== input) other.value = input.value; });
-            document.querySelectorAll("[data-route-search-value]").forEach(function (node) { node.hidden = query && !node.dataset.routeSearchValue.includes(query); });
-            document.querySelectorAll(".route-card[data-route-search]").forEach(function (card) { card.hidden = query && !card.dataset.routeSearch.includes(query); });
+        function setUniversal(scroll) {
+          state.universal = true;
+          document.querySelectorAll("[data-input-mode]").forEach(function (node) { node.textContent = "AUTO-DETECT"; });
+          syncRoute();
+          setStatus("UNIVERSAL MODE // Upload first; the input format will be detected automatically.");
+          if (scroll) {
+            const converter = document.getElementById("converter");
+            if (converter) converter.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
+
+        function extensionFromFile(file) {
+          const extension = String(file.name.split(".").pop() || "").toLowerCase();
+          const match = formats.find(function (format) { return format.extensions.includes(extension); });
+          return match ? match.id : null;
+        }
+
+        function humanSize(bytes) {
+          return bytes < 1024 * 1024 ? (bytes / 1024).toFixed(1) + " KB" : (bytes / (1024 * 1024)).toFixed(2) + " MB";
+        }
+
+        function chooseFile(file) {
+          if (!file) return;
+          if (file.size > 25 * 1024 * 1024) {
+            setStatus("ERROR // File exceeds the 25 MB prototype limit.", "error");
+            return;
+          }
+          const detected = extensionFromFile(file);
+          if (!detected) {
+            setStatus("FORMAT ERROR // Use JPG, JPEG, WebP, GIF, TIF, PNG or SVG.", "error");
+            return;
+          }
+          if (state.universal) {
+            state.from = detected;
+            state.universal = false;
+            if (state.to === state.from) state.to = formats.find(function (item) { return item.id !== state.from; }).id;
+            renderRouteDirectories();
+            syncRoute();
+          } else if (detected !== state.from && !(detected === "JPEG" && state.from === "JPG") && !(detected === "JPG" && state.from === "JPEG")) {
+            setStatus("FORMAT MISMATCH // This route expects " + state.from + ", but the selected file appears to be " + detected + ".", "error");
+            return;
+          }
+          state.file = file;
+          if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+          state.objectUrl = URL.createObjectURL(file);
+          document.querySelectorAll("[data-file-meta]").forEach(function (node) { node.classList.add("visible"); });
+          document.querySelectorAll("[data-file-name]").forEach(function (node) { node.textContent = file.name; });
+          document.querySelectorAll("[data-file-size]").forEach(function (node) { node.textContent = humanSize(file.size) + " // " + detected; });
+          document.querySelectorAll("[data-file-thumb]").forEach(function (node) { node.src = state.objectUrl; });
+          document.querySelectorAll("[data-preview-image]").forEach(function (node) {
+            node.src = state.objectUrl;
+            node.onload = function () {
+              state.originalWidth = node.naturalWidth;
+              state.originalHeight = node.naturalHeight;
+              document.querySelectorAll("[data-preview-stage]").forEach(function (stage) { stage.classList.add("has-image"); });
+            };
+            node.onerror = function () { setStatus("PREVIEW LIMIT // This format needs the production decoder. The route remains configured.", "processing"); };
           });
-        });
-      }
+          setStatus("FILE READY // " + file.name + " is queued for " + state.from + " → " + state.to + ".");
+        }
 
-      function renderCompactTargets() {
-        document.querySelectorAll("[data-compact-targets]").forEach(function (targetList) {
-          targetList.innerHTML = "";
-          formats.filter(function (format) { return format.id !== state.from; }).forEach(function (format) {
-            targetList.appendChild(routeButton(state.from, format.id, true));
+        function clearFile() {
+          state.file = null;
+          const input = document.getElementById("hybridFileInput");
+          if (input) input.value = "";
+          if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+          state.objectUrl = null;
+          document.querySelectorAll("[data-file-meta]").forEach(function (node) { node.classList.remove("visible"); });
+          document.querySelectorAll("[data-preview-stage]").forEach(function (stage) { stage.classList.remove("has-image"); });
+          document.querySelectorAll("[data-preview-image]").forEach(function (node) { node.removeAttribute("src"); });
+          setStatus("READY // Select a route or upload one image.");
+        }
+
+        function loadImage(file) {
+          return new Promise(function (resolve, reject) {
+            const image = new Image();
+            const url = URL.createObjectURL(file);
+            image.onload = function () { URL.revokeObjectURL(url); resolve(image); };
+            image.onerror = function () { URL.revokeObjectURL(url); reject(new Error("Browser could not decode this input.")); };
+            image.src = url;
           });
-        });
-      }
+        }
 
-      const originalRenderDirectories = renderRouteDirectories;
-      renderRouteDirectories = function () {
-        originalRenderDirectories();
-        renderCompactTargets();
-      };
+        function canvasBlob(canvas, type, quality) {
+          return new Promise(function (resolve) { canvas.toBlob(resolve, type, quality); });
+        }
 
-      queryInitialRoute();
-      renderConverter();
-      renderFormatRails();
-      renderRouteDirectories();
-      renderMatrix();
-      bindEvents();
-      syncRoute();
-    }());
-  </script>
-</body>
-</html>
+        function downloadBlob(blob, name) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = name;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 1800);
+        }
+
+        async function executeConversion() {
+          if (!state.file) {
+            setStatus("ACTION NEEDED // Upload an image before starting conversion.", "error");
+            const dropzone = document.querySelector("[data-dropzone]");
+            if (dropzone) dropzone.scrollIntoView({ behavior: "smooth", block: "center" });
+            return;
+          }
+          if (state.from === "TIF" || state.to === "TIF" || state.to === "GIF") {
+            setStatus("BACKEND ROUTE READY // TIFF and GIF output require the production codec service at /convert.", "processing");
+            return;
+          }
+          setStatus("PROCESSING // Decoding image and preparing " + state.to + " output…", "processing");
+          try {
+            const image = await loadImage(state.file);
+            const widthInput = document.getElementById("widthControl");
+            const heightInput = document.getElementById("heightControl");
+            const requestedWidth = widthInput && Number(widthInput.value);
+            const requestedHeight = heightInput && Number(heightInput.value);
+            let width = requestedWidth || image.naturalWidth || image.width;
+            let height = requestedHeight || image.naturalHeight || image.height;
+            if (requestedWidth && !requestedHeight) height = Math.round(width * (image.naturalHeight / image.naturalWidth));
+            if (requestedHeight && !requestedWidth) width = Math.round(height * (image.naturalWidth / image.naturalHeight));
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext("2d");
+            if (state.to === "JPG" || state.to === "JPEG") {
+              context.fillStyle = "#FFFFFF";
+              context.fillRect(0, 0, width, height);
+            }
+            context.drawImage(image, 0, 0, width, height);
+            const qualityNode = document.getElementById("qualityControl");
+            const quality = qualityNode ? Number(qualityNode.value) / 100 : .92;
+            let blob;
+            if (state.to === "SVG") {
+              const png = canvas.toDataURL("image/png");
+              const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '"><image width="100%" height="100%" href="' + png + '"/></svg>';
+              blob = new Blob([svg], { type: "image/svg+xml" });
+            } else {
+              const mime = (state.to === "JPG" || state.to === "JPEG") ? "image/jpeg" : state.to === "WEBP" ? "image/webp" : "image/png";
+              blob = await canvasBlob(canvas, mime, quality);
+            }
+            if (!blob) throw new Error("This browser could not create the selected output.");
+            const base = state.file.name.replace(/\.[^.]+$/, "");
+            downloadBlob(blob, base + "." + state.to.toLowerCase());
+            setStatus("COMPLETE // " + state.to + " file prepared and download started. " + width + "×" + height + " px.");
+          } catch (error) {
+            setStatus("FORMAT LIMIT // " + error.message + " Use the /convert backend for this route.", "error");
+          }
+        }
+
+        function bindEvents() {
+          const fromSelect = document.getElementById("fromFormat");
+          const toSelect = document.getElementById("toFormat");
+          fillSelect(fromSelect, state.from);
+          fillSelect(toSelect, state.to);
+          if (fromSelect) fromSelect.addEventListener("change", function () { chooseRoute(fromSelect.value, state.to, false); });
+          if (toSelect) toSelect.addEventListener("change", function () { chooseRoute(state.from, toSelect.value, false); });
+          document.querySelectorAll("[data-swap]").forEach(function (button) { button.addEventListener("click", function () { chooseRoute(state.to, state.from, false); }); });
+          document.querySelectorAll("[data-universal]").forEach(function (button) { button.addEventListener("click", function () { setUniversal(true); }); });
+          document.querySelectorAll(".mini-route[data-source][data-target]").forEach(function (button) {
+            button.addEventListener("click", function () { chooseRoute(button.dataset.source, button.dataset.target, true); });
+          });
+          document.querySelectorAll("[data-execute]").forEach(function (button) { button.addEventListener("click", executeConversion); });
+          document.querySelectorAll("[data-remove-file]").forEach(function (button) { button.addEventListener("click", clearFile); });
+          const quality = document.getElementById("qualityControl");
+          const qualityText = document.getElementById("qualityText");
+          if (quality && qualityText) quality.addEventListener("input", function () { qualityText.textContent = quality.value + "%"; });
+          const fileInput = document.getElementById("hybridFileInput");
+          if (fileInput) fileInput.addEventListener("change", function (event) { chooseFile(event.target.files[0]); });
+          document.querySelectorAll("[data-dropzone]").forEach(function (dropzone) {
+            ["dragenter", "dragover"].forEach(function (type) { dropzone.addEventListener(type, function (event) { event.preventDefault(); dropzone.classList.add("is-over"); }); });
+            ["dragleave", "drop"].forEach(function (type) { dropzone.addEventListener(type, function (event) { event.preventDefault(); dropzone.classList.remove("is-over"); }); });
+            dropzone.addEventListener("drop", function (event) { chooseFile(event.dataTransfer.files[0]); });
+          });
+          document.querySelectorAll("[data-route-search]").forEach(function (input) {
+            input.addEventListener("input", function () {
+              const query = input.value.trim().toUpperCase();
+              const pair = query.match(/(JPG|JPEG|WEBP|GIF|TIF|TIFF|PNG|SVG)\s*(?:TO|→|>)\s*(JPG|JPEG|WEBP|GIF|TIF|TIFF|PNG|SVG)/);
+              if (pair && normalize(pair[1]) !== normalize(pair[2])) chooseRoute(pair[1], pair[2], false);
+              document.querySelectorAll("[data-route-search]").forEach(function (other) { if (other !== input) other.value = input.value; });
+              document.querySelectorAll("[data-route-search-value]").forEach(function (node) { node.hidden = query && !node.dataset.routeSearchValue.includes(query); });
+              document.querySelectorAll(".route-card[data-route-search]").forEach(function (card) { card.hidden = query && !card.dataset.routeSearch.includes(query); });
+            });
+          });
+        }
+
+        function renderCompactTargets() {
+          document.querySelectorAll("[data-compact-targets]").forEach(function (targetList) {
+            targetList.innerHTML = "";
+            formats.filter(function (format) { return format.id !== state.from; }).forEach(function (format) {
+              targetList.appendChild(routeButton(state.from, format.id, true));
+            });
+          });
+        }
+
+        const originalRenderDirectories = renderRouteDirectories;
+        renderRouteDirectories = function () {
+          originalRenderDirectories();
+          renderCompactTargets();
+        };
+
+        queryInitialRoute();
+        renderConverter();
+        renderFormatRails();
+        renderRouteDirectories();
+        renderMatrix();
+        bindEvents();
+        syncRoute();
+      }());
+    </script>
+  </body>
+  </html>
