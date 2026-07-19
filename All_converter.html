@@ -1060,10 +1060,12 @@
           formData.append("expected_input_format", expectedFormat);
 
           try {
-            // समस्या (OLD CODE): यहाँ 'http://127.0.0.1:5000/inspect' हार्डकोड किया गया था। अगर इस ऐप को किसी दूसरे नेटवर्क या लाइव सर्वर पर डिप्लॉय किया जाए तो रिक्वेस्ट हमेशा localhost पर ही जाएगी और 'Failed to fetch' नेटवर्क एरर आएगा।
-            // const response = await fetch("http://127.0.0.1:5000/inspect", { method: "POST", body: formData });
-            // समाधान (NEW CODE): रिलेटिव पाथ ('/inspect') का उपयोग किया गया है ताकि यह किसी भी डोमेन, पोर्ट या होस्ट पर बिना किसी नेटवर्क एरर के काम करे[cite: 1]।
-            const response = await fetch("/inspect", { method: "POST", body: formData });
+            // समस्या (OLD CODE): पिछले वर्ज़न में मैंने बैकएंड का URL '/inspect' (Relative Path) कर दिया था।
+            // जब आप HTML को बिना सर्वर के सीधे ब्राउज़र में (file:///...) खोलते हैं, तो रिलेटिव पाथ काम नहीं करता और नेटवर्क रिक्वेस्ट फेल होकर "Failed to fetch" (Screenshot 2) का एरर देती है[cite: 3]।
+            // const response = await fetch("/inspect", { method: "POST", body: formData });
+
+            // समाधान (NEW CODE): इसे वापस पूरा Absolute URL ('http://127.0.0.1:5000/inspect') कर दिया गया है ताकि बैकएंड हमेशा सही पोर्ट पर कनेक्ट हो[cite: 3]।
+            const response = await fetch("http://127.0.0.1:5000/inspect", { method: "POST", body: formData });
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.error || "Source inspection failed.");
 
@@ -1312,7 +1314,14 @@
           document.querySelectorAll("[data-result-dpi]").forEach(function (node) { node.textContent = meta.dpi + " DPI"; });
           document.querySelectorAll("[data-result-match]").forEach(function (node) {
             node.textContent = meta.targetMatched === null ? "NO TARGET SET" : (meta.targetMatched ? "EXACT TARGET MATCH" : "TARGET MISMATCH");
-            node.parentElement.querySelector("[data-result-size]").className = meta.targetMatched === false ? "" : "match";
+            
+            // समस्या (OLD CODE): यहाँ node.parentElement (जो <div class="panel-label"> है) के अंदर "[data-result-size]" को खोजा जा रहा था।
+            // चूँकि "data-result-size" असल में अगले हिस्से (<div class="result-grid">) में मौजूद है, इसलिए ब्राउज़र को वह एलिमेंट नहीं मिला (null) और '.className' सेट करने पर "Cannot set properties of null" (Screenshot 1) का एरर आ गया[cite: 3]।
+            // node.parentElement.querySelector("[data-result-size]").className = meta.targetMatched === false ? "" : "match";
+
+            // समाधान (NEW CODE): '.closest("[data-result-panel]")' का उपयोग किया गया है ताकि पूरे मुख्य पैनल को सिलेक्ट करके उसके अंदर से सही साइज़ एलिमेंट को खोजा जा सके[cite: 3]।
+            const sizeNode = node.closest("[data-result-panel]").querySelector("[data-result-size]");
+            if (sizeNode) sizeNode.className = meta.targetMatched === false ? "" : "match";
           });
 
           /* Target comparison columns actual response blob/header values se fill. */
@@ -1435,15 +1444,6 @@
              * image edited PNG canvas hai. Browser TIF decode na kare to original hi working image banti hai.
              */
             formData.append("source_image", state.file, state.file.name);
-            // समस्या (OLD CODE): HTML5 Canvas सिर्फ इमेज का पहला फ्रेम रेंडर करता है। यहाँ हर बार वर्किंग कैनवास को static PNG बनाकर भेजा जा रहा था, जिससे animated GIF और multi-page TIFF की सारी एनीमेशन और पेजेस खत्म हो जाते थे।
-            // if (state.workingCanvas) {
-            //   const canvasBlobData = await new Promise(function (resolve) { state.workingCanvas.toBlob(resolve, "image/png"); });
-            //   if (!canvasBlobData) throw new Error("Browser could not prepare the edited preview.");
-            //   formData.append("image", canvasBlobData, "edited-working-copy.png");
-            // } else {
-            //   formData.append("image", state.file, state.file.name);
-            // }
-            // समाधान (NEW CODE): अगर ओरिजिनल फाइल GIF या TIF है, तो एनीमेशन और मल्टी-पेज को बचाने के लिए सीधे ओरिजिनल फाइल (state.file) को 'image' के रूप में भेजें, वर्ना एडिटेड वर्किंग कैनवास का PNG भेजें[cite: 1]।
             if (state.workingCanvas && state.from !== "GIF" && state.from !== "TIF") {
               const canvasBlobData = await new Promise(function (resolve) { state.workingCanvas.toBlob(resolve, "image/png"); });
               if (!canvasBlobData) throw new Error("Browser could not prepare the edited preview.");
@@ -1460,13 +1460,14 @@
             formData.append('expected_input_format', state.from);
             if (targetKb) formData.append('target_kb', targetKb);
 
-            // समस्या (OLD CODE): यहाँ 'http://127.0.0.1:5000/resize' हार्डकोड किया गया था। अगर इसे किसी दूसरे पोर्ट या लाइव क्लाउड सर्वर पर डिप्लॉय किया जाए तो रिक्वेस्ट हमेशा localhost पर जाकर फेल हो जाएगी[cite: 1]।
-            // const response = await fetch('http://127.0.0.1:5000/resize', {
+            // समस्या (OLD CODE): '/resize' रिलेटिव पाथ की वजह से file:// या लाइव सर्वर से नेटवर्क रिक्वेस्ट ब्लॉक हो रही थी और 'Failed to fetch' आ रहा था[cite: 3]।
+            // const response = await fetch('/resize', {
             //   method: 'POST',
             //   body: formData
             // });
-            // समाधान (NEW CODE): रिलेटिव पाथ ('/resize') का उपयोग किया गया है ताकि यह किसी भी डोमेन या पोर्ट पर बिना किसी नेटवर्क एरर के काम करे[cite: 1]।
-            const response = await fetch('/resize', {
+
+            // समाधान (NEW CODE): सही और पूरा लोकलहोस्ट एड्रेस लगा दिया गया है[cite: 3]।
+            const response = await fetch('http://127.0.0.1:5000/resize', {
               method: 'POST',
               body: formData
             });
