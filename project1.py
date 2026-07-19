@@ -58,12 +58,51 @@ limiter = Limiter(
 )
 
 # ======================================================================
+# NAYA UPGRADE FUNCTION: GENERATE 3-4 SECOND ANIMATED GIF
+# KYA KAR RAHA HAIN: Agar user normal photo (JPG/PNG) se GIF chahta hai, toh ye 3-4 sec ka video/GIF animation banata hai.
+# KYUN: Kyunki user ne demand ki hai ki GIF select hone par frame-to-frame video banni chahiye.
+# ======================================================================
+def make_3_sec_gif(base_img, target_dpi):
+    frames = []
+    num_frames = 30  # 30 frames at 100ms each = 3 seconds animation
+    w, h = base_img.size
+    
+    for i in range(num_frames):
+        scale = 1.0 + (0.12 * (i / float(num_frames - 1)))  # Smooth zoom-in effect
+        new_w, new_h = max(1, int(w * scale)), max(1, int(h * scale))
+        frame = base_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        
+        # Center crop back to original dimensions
+        left = (new_w - w) // 2
+        top = (new_h - h) // 2
+        frame = frame.crop((left, top, left + w, top + h))
+        
+        if frame.mode != 'P':
+            frame = frame.convert('RGB').convert('P', palette=Image.Palette.ADAPTIVE, colors=256)
+        frames.append(frame)
+
+    output_io = io.BytesIO()
+    frames[0].save(
+        output_io,
+        format='GIF',
+        save_all=True,
+        append_images=frames[1:],
+        duration=100,  # 100 milliseconds per frame
+        loop=0,
+        dpi=(target_dpi, target_dpi),
+        optimize=True
+    )
+    output_io.seek(0)
+    return output_io
+
+# ======================================================================
 # FUNCTION: resize_image() (MAIN ROUTE API)
-# KYA KAR RAHA HAIN: Ye main function (Route) hai jo '/resize' URL par aane wali POST requests ko handle karega.
+# KYA KAR RAHA HAIN: Ye main function (Route) hai jo '/resize' aur '/convert' URL par aane wali POST requests ko handle karega.
 # KYUN KAR RAHA HAIN: Jab frontend se JavaScript `fetch('http://127.0.0.1:5000/resize')` karta hai, toh control seedha is function ke paas aata hai.
 # PYTHON FILE PAR ASAR: Ye poori API ki backbone (reed ki haddi) hai. Sara logic isi ke andar hai.
 # ======================================================================
 @app.route('/resize', methods=['POST'])
+@app.route('/convert', methods=['POST'])
 @limiter.limit("5 per minute") # Ek minute me 1 user max 5 requests (photos) bhej sakta hai (Spam rokne ke liye).
 def resize_image():
     
@@ -366,6 +405,13 @@ def resize_image():
             new_w = int(img.width * (scale_percent / 100.0))
             new_h = int(img.height * (scale_percent / 100.0))
             img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+        # ------------------------------------------------------------------
+        # NAYA UPGRADE TRIGGER: Agar normal photo hai aur user ne GIF manga hai
+        # ------------------------------------------------------------------
+        if save_format == 'GIF' and getattr(img, 'is_animated', False) is False:
+            gif_io = make_3_sec_gif(img, target_dpi)
+            return send_file(gif_io, mimetype='image/gif', as_attachment=True, download_name=download_filename)
 
         # Ye virtual RAM space initialize ki gayi hai final ready photo daalne ke liye.
         img_io = io.BytesIO()

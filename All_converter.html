@@ -1,4 +1,4 @@
-  <!doctype html>
+<!doctype html>
   <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -496,6 +496,34 @@
       @media (max-width: 760px) {
         .footer-links { flex-direction: column; }
       }
+
+      /* ======================================================================
+         NEW CSS ADDITIONS FOR TOOLBAR, FORMAT WARNING, RESULT PANEL
+      ====================================================================== */
+      .format-warning { display: none; margin-top: 10px; padding: 10px 12px; border: 2px solid var(--danger); background: #FEF2F2; color: #991B1B; font-size: 9px; font-weight: 900; border-radius: 6px; }
+      .format-warning.visible { display: block; }
+      .file-copy .file-dims { display: block; margin-top: 2px; color: var(--muted); font-size: 7px; font-weight: 700; }
+      .lock-ratio-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 10px; border: 2px solid var(--line); background: var(--panel-2); border-radius: 6px; font-size: 8px; font-weight: 900; color: var(--text); }
+      .lock-ratio-row input[type="checkbox"] { accent-color: var(--orange); width: 14px; height: 14px; }
+      .canvas-toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+      .canvas-toolbar button { flex: 1; min-width: 64px; min-height: 36px; border: 2px solid var(--line); background: var(--white); color: var(--text); font-size: 8px; font-weight: 900; cursor: pointer; border-radius: 6px; }
+      .canvas-toolbar button:hover:not(:disabled) { border-color: var(--orange); color: var(--orange); }
+      .canvas-toolbar button:disabled { opacity: .4; cursor: not-allowed; }
+      .zoom-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 8px; font-weight: 900; color: var(--muted); }
+      .zoom-row input[type="range"] { flex: 1; accent-color: var(--orange); }
+      .zoom-row span { min-width: 34px; text-align: right; color: var(--text); }
+      .preview-stage.zoomable { overflow: auto; cursor: grab; }
+      .preview-stage.zoomable img { transition: transform .12s ease-out; }
+      .result-panel { margin-top: 16px; padding-top: 14px; border-top: 2px dashed var(--line); display: none; }
+      .result-panel.visible { display: block; }
+      .result-panel .panel-label { border-bottom: none; padding-bottom: 6px; }
+      .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+      .result-grid div { padding: 8px 10px; border: 1px solid var(--line); background: var(--panel-2); border-radius: 6px; }
+      .result-grid p { margin: 0; color: var(--muted); font-size: 7px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+      .result-grid b { display: block; margin-top: 3px; font-size: 11px; color: var(--text); }
+      .result-grid b.match { color: #15803D; }
+      .download-button { margin-top: 10px; background: var(--text); }
+      .download-button:disabled { opacity: .45; cursor: not-allowed; }
     </style>
   </head>
   <body>
@@ -532,7 +560,15 @@
           file: null,
           objectUrl: null,
           originalWidth: 0,
-          originalHeight: 0
+          originalHeight: 0,
+          workingCanvas: null,
+          rotation: 0,
+          zoom: 1,
+          lockRatio: true,
+          undoSnapshot: null,
+          redoSnapshot: null,
+          resultBlob: null,
+          resultMeta: null
         };
 
         function normalize(value) {
@@ -574,9 +610,10 @@
                       <small>or click to browse<br>one image up to 25 MB</small>
                     </label>
                     <input class="file-input" id="hybridFileInput" type="file" accept=".jpg,image/jpeg">
+                    <div class="format-warning" data-format-warning role="alert"></div>
                     <div class="file-meta" data-file-meta>
                       <img data-file-thumb alt="Selected image thumbnail">
-                      <span class="file-copy"><b data-file-name>NO_FILE</b><small data-file-size>—</small></span>
+                      <span class="file-copy"><b data-file-name>NO_FILE</b><small data-file-size>—</small><small class="file-dims" data-file-dims>—</small></span>
                       <button class="file-remove" type="button" data-remove-file aria-label="Remove selected file">×</button>
                     </div>
                     <div class="locked-box"><span>VALIDATION</span><span data-validation-copy>JPG/JPEG input expected</span></div>
@@ -584,10 +621,16 @@
 
                   <section class="machine-panel">
                     <div class="panel-label"><b>02 // LIVE_PREVIEW</b><span>ORIGINAL IMAGE</span></div>
-                    <div class="preview-stage" data-preview-stage>
+                    <div class="preview-stage zoomable" data-preview-stage>
                       <div class="preview-empty"><div class="file-shape">IMG</div><b>PREVIEW WAITING</b><small>Upload a supported image to inspect it here.</small></div>
                       <img data-preview-image alt="Uploaded image preview">
                       <span class="ticket-pin route-ticket orange big" data-route-code>J→P</span>
+                    </div>
+                    <div class="zoom-row"><span>ZOOM</span><input type="range" id="zoomControl" min="100" max="300" value="100" disabled><span id="zoomText">100%</span></div>
+                    <div class="canvas-toolbar">
+                      <button type="button" id="btnRotate" disabled>↻ ROTATE 90°</button>
+                      <button type="button" id="btnUndo" disabled>↶ UNDO</button>
+                      <button type="button" id="btnRedo" disabled>↷ REDO</button>
                     </div>
                     <div class="preview-foot"><span>INPUT: <em data-route-from>JPG</em></span><span>OUTPUT: <em data-route-to>PNG</em></span></div>
                   </section>
@@ -604,12 +647,24 @@
                       <div class="field"><label for="widthControl">WIDTH <span>PX</span></label><input id="widthControl" type="number" min="1" placeholder="AUTO"></div>
                       <div class="field"><label for="heightControl">HEIGHT <span>PX</span></label><input id="heightControl" type="number" min="1" placeholder="AUTO"></div>
                     </div>
+                    <label class="lock-ratio-row"><input type="checkbox" id="lockRatio" checked> LOCK RATIO (WIDTH ↔ HEIGHT)</label>
                     <div class="field-row">
-                      <div class="field"><label for="targetKb">TARGET SIZE <span>KB</span></label><input id="targetKb" type="number" min="1" placeholder="OPTIONAL"></div>
-                      <div class="field"><label for="qualityControl">QUALITY <span id="qualityText">92%</span></label><input id="qualityControl" type="range" min="40" max="100" value="92"></div>
+                      <div class="field"><label for="targetKb">TARGET SIZE <span>KB (PRIORITY)</span></label><input id="targetKb" type="number" min="1" placeholder="OPTIONAL"></div>
+                      <div class="field"><label for="dpiControl">DPI</label><select id="dpiControl"><option value="72">72 (Web)</option><option value="150">150 (Print)</option><option value="300">300 (High-res)</option></select></div>
                     </div>
+                    <div class="field"><label for="qualityControl">QUALITY <span id="qualityText">92%</span></label><input id="qualityControl" type="range" min="40" max="100" value="92"></div>
                     <button class="hardware-btn execute-button" type="button" data-execute>CONVERT JPG → PNG</button>
                     <div class="system-status" data-status role="status">READY // Select a route or upload one image.</div>
+                    <div class="result-panel" data-result-panel>
+                      <div class="panel-label"><b>04 // RESULT_SUMMARY</b><span data-result-match>MATCHES TARGET</span></div>
+                      <div class="result-grid">
+                        <div><p>Dimensions</p><b data-result-dims>—</b></div>
+                        <div><p>File Size</p><b data-result-size>—</b></div>
+                        <div><p>Format</p><b data-result-format>—</b></div>
+                        <div><p>DPI</p><b data-result-dpi>—</b></div>
+                      </div>
+                      <button class="hardware-btn execute-button download-button" type="button" data-download disabled>⬇ DOWNLOAD RESULT</button>
+                    </div>
                   </section>
                 </div>
               </div>
@@ -791,15 +846,50 @@
           return bytes < 1024 * 1024 ? (bytes / 1024).toFixed(1) + " KB" : (bytes / (1024 * 1024)).toFixed(2) + " MB";
         }
 
+        function showFormatWarning(message) {
+          document.querySelectorAll("[data-format-warning]").forEach(function (node) {
+            node.textContent = message;
+            node.classList.toggle("visible", Boolean(message));
+          });
+        }
+
+        function updatePreviewFromWorkingCanvas() {
+          if (!state.workingCanvas) return;
+          const url = state.workingCanvas.toDataURL("image/png");
+          document.querySelectorAll("[data-preview-image]").forEach(function (node) { node.src = url; });
+          const widthInput = document.getElementById("widthControl");
+          const heightInput = document.getElementById("heightControl");
+          if (widthInput) widthInput.placeholder = String(state.workingCanvas.width);
+          if (heightInput) heightInput.placeholder = String(state.workingCanvas.height);
+          document.querySelectorAll("[data-file-dims]").forEach(function (node) {
+            node.textContent = state.workingCanvas.width + " × " + state.workingCanvas.height + " px" + (state.rotation ? " (rotated " + state.rotation + "°)" : "");
+          });
+        }
+
+        function updateToolbarState() {
+          const hasImage = Boolean(state.workingCanvas);
+          const rotateBtn = document.getElementById("btnRotate");
+          const undoBtn = document.getElementById("btnUndo");
+          const redoBtn = document.getElementById("btnRedo");
+          const zoomControl = document.getElementById("zoomControl");
+          if (rotateBtn) rotateBtn.disabled = !hasImage;
+          if (undoBtn) undoBtn.disabled = !state.undoSnapshot;
+          if (redoBtn) redoBtn.disabled = !state.redoSnapshot;
+          if (zoomControl) zoomControl.disabled = !hasImage;
+        }
+
         function chooseFile(file) {
           if (!file) return;
+          showFormatWarning("");
           if (file.size > 25 * 1024 * 1024) {
             setStatus("ERROR // File exceeds the 25 MB prototype limit.", "error");
+            showFormatWarning("ERROR // File exceeds the 25 MB prototype limit.");
             return;
           }
           const detected = extensionFromFile(file);
           if (!detected) {
             setStatus("FORMAT ERROR // Use JPG, JPEG, WebP, GIF, TIF, PNG or SVG.", "error");
+            showFormatWarning("FORMAT ERROR // Use JPG, JPEG, WebP, GIF, TIF, PNG or SVG.");
             return;
           }
           if (state.universal) {
@@ -810,21 +900,46 @@
             syncRoute();
           } else if (detected !== state.from && !(detected === "JPEG" && state.from === "JPG") && !(detected === "JPG" && state.from === "JPEG")) {
             setStatus("FORMAT MISMATCH // This route expects " + state.from + ", but the selected file appears to be " + detected + ".", "error");
+            showFormatWarning("FORMAT MISMATCH // This route expects " + state.from + ", but the selected file appears to be " + detected + ".");
+            const input = document.getElementById("hybridFileInput");
+            if (input) input.value = "";
             return;
           }
           state.file = file;
           if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
           state.objectUrl = URL.createObjectURL(file);
+          state.workingCanvas = null;
+          state.rotation = 0;
+          state.zoom = 1;
+          state.undoSnapshot = null;
+          state.redoSnapshot = null;
+          state.resultBlob = null;
+          state.resultMeta = null;
+          hideResultPanel();
+          updateToolbarState();
+
           document.querySelectorAll("[data-file-meta]").forEach(function (node) { node.classList.add("visible"); });
           document.querySelectorAll("[data-file-name]").forEach(function (node) { node.textContent = file.name; });
           document.querySelectorAll("[data-file-size]").forEach(function (node) { node.textContent = humanSize(file.size) + " // " + detected; });
           document.querySelectorAll("[data-file-thumb]").forEach(function (node) { node.src = state.objectUrl; });
           document.querySelectorAll("[data-preview-image]").forEach(function (node) {
+            node.style.transform = "scale(1)";
             node.src = state.objectUrl;
             node.onload = function () {
               state.originalWidth = node.naturalWidth;
               state.originalHeight = node.naturalHeight;
+              const canvas = document.createElement("canvas");
+              canvas.width = node.naturalWidth;
+              canvas.height = node.naturalHeight;
+              canvas.getContext("2d").drawImage(node, 0, 0);
+              state.workingCanvas = canvas;
               document.querySelectorAll("[data-preview-stage]").forEach(function (stage) { stage.classList.add("has-image"); });
+              document.querySelectorAll("[data-file-dims]").forEach(function (n) { n.textContent = node.naturalWidth + " × " + node.naturalHeight + " px"; });
+              const wInput = document.getElementById("widthControl");
+              const hInput = document.getElementById("heightControl");
+              if (wInput) wInput.placeholder = String(node.naturalWidth);
+              if (hInput) hInput.placeholder = String(node.naturalHeight);
+              updateToolbarState();
             };
             node.onerror = function () { setStatus("PREVIEW LIMIT // This format needs the production decoder. The route remains configured.", "processing"); };
           });
@@ -837,9 +952,20 @@
           if (input) input.value = "";
           if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
           state.objectUrl = null;
+          state.workingCanvas = null;
+          state.rotation = 0;
+          state.zoom = 1;
+          state.undoSnapshot = null;
+          state.redoSnapshot = null;
+          state.resultBlob = null;
+          state.resultMeta = null;
           document.querySelectorAll("[data-file-meta]").forEach(function (node) { node.classList.remove("visible"); });
           document.querySelectorAll("[data-preview-stage]").forEach(function (stage) { stage.classList.remove("has-image"); });
-          document.querySelectorAll("[data-preview-image]").forEach(function (node) { node.removeAttribute("src"); });
+          document.querySelectorAll("[data-preview-image]").forEach(function (node) { node.removeAttribute("src"); node.style.transform = "scale(1)"; });
+          document.querySelectorAll("[data-file-dims]").forEach(function (node) { node.textContent = "—"; });
+          showFormatWarning("");
+          hideResultPanel();
+          updateToolbarState();
           setStatus("READY // Select a route or upload one image.");
         }
 
@@ -868,7 +994,95 @@
           setTimeout(function () { URL.revokeObjectURL(url); }, 1800);
         }
 
-        async function executeConversion() {
+        function cloneCanvas(source) {
+          const copy = document.createElement("canvas");
+          copy.width = source.width;
+          copy.height = source.height;
+          copy.getContext("2d").drawImage(source, 0, 0);
+          return copy;
+        }
+
+        function rotateImage() {
+          if (!state.workingCanvas) return;
+          state.undoSnapshot = cloneCanvas(state.workingCanvas);
+          state.redoSnapshot = null;
+          const source = state.workingCanvas;
+          const rotated = document.createElement("canvas");
+          rotated.width = source.height;
+          rotated.height = source.width;
+          const context = rotated.getContext("2d");
+          context.translate(rotated.width / 2, rotated.height / 2);
+          context.rotate(Math.PI / 2);
+          context.drawImage(source, -source.width / 2, -source.height / 2);
+          state.workingCanvas = rotated;
+          state.rotation = (state.rotation + 90) % 360;
+          updatePreviewFromWorkingCanvas();
+          updateToolbarState();
+          setStatus("ROTATED // Image is now rotated " + state.rotation + "° from the original.");
+        }
+
+        function undoEdit() {
+          if (!state.undoSnapshot) return;
+          state.redoSnapshot = cloneCanvas(state.workingCanvas);
+          state.workingCanvas = state.undoSnapshot;
+          state.undoSnapshot = null;
+          state.rotation = (state.rotation + 270) % 360;
+          updatePreviewFromWorkingCanvas();
+          updateToolbarState();
+          setStatus("UNDONE // Reverted the last rotate.");
+        }
+
+        function redoEdit() {
+          if (!state.redoSnapshot) return;
+          state.undoSnapshot = cloneCanvas(state.workingCanvas);
+          state.workingCanvas = state.redoSnapshot;
+          state.redoSnapshot = null;
+          state.rotation = (state.rotation + 90) % 360;
+          updatePreviewFromWorkingCanvas();
+          updateToolbarState();
+          setStatus("REDONE // Re-applied the rotate.");
+        }
+
+        function applyZoom(percent) {
+          state.zoom = percent / 100;
+          document.querySelectorAll("[data-preview-image]").forEach(function (node) { node.style.transform = "scale(" + state.zoom + ")"; });
+          const zoomText = document.getElementById("zoomText");
+          if (zoomText) zoomText.textContent = percent + "%";
+        }
+
+        function syncLockedDimension(source) {
+          if (!state.lockRatio || !state.workingCanvas) return;
+          const ratio = state.workingCanvas.width / state.workingCanvas.height;
+          const widthInput = document.getElementById("widthControl");
+          const heightInput = document.getElementById("heightControl");
+          if (!widthInput || !heightInput) return;
+          if (source === "width" && widthInput.value) {
+            heightInput.value = Math.round(Number(widthInput.value) / ratio);
+          } else if (source === "height" && heightInput.value) {
+            widthInput.value = Math.round(Number(heightInput.value) * ratio);
+          }
+        }
+
+        function hideResultPanel() {
+          document.querySelectorAll("[data-result-panel]").forEach(function (node) { node.classList.remove("visible"); });
+          document.querySelectorAll("[data-download]").forEach(function (node) { node.disabled = true; });
+        }
+
+        function showResultPanel(meta) {
+          document.querySelectorAll("[data-result-dims]").forEach(function (node) { node.textContent = meta.width + " × " + meta.height + " px"; });
+          document.querySelectorAll("[data-result-size]").forEach(function (node) { node.textContent = humanSize(meta.sizeBytes); });
+          document.querySelectorAll("[data-result-format]").forEach(function (node) { node.textContent = meta.format; });
+          document.querySelectorAll("[data-result-dpi]").forEach(function (node) { node.textContent = meta.dpi + " DPI"; });
+          document.querySelectorAll("[data-result-match]").forEach(function (node) {
+            node.textContent = meta.targetMatched === null ? "NO TARGET SET" : (meta.targetMatched ? "MATCHES TARGET" : "CLOSEST POSSIBLE");
+            node.parentElement.querySelector("[data-result-size]").className = meta.targetMatched === false ? "" : "match";
+          });
+          document.querySelectorAll("[data-result-panel]").forEach(function (node) { node.classList.add("visible"); });
+          document.querySelectorAll("[data-download]").forEach(function (node) { node.disabled = false; });
+        }
+
+        // [PREVIOUS CODE PRESERVED AS REQUESTED]
+        async function executeConversion_BACKUP() {
           if (!state.file) {
             setStatus("ACTION NEEDED // Upload an image before starting conversion.", "error");
             const dropzone = document.querySelector("[data-dropzone]");
@@ -919,6 +1133,85 @@
           }
         }
 
+        async function executeConversion() {
+          if (!state.file || !state.workingCanvas) {
+            setStatus("ACTION NEEDED // Upload an image before applying a conversion.", "error");
+            const dropzone = document.querySelector("[data-dropzone]");
+            if (dropzone) dropzone.scrollIntoView({ behavior: "smooth", block: "center" });
+            return;
+          }
+          setStatus("PROCESSING // Sending to Backend Python Engine for " + state.to + " output…", "processing");
+          try {
+            const widthInput = document.getElementById("widthControl");
+            const heightInput = document.getElementById("heightControl");
+            const requestedWidth = widthInput && Number(widthInput.value);
+            const requestedHeight = heightInput && Number(heightInput.value);
+            let width = requestedWidth || state.workingCanvas.width;
+            let height = requestedHeight || state.workingCanvas.height;
+            if (requestedWidth && !requestedHeight) height = Math.round(width * (state.workingCanvas.height / state.workingCanvas.width));
+            if (requestedHeight && !requestedWidth) width = Math.round(height * (state.workingCanvas.width / state.workingCanvas.height));
+
+            const targetKbInput = document.getElementById("targetKb");
+            const targetKb = targetKbInput && Number(targetKbInput.value);
+            const qualityNode = document.getElementById("qualityControl");
+            const quality = qualityNode ? Number(qualityNode.value) : 92;
+            const dpiNode = document.getElementById("dpiControl");
+            const dpi = dpiNode ? Number(dpiNode.value) : 72;
+
+            const formData = new FormData();
+            const canvasBlobData = await new Promise(resolve => state.workingCanvas.toBlob(resolve, state.file.type || 'image/png'));
+            formData.append('image', canvasBlobData, state.file.name);
+            
+            formData.append('width', width);
+            formData.append('height', height);
+            formData.append('dpi', dpi);
+            formData.append('quality', quality);
+            formData.append('output_format', state.to);
+            formData.append('expected_input_format', state.from);
+            if (targetKb) formData.append('target_kb', targetKb);
+
+            const response = await fetch('http://127.0.0.1:5000/resize', {
+              method: 'POST',
+              body: formData
+            });
+
+            if (!response.ok) {
+              const errData = await response.json();
+              throw new Error(errData.error || 'Server processing error');
+            }
+
+            const blob = await response.blob();
+            let targetMatched = null;
+            if (targetKb) {
+              targetMatched = blob.size <= targetKb * 1024 * 1.05;
+            }
+
+            state.resultBlob = blob;
+            state.resultMeta = {
+              width: width,
+              height: height,
+              format: state.to,
+              dpi: dpi,
+              sizeBytes: blob.size,
+              targetMatched: targetKb ? targetMatched : null
+            };
+            showResultPanel(state.resultMeta);
+            setStatus("APPLIED // " + state.to + " result ready at " + width + "×" + height + " px, " + humanSize(blob.size) + ". Review RESULT_SUMMARY, then download.");
+          } catch (error) {
+            setStatus("BACKEND ERROR // " + error.message, "error");
+          }
+        }
+
+        function downloadResult() {
+          if (!state.resultBlob || !state.file) {
+            setStatus("ACTION NEEDED // Apply a conversion before downloading.", "error");
+            return;
+          }
+          const base = state.file.name.replace(/\.[^.]+$/, "");
+          downloadBlob(state.resultBlob, base + "." + state.to.toLowerCase());
+          setStatus("DOWNLOADED // " + humanSize(state.resultBlob.size) + " " + state.to + " file saved — matches the RESULT_SUMMARY exactly.");
+        }
+
         function bindEvents() {
           const fromSelect = document.getElementById("fromFormat");
           const toSelect = document.getElementById("toFormat");
@@ -932,10 +1225,29 @@
             button.addEventListener("click", function () { chooseRoute(button.dataset.source, button.dataset.target, true); });
           });
           document.querySelectorAll("[data-execute]").forEach(function (button) { button.addEventListener("click", executeConversion); });
+          document.querySelectorAll("[data-download]").forEach(function (button) { button.addEventListener("click", downloadResult); });
           document.querySelectorAll("[data-remove-file]").forEach(function (button) { button.addEventListener("click", clearFile); });
           const quality = document.getElementById("qualityControl");
           const qualityText = document.getElementById("qualityText");
           if (quality && qualityText) quality.addEventListener("input", function () { qualityText.textContent = quality.value + "%"; });
+
+          const rotateBtn = document.getElementById("btnRotate");
+          const undoBtn = document.getElementById("btnUndo");
+          const redoBtn = document.getElementById("btnRedo");
+          if (rotateBtn) rotateBtn.addEventListener("click", rotateImage);
+          if (undoBtn) undoBtn.addEventListener("click", undoEdit);
+          if (redoBtn) redoBtn.addEventListener("click", redoEdit);
+
+          const zoomControl = document.getElementById("zoomControl");
+          if (zoomControl) zoomControl.addEventListener("input", function () { applyZoom(Number(zoomControl.value)); });
+
+          const lockRatio = document.getElementById("lockRatio");
+          if (lockRatio) lockRatio.addEventListener("change", function () { state.lockRatio = lockRatio.checked; });
+          const widthControl = document.getElementById("widthControl");
+          const heightControl = document.getElementById("heightControl");
+          if (widthControl) widthControl.addEventListener("input", function () { syncLockedDimension("width"); });
+          if (heightControl) heightControl.addEventListener("input", function () { syncLockedDimension("height"); });
+
           const fileInput = document.getElementById("hybridFileInput");
           if (fileInput) fileInput.addEventListener("change", function (event) { chooseFile(event.target.files[0]); });
           document.querySelectorAll("[data-dropzone]").forEach(function (dropzone) {
