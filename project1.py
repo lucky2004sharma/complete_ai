@@ -981,6 +981,5 @@ if __name__ == "__main__":
             "Then run: py project1.py"
         )
 
-    # debug=False public deployment safer hai. Code edit ke baad server manually
-    # restart karein; debug=True karne se auto-reload hoga but production me na karein.
+    # debug=False public deployment safer hai. Code edit ke baad server manually restart karna hoga.
     app.run(host="127.0.0.1", port=5000, debug=False)
