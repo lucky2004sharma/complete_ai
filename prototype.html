@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImageReducer // Web3 Neon</title>
+    <title>ImageReducer // Editorial Style</title>
     <meta name="description" content="Resize and compress images, set exact target KB, adjust dimensions and DPI, and download an optimized result.">
     
-    <!-- New Font: Space Grotesk (Crypto vibe) -->
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <!-- New Font: Playfair Display for Serif Elegance -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -15,46 +15,39 @@
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: { mono: ['"Space Grotesk"', 'sans-serif'] },
-                    colors: {
-                        indBg: '#09090E', indPanel: 'rgba(255,255,255,0.02)', indText: '#E2E8F0', indOrange: '#F000FF', indGreen: '#00F0FF'
-                    }
+                    fontFamily: { mono: ['"Playfair Display"', 'serif'] },
+                    colors: { indBg: '#FDFBF7', indPanel: '#F3EFE6', indText: '#2C2B29', indOrange: '#C29B62', indGreen: '#5A6B53' }
                 }
             }
         }
     </script>
 
     <style>
-        /* WEB3 OVERRIDES */
-        body { 
-            background-color: #09090E; color: #E2E8F0; font-family: 'Space Grotesk', sans-serif !important; 
-            background-image: radial-gradient(circle at top right, rgba(240,0,255,0.15), transparent 40%), radial-gradient(circle at bottom left, rgba(0,240,255,0.1), transparent 40%);
-        }
+        /* EDITORIAL ELEGANCE OVERRIDES */
+        body { background-color: #FDFBF7; color: #2C2B29; font-family: 'Playfair Display', serif !important; }
         
-        /* Swapping layout sides via CSS without touching HTML */
-        #hero .grid { display: flex !important; flex-direction: row-reverse !important; gap: 3rem !important; }
-        @media (max-width: 1024px) { #hero .grid { flex-direction: column !important; } }
+        /* Navbar Symmetry changed to absolute center */
+        header .flex.items-center.justify-between { flex-direction: column !important; justify-content: center !important; gap: 1rem !important; }
+        nav { margin-top: 10px; margin-bottom: 10px; }
         
-        /* Glassmorphism Overrides */
-        .bg-white, .bg-gray-50, .bg-gray-100, .bg-gray-300, header, footer { 
-            background: rgba(255,255,255,0.03) !important; backdrop-filter: blur(20px) !important; border-color: rgba(255,255,255,0.1) !important; 
-        }
-        .text-indText { color: #FFFFFF !important; }
-        .text-gray-700, .text-gray-600, .text-gray-500 { color: #94A3B8 !important; }
-        .border-gray-200, .border-gray-300, .border-gray-400 { border-color: rgba(255,255,255,0.1) !important; }
+        .bg-white { background-color: #FDFBF7 !important; border-width: 1px !important; border-color: #E2DCD0 !important; }
+        .bg-indPanel { background-color: #F3EFE6 !important; border: 1px solid #E2DCD0 !important; box-shadow: 0 10px 20px rgba(0,0,0,0.02) !important; }
+        .border-gray-200, .border-gray-300, .border-gray-400 { border-color: #E2DCD0 !important; border-width: 1px !important; }
         
-        /* Neon Buttons */
+        h1, h2, h3 { font-weight: 700 !important; letter-spacing: -0.5px !important; color: #2C2B29 !important; }
+        
+        /* Elegant Gold Buttons */
         .hardware-btn {
-            background: linear-gradient(90deg, #F000FF, #8A2BE2) !important; border: none !important; color: white !important;
-            box-shadow: 0 0 20px rgba(240,0,255,0.4) !important; border-radius: 8px !important; text-shadow: none !important;
+            background-color: transparent !important; color: #C29B62 !important; border: 1px solid #C29B62 !important;
+            border-radius: 0px !important; text-transform: uppercase; letter-spacing: 2px !important;
+            box-shadow: none !important; font-weight: 400 !important; transition: all 0.3s ease; padding: 12px 24px !important;
         }
-        .hardware-btn:hover { box-shadow: 0 0 30px rgba(240,0,255,0.7) !important; transform: translateY(-2px); }
+        .hardware-btn:hover { background-color: #C29B62 !important; color: #FFF !important; }
         
-        /* Tool Grid Neon */
-        .tool-preview-grid { background-image: radial-gradient(rgba(0, 240, 255, 0.1) 1px, transparent 1px) !important; }
-        .bg-orange-50 { background-color: rgba(240,0,255,0.1) !important; }
+        .trust-signal-mark { background: transparent; color: #5A6B53; border: 1px solid #5A6B53; font-style: italic; }
+        .tool-preview-grid { background-image: none !important; }
         
-        .dropdown-menu { display: none; position: absolute; top: 100%; left: 0; min-width: 240px; z-index: 100; background: rgba(10,10,15,0.95) !important; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .dropdown-menu { display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); min-width: 240px; z-index: 100; border: 1px solid #E2DCD0; background: #FDFBF7 !important; padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.05); text-align: center; }
         .dropdown-container:hover .dropdown-menu { display: block; }
     </style>
 </head>
