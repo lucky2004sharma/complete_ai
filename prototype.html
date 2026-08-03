@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImageReducer // Clean iOS Style</title>
+    <title>ImageReducer // Web3 Neon</title>
     <meta name="description" content="Resize and compress images, set exact target KB, adjust dimensions and DPI, and download an optimized result.">
     
-    <!-- New Font: Inter (Apple-like clean sans-serif) -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <!-- New Font: Space Grotesk (Crypto vibe) -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;900&display=swap" rel="stylesheet">
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -15,44 +15,46 @@
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: { mono: ['"Inter"', 'sans-serif'] },
+                    fontFamily: { mono: ['"Space Grotesk"', 'sans-serif'] },
                     colors: {
-                        indBg: '#F5F5F7', indPanel: '#FFFFFF', indText: '#1D1D1F', indOrange: '#0071E3', indGreen: '#34C759'
-                    },
-                    borderRadius: { DEFAULT: '24px', sm: '16px', md: '20px', lg: '30px' },
-                    boxShadow: { sm: '0 4px 14px rgba(0,0,0,0.04)', inner: 'none', '2xl': '0 20px 40px rgba(0,0,0,0.08)' }
+                        indBg: '#09090E', indPanel: 'rgba(255,255,255,0.02)', indText: '#E2E8F0', indOrange: '#F000FF', indGreen: '#00F0FF'
+                    }
                 }
             }
         }
     </script>
 
     <style>
-        /* OVERRIDING SYMMETRY AND LAYOUT VIA CSS */
-        body { background-color: #F5F5F7; color: #1D1D1F; font-family: 'Inter', sans-serif !important; }
-        
-        /* Changing Hero grid to flex centered */
-        #hero .grid { display: flex !important; flex-direction: column !important; align-items: center !important; text-align: center !important; gap: 2rem !important; }
-        #hero .lg\:text-left { text-align: center !important; }
-        #hero .lg\:justify-start { justify-content: center !important; }
-        #hero .lg\:mx-0 { margin-left: auto !important; margin-right: auto !important; }
-        
-        /* Box & Border overrides */
-        .bg-white, .bg-indPanel { border: none !important; border-radius: 30px !important; }
-        .border-2, .border-4, .border-b, .border-r, .border-t-4 { border-width: 0 !important; }
-        .bg-indPanel { box-shadow: 0 10px 30px rgba(0,0,0,0.05) !important; }
-        
-        /* Clean Buttons */
-        .hardware-btn {
-            background-color: #0071E3 !important; color: white !important; border-radius: 50px !important;
-            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3) !important; text-shadow: none !important; padding: 16px 32px !important; transition: all 0.2s ease;
+        /* WEB3 OVERRIDES */
+        body { 
+            background-color: #09090E; color: #E2E8F0; font-family: 'Space Grotesk', sans-serif !important; 
+            background-image: radial-gradient(circle at top right, rgba(240,0,255,0.15), transparent 40%), radial-gradient(circle at bottom left, rgba(0,240,255,0.1), transparent 40%);
         }
-        .hardware-btn:hover { transform: scale(1.02); box-shadow: 0 6px 16px rgba(0, 113, 227, 0.4) !important; }
-        .hardware-btn:active { transform: scale(0.98); }
         
-        .trust-signal-mark { border-radius: 50%; background: #E8F5E9; color: #34C759; border: none; }
-        .tool-preview-grid { background-image: none !important; background-color: #F5F5F7; border-radius: 20px; }
+        /* Swapping layout sides via CSS without touching HTML */
+        #hero .grid { display: flex !important; flex-direction: row-reverse !important; gap: 3rem !important; }
+        @media (max-width: 1024px) { #hero .grid { flex-direction: column !important; } }
         
-        .dropdown-menu { display: none; position: absolute; top: 100%; left: 0; min-width: 240px; z-index: 100; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); padding: 10px; }
+        /* Glassmorphism Overrides */
+        .bg-white, .bg-gray-50, .bg-gray-100, .bg-gray-300, header, footer { 
+            background: rgba(255,255,255,0.03) !important; backdrop-filter: blur(20px) !important; border-color: rgba(255,255,255,0.1) !important; 
+        }
+        .text-indText { color: #FFFFFF !important; }
+        .text-gray-700, .text-gray-600, .text-gray-500 { color: #94A3B8 !important; }
+        .border-gray-200, .border-gray-300, .border-gray-400 { border-color: rgba(255,255,255,0.1) !important; }
+        
+        /* Neon Buttons */
+        .hardware-btn {
+            background: linear-gradient(90deg, #F000FF, #8A2BE2) !important; border: none !important; color: white !important;
+            box-shadow: 0 0 20px rgba(240,0,255,0.4) !important; border-radius: 8px !important; text-shadow: none !important;
+        }
+        .hardware-btn:hover { box-shadow: 0 0 30px rgba(240,0,255,0.7) !important; transform: translateY(-2px); }
+        
+        /* Tool Grid Neon */
+        .tool-preview-grid { background-image: radial-gradient(rgba(0, 240, 255, 0.1) 1px, transparent 1px) !important; }
+        .bg-orange-50 { background-color: rgba(240,0,255,0.1) !important; }
+        
+        .dropdown-menu { display: none; position: absolute; top: 100%; left: 0; min-width: 240px; z-index: 100; background: rgba(10,10,15,0.95) !important; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
         .dropdown-container:hover .dropdown-menu { display: block; }
     </style>
 </head>
