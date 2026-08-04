@@ -1,325 +1,693 @@
-<!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ImageReducer // Editorial Style</title>
-    <meta name="description" content="Resize and compress images, set exact target KB, adjust dimensions and DPI, and download an optimized result.">
-    
-    <!-- New Font: Playfair Display for Serif Elegance -->
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { mono: ['"Playfair Display"', 'serif'] },
-                    colors: { indBg: '#FDFBF7', indPanel: '#F3EFE6', indText: '#2C2B29', indOrange: '#C29B62', indGreen: '#5A6B53' }
+ <!DOCTYPE html>
+    <!-- 
+    ======================================================================
+    * KYA KAR RAHA HAIN: Ye pehli line (<!DOCTYPE html>) browser ko batati hai ki ye file ek modern HTML5 document hai[cite: 1].
+    * KYUN KAR RAHA HAIN: Iske bina browser confuse ho sakta hai aur design bigad sakta hai (quirks mode me chala jaata hai)[cite: 1].
+    * CHANGE SE KYA HOGA (EFFECT): Ise kabhi mat hatana, ye har website ki neev (foundation) hoti hai[cite: 1].
+    * PYTHON FILE PAR ASAR: Koi asar nahi. Ye sirf Frontend (Browser) ke liye hai[cite: 1].
+    * KAB/KAHAN HOGA: Browser jab page load karega tab sabse pehle ise padhega[cite: 1].
+    ======================================================================
+    -->
+    <html lang="en" class="scroll-smooth">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ImageReducer // Resize, Compress & Set Exact Image Size</title>
+        <meta name="description" content="Resize and compress images, set exact target KB, adjust dimensions and DPI, and download an optimized result.">
+        
+        <!-- Google Fonts: Roboto Mono[cite: 1] -->
+        <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700;900&display=swap" rel="stylesheet">
+        
+        <!-- Tailwind CSS CDN[cite: 1] -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        
+        <!-- Tailwind Custom Colors & Font Config[cite: 1] -->
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: { mono: ['Roboto Mono', 'Courier New', 'monospace'] },
+                        colors: {
+                            indBg: '#F9FAFB',     /* Light background canvas[cite: 1] */
+                            indPanel: '#E5E7EB',  /* Boxes/cards ki metallic-grey casing[cite: 1] */
+                            indText: '#111827',   /* Default dark text color[cite: 1] */
+                            indOrange: '#FF6D00', /* Primary action color[cite: 1] */
+                            indGreen: '#16A34A'   /* Secondary success/online color[cite: 1] */
+                        }
+                    }
                 }
             }
-        }
-    </script>
+        </script>
 
-    <style>
-        /* EDITORIAL ELEGANCE OVERRIDES */
-        body { background-color: #FDFBF7; color: #2C2B29; font-family: 'Playfair Display', serif !important; }
-        
-        /* Navbar Symmetry changed to absolute center */
-        header .flex.items-center.justify-between { flex-direction: column !important; justify-content: center !important; gap: 1rem !important; }
-        nav { margin-top: 10px; margin-bottom: 10px; }
-        
-        .bg-white { background-color: #FDFBF7 !important; border-width: 1px !important; border-color: #E2DCD0 !important; }
-        .bg-indPanel { background-color: #F3EFE6 !important; border: 1px solid #E2DCD0 !important; box-shadow: 0 10px 20px rgba(0,0,0,0.02) !important; }
-        .border-gray-200, .border-gray-300, .border-gray-400 { border-color: #E2DCD0 !important; border-width: 1px !important; }
-        
-        h1, h2, h3 { font-weight: 700 !important; letter-spacing: -0.5px !important; color: #2C2B29 !important; }
-        
-        /* Elegant Gold Buttons */
-        .hardware-btn {
-            background-color: transparent !important; color: #C29B62 !important; border: 1px solid #C29B62 !important;
-            border-radius: 0px !important; text-transform: uppercase; letter-spacing: 2px !important;
-            box-shadow: none !important; font-weight: 400 !important; transition: all 0.3s ease; padding: 12px 24px !important;
-        }
-        .hardware-btn:hover { background-color: #C29B62 !important; color: #FFF !important; }
-        
-        .trust-signal-mark { background: transparent; color: #5A6B53; border: 1px solid #5A6B53; font-style: italic; }
-        .tool-preview-grid { background-image: none !important; }
-        
-        .dropdown-menu { display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); min-width: 240px; z-index: 100; border: 1px solid #E2DCD0; background: #FDFBF7 !important; padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.05); text-align: center; }
-        .dropdown-container:hover .dropdown-menu { display: block; }
-    </style>
-</head>
-<body class="text-indText font-mono min-h-screen flex flex-col antialiased">
-    <!-- EXACT HTML BODY FROM SOURCE -->
-    <header class="w-full sticky top-0 z-50 bg-white border-b border-gray-300 shadow-sm">
-        <div class="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
-            <a href="home_01.html" class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition">
-                <div class="w-8 h-8 bg-indOrange text-white rounded-sm flex items-center justify-center font-black shadow-md">/></div>
-                <span class="text-xl font-bold tracking-widest text-indOrange">ImageReducer</span>
-            </a>
-            <nav class="hidden md:flex items-center gap-6 text-sm tracking-widest text-gray-600 font-bold">
-                <a href="home_01.html" class="hover:text-indGreen transition">[ HOME ]</a>
-                <a href="index_02.html" class="hover:text-indGreen transition">[ RESIZE ]</a>
-                <a href="#" class="hover:text-indGreen transition">[ CROP ]</a>
-                <div class="dropdown-container relative py-2">
-                    <a href="All_converter.html" class="hover:text-indOrange text-indText font-black transition flex items-center gap-1 border-b-2 border-transparent hover:border-indOrange">[ CONVERTER ▼ ]</a>
-                    <div class="dropdown-menu bg-white border-2 border-gray-300 shadow-2xl rounded-sm p-2">
-                        <div class="text-[10px] text-gray-400 font-black px-3 py-1 border-b border-gray-200">SELECT FORMAT</div>
-                        <a href="All_converter.html?from=jpg&amp;to=png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPG TO PNG</a>
-                        <a href="All_converter.html?from=jpeg&amp;to=png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPEG TO PNG</a>
-                        <a href="All_converter.html?from=png&amp;to=jpg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; PNG TO JPEG</a>
-                        <a href="All_converter.html?from=webp&amp;to=jpg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; WEBP TO JPEG</a>
-                        <div class="border-t border-gray-200 my-1"></div>
-                        <a href="All_converter.html?mode=universal" class="block px-3 py-2 text-xs bg-orange-50 text-indOrange hover:bg-indOrange hover:text-white transition font-black">&gt;&gt; UNIVERSAL CONVERTER</a>
+        <style>
+            /* ======================================================================
+            * KYA KAR RAHA HAIN: '.hardware-btn' class button ko 3D physical switch jaisa look deti hai[cite: 1].
+            * PYTHON FILE PAR ASAR: Zero. Sirf browser me CSS styling hai[cite: 1].
+            ====================================================================== */
+            .hardware-btn {
+                box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 6px rgba(0,0,0,0.3);
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+                transition: all 0.1s ease;
+            }
+            .hardware-btn:active {
+                box-shadow: inset 0 4px 6px rgba(0,0,0,0.4);
+                transform: translateY(2px);
+            }
+
+            /* Body Blueprint Grid Pattern[cite: 1] */
+            body {
+                background-color: #F9FAFB;
+                background-image: linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+                background-size: 40px 40px;
+            }
+
+            .hero-img-hover {
+                transition: transform 0.5s ease;
+            }
+            .hero-img-hover:hover {
+                transform: translateY(-10px); 
+            }
+
+            a:focus-visible, button:focus-visible {
+                outline: 3px solid #111827;
+                outline-offset: 4px;
+            }
+
+            .trust-signal {
+                display: flex;
+                align-items: flex-start;
+                gap: 0.65rem;
+                min-width: 0;
+            }
+
+            .trust-signal-mark {
+                width: 1.5rem;
+                height: 1.5rem;
+                flex: 0 0 auto;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid #BBF7D0;
+                background: #F0FDF4;
+                color: #15803D;
+                font-size: 0.7rem;
+                font-weight: 900;
+            }
+
+            .tool-preview-grid {
+                background-image: linear-gradient(rgba(17, 24, 39, 0.055) 1px, transparent 1px),
+                                linear-gradient(90deg, rgba(17, 24, 39, 0.055) 1px, transparent 1px);
+                background-size: 22px 22px;
+            }
+
+            /* ======================================================================
+            * NAYA ADDITION #1: DROPDOWN MENU KI SPECIAL CSS
+            * KYA KAR RAHA HAIN: Jab user mouse ko '.dropdown-container' pe le jayega (hover),
+            *                    toh andar ka hidden '.dropdown-menu' dikhne lagega (block ho jayega).
+            * KYUN KAR RAHA HAIN: Taki bina click kiye, sirf mouse move karne se converter options dikhein.
+            * CHANGE SE KYA HOGA: Agar 'display: none' ya 'display: block' hila diya, toh menu hamesha khula 
+            *                    rahega ya kabhi dikhega hi nahi!
+            * PYTHON FILE PAR ASAR: Zero. Completely frontend logic.
+            ====================================================================== */
+            .dropdown-menu {
+                display: none; /* Default me dropdown chhupa rahega */
+                position: absolute;
+                top: 100%;
+                left: 0;
+                min-width: 240px;
+                z-index: 100;
+            }
+            .dropdown-container:hover .dropdown-menu {
+                display: block; /* Hover karte hi menu dikhega */
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                html { scroll-behavior: auto; }
+                *, *::before, *::after {
+                    animation-duration: 0.01ms !important;
+                    animation-iteration-count: 1 !important;
+                    transition-duration: 0.01ms !important;
+                }
+                .hero-img-hover:hover { transform: none; }
+            }
+        </style>
+
+<style id="prototype-theme" data-prototype="Edition 01 — Editorial Print">
+
+/* Shared preservation layer: visual additions only; original content and links remain untouched. */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-padding-top: 112px; }
+body { overflow-x: hidden; }
+body > header, main, footer { position: relative; z-index: 1; }
+a, button { -webkit-tap-highlight-color: transparent; }
+.prototype-loader {
+  position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center;
+  opacity: 1; visibility: visible; transition: opacity .55s ease, visibility .55s ease;
+}
+.prototype-loader.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.prototype-loader__label { font: 800 11px/1.2 Arial, sans-serif; letter-spacing: .24em; text-transform: uppercase; }
+@media (prefers-reduced-motion: reduce) { .prototype-loader { transition-duration: .01ms; } }
+
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=Playfair+Display:wght@600;700;800&display=swap');
+:root { --paper:#f3eedf; --paper2:#fffdf6; --ink:#171714; --red:#d33b2c; --sage:#526b55; }
+body { background: var(--paper) !important; background-image: linear-gradient(rgba(23,23,20,.035) 1px,transparent 1px) !important; background-size: 100% 9px !important; color:var(--ink)!important; font-family:'DM Sans',Arial,sans-serif!important; }
+.prototype-loader { background:var(--paper); color:var(--ink); }
+.prototype-loader__edition { width:min(420px,80vw); display:grid; grid-template-columns:auto 1fr; align-items:center; gap:18px; }
+.prototype-loader__edition strong { font:800 clamp(42px,10vw,86px)/.9 'Playfair Display',Georgia,serif; }
+.prototype-loader__edition span { height:3px; background:var(--red); transform-origin:left; animation:editionLine 1.1s ease-in-out infinite; }
+.prototype-loader__edition small { grid-column:1/-1; border-top:1px solid var(--ink); padding-top:12px; }
+@keyframes editionLine { 0%,100%{transform:scaleX(.12)} 50%{transform:scaleX(1)} }
+body > header { background:rgba(255,253,246,.96)!important; border:0!important; border-top:7px solid var(--ink)!important; border-bottom:1px solid var(--ink)!important; box-shadow:none!important; }
+body > header > div { max-width:1320px!important; padding-top:18px!important; padding-bottom:18px!important; }
+body > header > div > a:first-child div, footer .bg-indOrange { background:var(--red)!important; border-radius:50%!important; box-shadow:none!important; }
+body > header > div > a:first-child span { color:var(--ink)!important; font:800 18px/1 'DM Sans',Arial,sans-serif!important; letter-spacing:-.04em!important; }
+body > header nav { gap:11px!important; }
+body > header nav > a, body > header nav .dropdown-container > a { color:var(--ink)!important; font-size:10px!important; letter-spacing:.08em!important; padding:8px 6px; border-bottom:1px solid transparent; }
+body > header nav a:hover { color:var(--red)!important; border-bottom-color:var(--red)!important; }
+.dropdown-menu { background:var(--paper2)!important; border:1px solid var(--ink)!important; border-radius:0!important; box-shadow:7px 7px 0 var(--ink)!important; }
+.hardware-btn { background:var(--red)!important; color:white!important; border:1px solid var(--red)!important; border-radius:0!important; box-shadow:none!important; text-shadow:none!important; }
+.hardware-btn:hover { background:var(--ink)!important; border-color:var(--ink)!important; transform:translateY(-2px); }
+#hero { max-width:1320px!important; padding-top:52px!important; }
+#hero > div:first-child { padding:0!important; background:transparent!important; border:0!important; box-shadow:none!important; }
+#hero > div:first-child > div { background:var(--paper2)!important; border:1px solid var(--ink)!important; border-top:10px solid var(--ink)!important; box-shadow:none!important; padding:clamp(28px,5vw,72px)!important; grid-template-columns:1.15fr .85fr!important; }
+#hero h1 { font-family:'Playfair Display',Georgia,serif!important; font-size:clamp(48px,6vw,84px)!important; line-height:.94!important; letter-spacing:-.055em!important; text-transform:none!important; }
+#hero h1 span, .text-indOrange { color:var(--red)!important; }
+.text-indGreen { color:var(--sage)!important; }
+#hero .inline-flex { background:transparent!important; border:0!important; border-left:5px solid var(--red)!important; padding-left:12px!important; }
+.hero-img-hover { transform:rotate(1.2deg); }
+.hero-img-hover:hover { transform:rotate(0deg) translateY(-5px)!important; }
+.hero-img-hover > div { background:var(--ink)!important; border:0!important; box-shadow:12px 12px 0 var(--red)!important; padding:8px!important; }
+.hero-img-hover > div > div { border:0!important; }
+.tool-preview-grid { background-color:var(--paper2)!important; background-image:radial-gradient(var(--ink) .55px,transparent .55px)!important; background-size:12px 12px!important; }
+.hero-img-hover .absolute { transform:rotate(-2deg); border:1px solid var(--ink)!important; box-shadow:6px 6px 0 var(--ink)!important; }
+#hero > div:last-child { border:1px solid var(--ink)!important; background:var(--ink)!important; color:var(--paper2)!important; box-shadow:none!important; }
+#hero > div:last-child > div { border-color:#56564f!important; }
+#hero > div:last-child p:last-child { color:white!important; }
+#features, #how-it-works, #build-guide { max-width:1320px!important; }
+#features > div:first-child, #how-it-works > div:first-child, #build-guide > div:first-child { text-align:left!important; border-color:var(--ink)!important; display:grid; grid-template-columns:220px 1fr; column-gap:30px; }
+#features h2, #how-it-works h2, #build-guide h2 { color:var(--ink)!important; font:700 clamp(32px,4vw,52px)/1 'Playfair Display',Georgia,serif!important; letter-spacing:-.04em!important; text-transform:none!important; }
+#features > .grid { grid-template-columns:repeat(2,1fr)!important; gap:1px!important; background:var(--ink); border:1px solid var(--ink); }
+#features > .grid > div { background:var(--paper2)!important; border:0!important; border-radius:0!important; box-shadow:none!important; padding:0!important; }
+#features > .grid > div > div { background:transparent!important; border:0!important; padding:36px!important; }
+#how-it-works > .flex { display:grid!important; grid-template-columns:repeat(3,1fr)!important; gap:0!important; border:1px solid var(--ink); }
+#how-it-works > .flex > div:not(.hidden) { border:0!important; border-right:1px solid var(--ink)!important; box-shadow:none!important; background:var(--paper2)!important; padding:32px!important; }
+#how-it-works > .flex > div:last-child { border-right:0!important; }
+#how-it-works .hidden { display:none!important; }
+#build-guide .bg-indPanel, #build-guide .bg-white, #build-guide .bg-gray-50 { border-radius:0!important; box-shadow:none!important; }
+#build-guide .bg-indPanel { background:transparent!important; border:1px solid var(--ink)!important; padding:0!important; }
+#build-guide .bg-indPanel > div { border:0!important; }
+footer { background:var(--ink)!important; color:var(--paper2)!important; border-top:8px solid var(--red)!important; }
+footer .text-indText, footer .text-gray-600, footer .text-gray-500 { color:#ded8c9!important; }
+footer .border-gray-300 { border-color:#57574f!important; }
+@media(max-width:900px){ #hero > div:first-child > div{grid-template-columns:1fr!important} #features > div:first-child,#how-it-works > div:first-child,#build-guide > div:first-child{display:block} #features > .grid{grid-template-columns:1fr!important} #how-it-works > .flex{grid-template-columns:1fr!important} #how-it-works > .flex > div:not(.hidden){border-right:0!important;border-bottom:1px solid var(--ink)!important} }
+
+</style>
+    </head>
+
+    <body class="text-indText font-mono min-h-screen flex flex-col antialiased">
+<div class="prototype-loader" role="status" aria-label="Loading Edition 01 — Editorial Print"><div class="prototype-loader__edition"><strong>IR / 01</strong><span></span><small class="prototype-loader__label">Composing workspace</small></div></div>
+
+
+        <!-- HEADER NAVIGATION[cite: 1] -->
+        <header class="w-full sticky top-0 z-50 bg-white border-b border-gray-300 shadow-sm">
+            <div class="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
+                
+                <!-- WEBSITE LOGO[cite: 1] -->
+                <a href="home_01.html" class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition">
+                    <div class="w-8 h-8 bg-indOrange text-white rounded-sm flex items-center justify-center font-black shadow-md">
+                        />
                     </div>
+                    <span class="text-xl font-bold tracking-widest text-indOrange">ImageReducer</span>
+                </a>
+
+                <!-- ======================================================================
+                * NAYA ADDITION #2: NAVIGATION MENU ME '[ CONVERTER ]' ADD KIYA GAYA
+                * KYA KAR RAHA HAIN: Purane 6 links[cite: 1] ke sath 7va link '[ CONVERTER ]' add kiya hai jo ek dropdown hai.
+                * WORKING RULES:
+                *   1. Main header text '[ CONVERTER ]' par CLICK karne se 'converter.html' khulega jahan saare info hain.
+                *   2. Mouse HOVER karne se dropdown khulega jisme 'JPEG TO PNG', 'PNG TO JPEG' etc. hain.
+                *   3. Dropdown ke kisi item pe click karne se direct wahi preference khulegi (e.g. converter.html?mode=jpeg2png).
+                * PYTHON FILE PAR ASAR: Koi nahi, backend routes same rahenge.
+                ====================================================================== -->
+                <nav class="hidden md:flex items-center gap-6 text-sm tracking-widest text-gray-600 font-bold">
+                    <a href="home_01.html" class="hover:text-indGreen transition">[ HOME ]</a>
+                    <a href="index_02.html" class="hover:text-indGreen transition">[ RESIZE ]</a>
+                    <a href="#" class="hover:text-indGreen transition">[ CROP ]</a>
+                    
+                    <!-- NEW CONVERTER DROPDOWN CONTAINER -->
+                    <div class="dropdown-container relative py-2">
+                        <!-- MAIN HEADER LINK: Click karne pe converter.html (All converters page) khulega -->
+                        <a href="All_converter.html" class="hover:text-indOrange text-indText font-black transition flex items-center gap-1 border-b-2 border-transparent hover:border-indOrange">
+                            [ CONVERTER ▼ ]
+                        </a>
+                        
+                        <!-- DROPDOWN OPTIONS: Hover karne pe dikhenge -->
+                        <div class="dropdown-menu bg-white border-2 border-gray-300 shadow-2xl rounded-sm p-2">
+                            <div class="text-[10px] text-gray-400 font-black px-3 py-1 border-b border-gray-200">SELECT FORMAT</div>
+                            <a href="All_converter.html?from=jpg&amp;to=png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPG TO PNG</a>
+                            <a href="All_converter.html?from=jpeg&amp;to=png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPEG TO PNG</a>
+                            <a href="All_converter.html?from=png&amp;to=jpg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; PNG TO JPEG</a>
+                            <a href="All_converter.html?from=webp&amp;to=jpg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; WEBP TO JPEG</a>
+                            <div class="border-t border-gray-200 my-1"></div>
+                            <a href="All_converter.html?mode=universal" class="block px-3 py-2 text-xs bg-orange-50 text-indOrange hover:bg-indOrange hover:text-white transition font-black">&gt;&gt; UNIVERSAL CONVERTER</a>
+                        </div>
+                    </div>
+
+                    <a href="#features" class="hover:text-indGreen transition">[ FEATURES ]</a>
+                    <a href="#" class="hover:text-indGreen transition">[ MORE ]</a>
+                    <a href="#footer" class="hover:text-indGreen transition">[ CONTACT ]</a>
+                </nav>
+
+                <!-- CTA BUTTON[cite: 1] -->
+                <div>
+                    <a href="index_02.html" class="hardware-btn bg-indOrange text-white px-6 py-2.5 rounded font-black tracking-wider transition flex items-center gap-2">
+                        RESIZE IMAGE &gt;&gt;
+                    </a>
                 </div>
-                <a href="#features" class="hover:text-indGreen transition">[ FEATURES ]</a>
-                <a href="#" class="hover:text-indGreen transition">[ MORE ]</a>
-                <a href="#footer" class="hover:text-indGreen transition">[ CONTACT ]</a>
-            </nav>
-            <div>
-                <a href="index_02.html" class="hardware-btn bg-indOrange text-white px-6 py-2.5 rounded font-black tracking-wider transition flex items-center gap-2">RESIZE IMAGE &gt;&gt;</a>
             </div>
-        </div>
-    </header>
-    <main class="flex-grow">
-        <section id="hero" class="max-w-[1400px] mx-auto px-6 pt-10 pb-8">
-            <div class="w-full bg-indPanel p-3 rounded-lg border-4 border-gray-300 shadow-2xl">
-                <div class="bg-white p-7 md:p-10 lg:p-12 border-2 border-gray-300 shadow-inner grid grid-cols-1 lg:grid-cols-[1.02fr_0.98fr] gap-10 lg:gap-14 items-center">
-                    <div class="text-center lg:text-left">
-                        <div class="inline-flex items-center gap-2 border border-green-200 bg-green-50 px-3 py-2 text-indGreen font-bold text-[11px] sm:text-xs tracking-[0.14em]">
-                            <span class="w-2 h-2 bg-indGreen" aria-hidden="true"></span>
-                            IMAGE RESIZE // COMPRESSION // DPI CONTROL
-                        </div>
-                        <h1 class="mt-6 text-4xl lg:text-6xl font-black leading-[1.08] text-indText uppercase tracking-tight max-w-3xl">
-                            Resize, Compress &amp; Set an <span class="text-indOrange">Exact Image Size.</span>
-                        </h1>
-                        <p class="mt-5 text-base lg:text-lg text-gray-700 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                            Upload an image, set the pixel dimensions, target KB or DPI, and download the optimized result from one focused tool.
-                        </p>
-                        <p class="mt-3 text-sm text-gray-500 font-bold leading-relaxed max-w-xl mx-auto lg:mx-0">
-                            Built for application forms, websites, social media and printing—without making you search through confusing settings.
-                        </p>
-                        <div class="mt-7 flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
-                            <a href="index_02.html" class="hardware-btn w-full sm:w-auto bg-indOrange text-white px-8 py-4 rounded font-black text-base tracking-wider transition flex items-center justify-center gap-2">
-                                RESIZE AN IMAGE
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                            </a>
-                            <a href="#how-it-works" class="w-full sm:w-auto bg-white hover:bg-gray-50 text-indText border-2 border-gray-300 px-8 py-4 rounded font-bold text-base tracking-wider transition text-center">HOW IT WORKS</a>
-                        </div>
-                        <div class="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left max-w-2xl mx-auto lg:mx-0">
-                            <div class="trust-signal border-t border-gray-300 pt-3">
-                                <span class="trust-signal-mark">01</span>
-                                <div><p class="text-xs font-black text-indText">EXACT TARGET KB</p><p class="text-xs text-gray-500 mt-1">Enter the file-size requirement.</p></div>
+        </header>
+
+        <!-- MAIN CONTENT: Zero changes made here to preserve exact original landing page[cite: 1] -->
+        <main class="flex-grow">
+            <!-- HERO SECTION[cite: 1] -->
+            <section id="hero" class="max-w-[1400px] mx-auto px-6 pt-10 pb-8">
+                <div class="w-full bg-indPanel p-3 rounded-lg border-4 border-gray-300 shadow-2xl">
+                    <div class="bg-white p-7 md:p-10 lg:p-12 border-2 border-gray-300 shadow-inner grid grid-cols-1 lg:grid-cols-[1.02fr_0.98fr] gap-10 lg:gap-14 items-center">
+
+                        <div class="text-center lg:text-left">
+                            <div class="inline-flex items-center gap-2 border border-green-200 bg-green-50 px-3 py-2 text-indGreen font-bold text-[11px] sm:text-xs tracking-[0.14em]">
+                                <span class="w-2 h-2 bg-indGreen" aria-hidden="true"></span>
+                                IMAGE RESIZE // COMPRESSION // DPI CONTROL
                             </div>
-                            <div class="trust-signal border-t border-gray-300 pt-3">
-                                <span class="trust-signal-mark">02</span>
-                                <div><p class="text-xs font-black text-indText">RATIO PROTECTION</p><p class="text-xs text-gray-500 mt-1">Resize without unwanted stretching.</p></div>
+
+                            <h1 class="mt-6 text-4xl lg:text-6xl font-black leading-[1.08] text-indText uppercase tracking-tight max-w-3xl">
+                                Resize, Compress &amp; Set an <span class="text-indOrange">Exact Image Size.</span>
+                            </h1>
+
+                            <p class="mt-5 text-base lg:text-lg text-gray-700 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                                Upload an image, set the pixel dimensions, target KB or DPI, and download the optimized result from one focused tool.
+                            </p>
+                            <p class="mt-3 text-sm text-gray-500 font-bold leading-relaxed max-w-xl mx-auto lg:mx-0">
+                                Built for application forms, websites, social media and printing—without making you search through confusing settings.
+                            </p>
+
+                            <div class="mt-7 flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
+                                <a href="index_02.html" class="hardware-btn w-full sm:w-auto bg-indOrange text-white px-8 py-4 rounded font-black text-base tracking-wider transition flex items-center justify-center gap-2">
+                                    RESIZE AN IMAGE
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                                </a>
+
+                                <a href="#how-it-works" class="w-full sm:w-auto bg-white hover:bg-gray-50 text-indText border-2 border-gray-300 px-8 py-4 rounded font-bold text-base tracking-wider transition text-center">
+                                    HOW IT WORKS
+                                </a>
                             </div>
-                            <div class="trust-signal border-t border-gray-300 pt-3">
-                                <span class="trust-signal-mark">03</span>
-                                <div><p class="text-xs font-black text-indText">DPI CONTROL</p><p class="text-xs text-gray-500 mt-1">Prepare output for web or print.</p></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="hero-img-hover relative w-full">
-                        <div class="bg-gray-300 p-2 border-2 border-gray-400 shadow-2xl">
-                            <div class="bg-white border-2 border-gray-300">
-                                <div class="flex items-center justify-between gap-3 border-b-2 border-gray-300 bg-gray-100 px-4 py-3">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-2.5 h-2.5 bg-indGreen" aria-hidden="true"></span>
-                                        <span class="text-xs sm:text-sm font-black tracking-wider">IMAGE_PROCESSOR // READY</span>
-                                    </div>
-                                    <span class="text-[10px] sm:text-xs font-bold text-gray-500">OUTPUT CONTROL</span>
+
+                            <div class="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left max-w-2xl mx-auto lg:mx-0">
+                                <div class="trust-signal border-t border-gray-300 pt-3">
+                                    <span class="trust-signal-mark">01</span>
+                                    <div><p class="text-xs font-black text-indText">EXACT TARGET KB</p><p class="text-xs text-gray-500 mt-1">Enter the file-size requirement.</p></div>
                                 </div>
-                                <div class="tool-preview-grid p-4 sm:p-6">
-                                    <div class="border-2 border-dashed border-gray-400 bg-white p-7 text-center">
-                                        <div class="w-12 h-12 mx-auto border-2 border-indOrange bg-orange-50 flex items-center justify-center text-indOrange text-xl font-black">+</div>
-                                        <p class="mt-3 text-sm font-black">DROP OR CHOOSE AN IMAGE</p>
-                                        <p class="mt-1 text-xs text-gray-500 font-bold">Your file enters the processing workspace here.</p>
-                                    </div>
-                                    <div class="mt-4 grid grid-cols-2 gap-3">
-                                        <div class="bg-white border border-gray-300 p-3"><p class="text-[10px] font-black text-gray-500 tracking-wider">WIDTH × HEIGHT</p><p class="mt-2 text-sm font-black">1200 × 800 PX</p></div>
-                                        <div class="bg-white border border-gray-300 p-3"><p class="text-[10px] font-black text-gray-500 tracking-wider">TARGET FILE SIZE</p><p class="mt-2 text-sm font-black">50 KB</p></div>
-                                        <div class="bg-white border border-gray-300 p-3"><p class="text-[10px] font-black text-gray-500 tracking-wider">RESOLUTION</p><p class="mt-2 text-sm font-black">72 DPI</p></div>
-                                        <div class="bg-white border border-gray-300 p-3"><p class="text-[10px] font-black text-gray-500 tracking-wider">ASPECT RATIO</p><p class="mt-2 text-sm font-black text-indGreen">LOCKED</p></div>
-                                    </div>
-                                    <div class="mt-4 bg-indOrange text-white px-4 py-3 text-center text-sm font-black tracking-wider shadow-md">PROCESS IMAGE</div>
-                                    <div class="mt-3 flex items-center justify-between gap-3 border-t border-gray-300 pt-3 text-[10px] sm:text-xs font-bold text-gray-500">
-                                        <span>INPUT → SETTINGS → OUTPUT</span><span class="text-indGreen">STATUS: READY</span>
-                                    </div>
+                                <div class="trust-signal border-t border-gray-300 pt-3">
+                                    <span class="trust-signal-mark">02</span>
+                                    <div><p class="text-xs font-black text-indText">RATIO PROTECTION</p><p class="text-xs text-gray-500 mt-1">Resize without unwanted stretching.</p></div>
+                                </div>
+                                <div class="trust-signal border-t border-gray-300 pt-3">
+                                    <span class="trust-signal-mark">03</span>
+                                    <div><p class="text-xs font-black text-indText">DPI CONTROL</p><p class="text-xs text-gray-500 mt-1">Prepare output for web or print.</p></div>
                                 </div>
                             </div>
                         </div>
-                        <div class="absolute -bottom-5 left-3 sm:-left-5 bg-white p-3 sm:p-4 border-2 border-gray-300 shadow-xl flex items-center gap-3">
-                            <div class="bg-green-100 text-indGreen p-2 text-lg border border-green-200">✓</div>
-                            <div>
-                                <p class="text-[10px] text-gray-500 font-bold tracking-wider">TASK_MATCH</p>
-                                <p class="text-sm sm:text-base font-black text-indText">SEE THE TOOL BEFORE CLICKING</p>
+
+                        <div class="hero-img-hover relative w-full">
+                            <div class="bg-gray-300 p-2 border-2 border-gray-400 shadow-2xl">
+                                <div class="bg-white border-2 border-gray-300">
+                                    <div class="flex items-center justify-between gap-3 border-b-2 border-gray-300 bg-gray-100 px-4 py-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-2.5 h-2.5 bg-indGreen" aria-hidden="true"></span>
+                                            <span class="text-xs sm:text-sm font-black tracking-wider">IMAGE_PROCESSOR // READY</span>
+                                        </div>
+                                        <span class="text-[10px] sm:text-xs font-bold text-gray-500">OUTPUT CONTROL</span>
+                                    </div>
+
+                                    <div class="tool-preview-grid p-4 sm:p-6">
+                                        <div class="border-2 border-dashed border-gray-400 bg-white p-7 text-center">
+                                            <div class="w-12 h-12 mx-auto border-2 border-indOrange bg-orange-50 flex items-center justify-center text-indOrange text-xl font-black">+</div>
+                                            <p class="mt-3 text-sm font-black">DROP OR CHOOSE AN IMAGE</p>
+                                            <p class="mt-1 text-xs text-gray-500 font-bold">Your file enters the processing workspace here.</p>
+                                        </div>
+
+                                        <div class="mt-4 grid grid-cols-2 gap-3">
+                                            <div class="bg-white border border-gray-300 p-3">
+                                                <p class="text-[10px] font-black text-gray-500 tracking-wider">WIDTH × HEIGHT</p>
+                                                <p class="mt-2 text-sm font-black">1200 × 800 PX</p>
+                                            </div>
+                                            <div class="bg-white border border-gray-300 p-3">
+                                                <p class="text-[10px] font-black text-gray-500 tracking-wider">TARGET FILE SIZE</p>
+                                                <p class="mt-2 text-sm font-black">50 KB</p>
+                                            </div>
+                                            <div class="bg-white border border-gray-300 p-3">
+                                                <p class="text-[10px] font-black text-gray-500 tracking-wider">RESOLUTION</p>
+                                                <p class="mt-2 text-sm font-black">72 DPI</p>
+                                            </div>
+                                            <div class="bg-white border border-gray-300 p-3">
+                                                <p class="text-[10px] font-black text-gray-500 tracking-wider">ASPECT RATIO</p>
+                                                <p class="mt-2 text-sm font-black text-indGreen">LOCKED</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-4 bg-indOrange text-white px-4 py-3 text-center text-sm font-black tracking-wider shadow-md">
+                                            PROCESS IMAGE
+                                        </div>
+
+                                        <div class="mt-3 flex items-center justify-between gap-3 border-t border-gray-300 pt-3 text-[10px] sm:text-xs font-bold text-gray-500">
+                                            <span>INPUT → SETTINGS → OUTPUT</span>
+                                            <span class="text-indGreen">STATUS: READY</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="absolute -bottom-5 left-3 sm:-left-5 bg-white p-3 sm:p-4 border-2 border-gray-300 shadow-xl flex items-center gap-3">
+                                <div class="bg-green-100 text-indGreen p-2 text-lg border border-green-200">✓</div>
+                                <div>
+                                    <p class="text-[10px] text-gray-500 font-bold tracking-wider">TASK_MATCH</p>
+                                    <p class="text-sm sm:text-base font-black text-indText">SEE THE TOOL BEFORE CLICKING</p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border border-gray-300 bg-white shadow-sm">
-                <div class="p-4 border-b sm:border-r border-gray-300 sm:border-b-0"><p class="text-[10px] text-indGreen font-black tracking-[0.18em]">01 // WHAT</p><p class="mt-1 text-sm font-black">Resize and compress images</p></div>
-                <div class="p-4 border-b lg:border-r border-gray-300 sm:border-b-0"><p class="text-[10px] text-indGreen font-black tracking-[0.18em]">02 // CONTROL</p><p class="mt-1 text-sm font-black">Pixels, target KB and DPI</p></div>
-                <div class="p-4 border-b sm:border-r border-gray-300 sm:border-b-0"><p class="text-[10px] text-indGreen font-black tracking-[0.18em]">03 // RESULT</p><p class="mt-1 text-sm font-black">An optimized downloadable image</p></div>
-                <div class="p-4"><p class="text-[10px] text-indGreen font-black tracking-[0.18em]">04 // NEXT STEP</p><p class="mt-1 text-sm font-black">Open the tool and upload</p></div>
-            </div>
-        </section>
-        <section id="features" class="max-w-[1400px] mx-auto px-6 py-14">
-            <div class="mb-10 border-b border-gray-300 pb-5 text-center">
-                <p class="text-indGreen text-xs font-black tracking-[0.22em] mb-2">WHAT YOU CAN CONTROL</p>
-                <h2 class="text-2xl lg:text-3xl font-black text-indOrange tracking-widest uppercase mb-3">SYS.CAPABILITIES</h2>
-                <p class="text-gray-600 font-medium text-sm lg:text-base max-w-3xl mx-auto">Everything needed to prepare an image for online forms, websites, social media or printing—inside one consistent workflow.</p>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm hover:-translate-y-1 transition-all">
-                    <div class="bg-white p-6 h-full border border-gray-200">
-                        <div class="flex items-start justify-between gap-4 mb-4"><div class="w-10 h-10 bg-orange-100 text-indOrange border border-orange-200 flex items-center justify-center text-xl">↔</div><span class="text-[10px] font-black text-gray-400">PRIMARY</span></div>
-                        <div class="text-indGreen font-black text-base mb-2 border-b border-gray-200 pb-2 tracking-wide">01_RESIZE_DIMENSIONS</div>
-                        <p class="text-sm text-gray-700 font-medium leading-relaxed">Set width and height in pixels or percentage, while the aspect-ratio lock prevents unwanted stretching.</p>
+
+                <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border border-gray-300 bg-white shadow-sm">
+                    <div class="p-4 border-b sm:border-r border-gray-300 sm:border-b-0">
+                        <p class="text-[10px] text-indGreen font-black tracking-[0.18em]">01 // WHAT</p>
+                        <p class="mt-1 text-sm font-black">Resize and compress images</p>
+                    </div>
+                    <div class="p-4 border-b lg:border-r border-gray-300 sm:border-b-0">
+                        <p class="text-[10px] text-indGreen font-black tracking-[0.18em]">02 // CONTROL</p>
+                        <p class="mt-1 text-sm font-black">Pixels, target KB and DPI</p>
+                    </div>
+                    <div class="p-4 border-b sm:border-r border-gray-300 sm:border-b-0">
+                        <p class="text-[10px] text-indGreen font-black tracking-[0.18em]">03 // RESULT</p>
+                        <p class="mt-1 text-sm font-black">An optimized downloadable image</p>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-[10px] text-indGreen font-black tracking-[0.18em]">04 // NEXT STEP</p>
+                        <p class="mt-1 text-sm font-black">Open the tool and upload</p>
                     </div>
                 </div>
-                <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm hover:-translate-y-1 transition-all">
-                    <div class="bg-white p-6 h-full border border-gray-200">
-                        <div class="w-10 h-10 bg-blue-100 text-blue-600 border border-blue-200 flex items-center justify-center text-xl mb-4">◎</div>
-                        <div class="text-indGreen font-black text-base mb-2 border-b border-gray-200 pb-2 tracking-wide">02_TARGET_FILE_SIZE</div>
-                        <p class="text-sm text-gray-700 font-medium leading-relaxed">Enter a required size such as 50 KB and let the tool prepare an output for that upload limit.</p>
+            </section>
+
+            <!-- FEATURE SECTION[cite: 1] -->
+            <section id="features" class="max-w-[1400px] mx-auto px-6 py-14">
+                <div class="mb-10 border-b border-gray-300 pb-5 text-center">
+                    <p class="text-indGreen text-xs font-black tracking-[0.22em] mb-2">WHAT YOU CAN CONTROL</p>
+                    <h2 class="text-2xl lg:text-3xl font-black text-indOrange tracking-widest uppercase mb-3">SYS.CAPABILITIES</h2>
+                    <p class="text-gray-600 font-medium text-sm lg:text-base max-w-3xl mx-auto">Everything needed to prepare an image for online forms, websites, social media or printing—inside one consistent workflow.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm hover:-translate-y-1 transition-all">
+                        <div class="bg-white p-6 h-full border border-gray-200">
+                            <div class="flex items-start justify-between gap-4 mb-4">
+                                <div class="w-10 h-10 bg-orange-100 text-indOrange border border-orange-200 flex items-center justify-center text-xl">↔</div>
+                                <span class="text-[10px] font-black text-gray-400">PRIMARY</span>
+                            </div>
+                            <div class="text-indGreen font-black text-base mb-2 border-b border-gray-200 pb-2 tracking-wide">01_RESIZE_DIMENSIONS</div>
+                            <p class="text-sm text-gray-700 font-medium leading-relaxed">Set width and height in pixels or percentage, while the aspect-ratio lock prevents unwanted stretching.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm hover:-translate-y-1 transition-all">
+                        <div class="bg-white p-6 h-full border border-gray-200">
+                            <div class="w-10 h-10 bg-blue-100 text-blue-600 border border-blue-200 flex items-center justify-center text-xl mb-4">◎</div>
+                            <div class="text-indGreen font-black text-base mb-2 border-b border-gray-200 pb-2 tracking-wide">02_TARGET_FILE_SIZE</div>
+                            <p class="text-sm text-gray-700 font-medium leading-relaxed">Enter a required size such as 50 KB and let the tool prepare an output for that upload limit.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm hover:-translate-y-1 transition-all">
+                        <div class="bg-white p-6 h-full border border-gray-200">
+                            <div class="w-10 h-10 bg-purple-100 text-purple-600 border border-purple-200 flex items-center justify-center text-xl mb-4">▦</div>
+                            <div class="text-indGreen font-black text-base mb-2 border-b border-gray-200 pb-2 tracking-wide">03_DPI_CONTROL</div>
+                            <p class="text-sm text-gray-700 font-medium leading-relaxed">Choose an appropriate resolution for web use, regular printing or higher-quality photo printing.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm hover:-translate-y-1 transition-all">
+                        <div class="bg-white p-6 h-full border border-gray-200">
+                            <div class="w-10 h-10 bg-pink-100 text-pink-600 border border-pink-200 flex items-center justify-center text-xl mb-4">◐</div>
+                            <div class="text-indGreen font-black text-base mb-2 border-b border-gray-200 pb-2 tracking-wide">04_IMAGE_ADJUSTMENTS</div>
+                            <p class="text-sm text-gray-700 font-medium leading-relaxed">Adjust brightness, contrast and saturation before download, with the existing undo and redo controls.</p>
+                        </div>
                     </div>
                 </div>
-                <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm hover:-translate-y-1 transition-all">
-                    <div class="bg-white p-6 h-full border border-gray-200">
-                        <div class="w-10 h-10 bg-purple-100 text-purple-600 border border-purple-200 flex items-center justify-center text-xl mb-4">▦</div>
-                        <div class="text-indGreen font-black text-base mb-2 border-b border-gray-200 pb-2 tracking-wide">03_DPI_CONTROL</div>
-                        <p class="text-sm text-gray-700 font-medium leading-relaxed">Choose an appropriate resolution for web use, regular printing or higher-quality photo printing.</p>
+            </section>
+
+            <!-- HOW IT WORKS SECTION[cite: 1] -->
+            <section id="how-it-works" class="max-w-[1400px] mx-auto px-6 py-14">
+                <div class="mb-10 border-b border-gray-300 pb-5 text-center">
+                    <p class="text-indGreen text-xs font-black tracking-[0.22em] mb-2">ONE TASK // THREE STEPS</p>
+                    <h2 class="text-2xl lg:text-3xl font-black text-indOrange tracking-widest uppercase mb-3">OPERATION_SEQUENCE</h2>
+                    <p class="text-gray-600 font-medium text-sm lg:text-base">You always know where you are, what to set and what happens next.</p>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-5 items-stretch">
+                    <div class="flex-1 bg-white border border-gray-300 shadow-sm p-6 relative border-t-4 border-t-gray-400">
+                        <span class="absolute top-2 right-3 text-gray-200 font-black text-5xl">1</span>
+                        <p class="text-[10px] text-indGreen font-black tracking-[0.16em] mb-2">UPLOAD_PAYLOAD</p>
+                        <h3 class="text-indText font-black mb-2 tracking-wide text-lg">Choose your image</h3>
+                        <p class="text-sm text-gray-600 font-medium leading-relaxed">Drag and drop the file or select it from your device to begin.</p>
+                    </div>
+
+                    <div class="hidden md:flex items-center text-gray-400 font-black text-xl" aria-hidden="true">&gt;&gt;</div>
+
+                    <div class="flex-1 bg-white border border-gray-300 shadow-sm p-6 relative border-t-4 border-t-indOrange">
+                        <span class="absolute top-2 right-3 text-gray-200 font-black text-5xl">2</span>
+                        <p class="text-[10px] text-indGreen font-black tracking-[0.16em] mb-2">SET_PARAMETERS</p>
+                        <h3 class="text-indText font-black mb-2 tracking-wide text-lg">Enter your requirement</h3>
+                        <p class="text-sm text-gray-600 font-medium leading-relaxed">Set dimensions, target KB, DPI or the available image adjustments.</p>
+                    </div>
+
+                    <div class="hidden md:flex items-center text-gray-400 font-black text-xl" aria-hidden="true">&gt;&gt;</div>
+
+                    <div class="flex-1 bg-white border border-gray-300 shadow-sm p-6 relative border-t-4 border-t-indGreen">
+                        <span class="absolute top-2 right-3 text-gray-200 font-black text-5xl">3</span>
+                        <p class="text-[10px] text-indGreen font-black tracking-[0.16em] mb-2">PROCESS_&amp;_DOWNLOAD</p>
+                        <h3 class="text-indText font-black mb-2 tracking-wide text-lg">Download the result</h3>
+                        <p class="text-sm text-gray-600 font-medium leading-relaxed">The tool applies your settings and prepares the optimized image for download.</p>
                     </div>
                 </div>
-                <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm hover:-translate-y-1 transition-all">
-                    <div class="bg-white p-6 h-full border border-gray-200">
-                        <div class="w-10 h-10 bg-pink-100 text-pink-600 border border-pink-200 flex items-center justify-center text-xl mb-4">◐</div>
-                        <div class="text-indGreen font-black text-base mb-2 border-b border-gray-200 pb-2 tracking-wide">04_IMAGE_ADJUSTMENTS</div>
-                        <p class="text-sm text-gray-700 font-medium leading-relaxed">Adjust brightness, contrast and saturation before download, with the existing undo and redo controls.</p>
+
+                <div class="mt-8 border border-gray-300 bg-gray-50 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-black text-indGreen tracking-wider">LOW-RISK FIRST ACTION</p>
+                        <p class="mt-1 text-sm text-gray-700 font-medium">Open the workspace first, then choose a file when you are ready.</p>
+                    </div>
+                    <a href="index_02.html" class="hardware-btn inline-block bg-white hover:bg-orange-50 border-2 border-indOrange text-indOrange px-7 py-3 rounded font-black tracking-wider transition whitespace-nowrap">
+                        TRY THE TOOL NOW
+                    </a>
+                </div>
+            </section>
+
+            <!-- BUILD GUIDE SECTION: Added per request — practical, plain-language notes on planning a small website -->
+            <section id="build-guide" class="max-w-[1400px] mx-auto px-6 py-14">
+                <div class="mb-10 border-b border-gray-300 pb-5 text-center">
+                    <p class="text-indGreen text-xs font-black tracking-[0.22em] mb-2">BEFORE YOU LAUNCH</p>
+                    <h2 class="text-2xl lg:text-3xl font-black text-indOrange tracking-widest uppercase mb-3">WEBSITE_BUILD_GUIDE</h2>
+                    <p class="text-gray-600 font-medium text-sm lg:text-base max-w-3xl mx-auto">A short, practical checklist for planning a site and writing pages people actually read — useful context whether you're setting up a tool like this one or a full business site.</p>
+                </div>
+
+                <!-- 7-step setup checklist -->
+                <div class="mb-12">
+                    <p class="text-[10px] text-indGreen font-black tracking-[0.18em] mb-4 text-center sm:text-left">SEVEN SETUP STEPS</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                            <div class="bg-white p-5 h-full border border-gray-200">
+                                <span class="text-indOrange font-black text-xs">01</span>
+                                <p class="mt-2 text-sm font-black text-indText">Define the site's purpose</p>
+                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Decide who it's for and what you want a visitor to do before you write a single page.</p>
+                            </div>
+                        </div>
+                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                            <div class="bg-white p-5 h-full border border-gray-200">
+                                <span class="text-indOrange font-black text-xs">02</span>
+                                <p class="mt-2 text-sm font-black text-indText">Choose a site builder</p>
+                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Pick a platform that matches your comfort with code and the features the site needs.</p>
+                            </div>
+                        </div>
+                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                            <div class="bg-white p-5 h-full border border-gray-200">
+                                <span class="text-indOrange font-black text-xs">03</span>
+                                <p class="mt-2 text-sm font-black text-indText">Register a domain</p>
+                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Something short, easy to say out loud, and close to your brand name.</p>
+                            </div>
+                        </div>
+                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                            <div class="bg-white p-5 h-full border border-gray-200">
+                                <span class="text-indOrange font-black text-xs">04</span>
+                                <p class="mt-2 text-sm font-black text-indText">Pick a hosting plan</p>
+                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Match the plan to expected traffic; you can usually upgrade later without a rebuild.</p>
+                            </div>
+                        </div>
+                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                            <div class="bg-white p-5 h-full border border-gray-200">
+                                <span class="text-indOrange font-black text-xs">05</span>
+                                <p class="mt-2 text-sm font-black text-indText">Customize a template</p>
+                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Start from a layout that fits your content type, then adjust colors and fonts to match your brand.</p>
+                            </div>
+                        </div>
+                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                            <div class="bg-white p-5 h-full border border-gray-200">
+                                <span class="text-indOrange font-black text-xs">06</span>
+                                <p class="mt-2 text-sm font-black text-indText">Plan the site structure</p>
+                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Sketch your pages and how they link together before you start filling them in.</p>
+                            </div>
+                        </div>
+                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                            <div class="bg-white p-5 h-full border border-gray-200">
+                                <span class="text-indOrange font-black text-xs">07</span>
+                                <p class="mt-2 text-sm font-black text-indText">Add the essential pages</p>
+                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Home, services, about and contact cover most of what a visitor is looking for.</p>
+                            </div>
+                        </div>
+                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
+                            <div class="bg-white p-5 h-full border border-gray-200">
+                                <span class="text-indGreen font-black text-xs">+</span>
+                                <p class="mt-2 text-sm font-black text-indText">Build a content strategy</p>
+                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Cover your offerings and the one thing that makes you different from the competition.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
-        <section id="how-it-works" class="max-w-[1400px] mx-auto px-6 py-14">
-            <div class="mb-10 border-b border-gray-300 pb-5 text-center">
-                <p class="text-indGreen text-xs font-black tracking-[0.22em] mb-2">ONE TASK // THREE STEPS</p>
-                <h2 class="text-2xl lg:text-3xl font-black text-indOrange tracking-widest uppercase mb-3">OPERATION_SEQUENCE</h2>
-                <p class="text-gray-600 font-medium text-sm lg:text-base">You always know where you are, what to set and what happens next.</p>
-            </div>
-            <div class="flex flex-col md:flex-row gap-5 items-stretch">
-                <div class="flex-1 bg-white border border-gray-300 shadow-sm p-6 relative border-t-4 border-t-gray-400">
-                    <span class="absolute top-2 right-3 text-gray-200 font-black text-5xl">1</span>
-                    <p class="text-[10px] text-indGreen font-black tracking-[0.16em] mb-2">UPLOAD_PAYLOAD</p>
-                    <h3 class="text-indText font-black mb-2 tracking-wide text-lg">Choose your image</h3>
-                    <p class="text-sm text-gray-600 font-medium leading-relaxed">Drag and drop the file or select it from your device to begin.</p>
-                </div>
-                <div class="hidden md:flex items-center text-gray-400 font-black text-xl" aria-hidden="true">&gt;&gt;</div>
-                <div class="flex-1 bg-white border border-gray-300 shadow-sm p-6 relative border-t-4 border-t-indOrange">
-                    <span class="absolute top-2 right-3 text-gray-200 font-black text-5xl">2</span>
-                    <p class="text-[10px] text-indGreen font-black tracking-[0.16em] mb-2">SET_PARAMETERS</p>
-                    <h3 class="text-indText font-black mb-2 tracking-wide text-lg">Enter your requirement</h3>
-                    <p class="text-sm text-gray-600 font-medium leading-relaxed">Set dimensions, target KB, DPI or the available image adjustments.</p>
-                </div>
-                <div class="hidden md:flex items-center text-gray-400 font-black text-xl" aria-hidden="true">&gt;&gt;</div>
-                <div class="flex-1 bg-white border border-gray-300 shadow-sm p-6 relative border-t-4 border-t-indGreen">
-                    <span class="absolute top-2 right-3 text-gray-200 font-black text-5xl">3</span>
-                    <p class="text-[10px] text-indGreen font-black tracking-[0.16em] mb-2">PROCESS_&amp;_DOWNLOAD</p>
-                    <h3 class="text-indText font-black mb-2 tracking-wide text-lg">Download the result</h3>
-                    <p class="text-sm text-gray-600 font-medium leading-relaxed">The tool applies your settings and prepares the optimized image for download.</p>
-                </div>
-            </div>
-            <div class="mt-8 border border-gray-300 bg-gray-50 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                    <p class="text-xs font-black text-indGreen tracking-wider">LOW-RISK FIRST ACTION</p>
-                    <p class="mt-1 text-sm text-gray-700 font-medium">Open the workspace first, then choose a file when you are ready.</p>
-                </div>
-                <a href="index_02.html" class="hardware-btn inline-block bg-white hover:bg-orange-50 border-2 border-indOrange text-indOrange px-7 py-3 rounded font-black tracking-wider transition whitespace-nowrap">TRY THE TOOL NOW</a>
-            </div>
-        </section>
-        <section id="build-guide" class="max-w-[1400px] mx-auto px-6 py-14">
-            <div class="mb-10 border-b border-gray-300 pb-5 text-center">
-                <p class="text-indGreen text-xs font-black tracking-[0.22em] mb-2">BEFORE YOU LAUNCH</p>
-                <h2 class="text-2xl lg:text-3xl font-black text-indOrange tracking-widest uppercase mb-3">WEBSITE_BUILD_GUIDE</h2>
-                <p class="text-gray-600 font-medium text-sm lg:text-base max-w-3xl mx-auto">A short, practical checklist for planning a site and writing pages people actually read — useful context whether you're setting up a tool like this one or a full business site.</p>
-            </div>
-            <div class="mb-12">
-                <p class="text-[10px] text-indGreen font-black tracking-[0.18em] mb-4 text-center sm:text-left">SEVEN SETUP STEPS</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm"><div class="bg-white p-5 h-full border border-gray-200"><span class="text-indOrange font-black text-xs">01</span><p class="mt-2 text-sm font-black text-indText">Define the site's purpose</p><p class="mt-1 text-xs text-gray-600 leading-relaxed">Decide who it's for and what you want a visitor to do before you write a single page.</p></div></div>
-                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm"><div class="bg-white p-5 h-full border border-gray-200"><span class="text-indOrange font-black text-xs">02</span><p class="mt-2 text-sm font-black text-indText">Choose a site builder</p><p class="mt-1 text-xs text-gray-600 leading-relaxed">Pick a platform that matches your comfort with code and the features the site needs.</p></div></div>
-                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm"><div class="bg-white p-5 h-full border border-gray-200"><span class="text-indOrange font-black text-xs">03</span><p class="mt-2 text-sm font-black text-indText">Register a domain</p><p class="mt-1 text-xs text-gray-600 leading-relaxed">Something short, easy to say out loud, and close to your brand name.</p></div></div>
-                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm"><div class="bg-white p-5 h-full border border-gray-200"><span class="text-indOrange font-black text-xs">04</span><p class="mt-2 text-sm font-black text-indText">Pick a hosting plan</p><p class="mt-1 text-xs text-gray-600 leading-relaxed">Match the plan to expected traffic; you can usually upgrade later without a rebuild.</p></div></div>
-                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm"><div class="bg-white p-5 h-full border border-gray-200"><span class="text-indOrange font-black text-xs">05</span><p class="mt-2 text-sm font-black text-indText">Customize a template</p><p class="mt-1 text-xs text-gray-600 leading-relaxed">Start from a layout that fits your content type, then adjust colors and fonts to match your brand.</p></div></div>
-                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm"><div class="bg-white p-5 h-full border border-gray-200"><span class="text-indOrange font-black text-xs">06</span><p class="mt-2 text-sm font-black text-indText">Plan the site structure</p><p class="mt-1 text-xs text-gray-600 leading-relaxed">Sketch your pages and how they link together before you start filling them in.</p></div></div>
-                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm"><div class="bg-white p-5 h-full border border-gray-200"><span class="text-indOrange font-black text-xs">07</span><p class="mt-2 text-sm font-black text-indText">Add the essential pages</p><p class="mt-1 text-xs text-gray-600 leading-relaxed">Home, services, about and contact cover most of what a visitor is looking for.</p></div></div>
-                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm"><div class="bg-white p-5 h-full border border-gray-200"><span class="text-indGreen font-black text-xs">+</span><p class="mt-2 text-sm font-black text-indText">Build a content strategy</p><p class="mt-1 text-xs text-gray-600 leading-relaxed">Cover your offerings and the one thing that makes you different from the competition.</p></div></div>
-                </div>
-            </div>
-            <div class="mb-12 border border-gray-300 bg-white shadow-sm p-6 lg:p-8">
-                <p class="text-[10px] text-indGreen font-black tracking-[0.18em] mb-1">WRITE FOR THE READER, NOT FOR YOURSELF</p>
-                <h3 class="text-xl font-black text-indText uppercase tracking-wide mb-4">What to include on each page</h3>
-                <p class="text-sm text-gray-600 font-medium leading-relaxed mb-6 max-w-3xl">Say clearly what you do, who it's for and how it helps — lead with the most useful information first, the same way a news article puts the key facts in the opening lines.</p>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="border-t-4 border-t-indOrange border border-gray-200 p-5"><p class="text-xs font-black text-indOrange tracking-wider mb-2">HOMEPAGE</p><ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside"><li>A headline that says what you offer in a handful of words</li><li>One or two lines on how it helps the visitor</li><li>A clear next step ("Try the tool", "Get in touch")</li><li>A short testimonial or trust signal if you have one</li></ul></div>
-                    <div class="border-t-4 border-t-indGreen border border-gray-200 p-5"><p class="text-xs font-black text-indGreen tracking-wider mb-2">SERVICES / TOOL PAGE</p><ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside"><li>What it does and the specific problem it solves</li><li>Any pricing or limits, stated upfront</li><li>The steps involved, in plain order</li></ul></div>
-                    <div class="border-t-4 border-t-indOrange border border-gray-200 p-5"><p class="text-xs font-black text-indOrange tracking-wider mb-2">ABOUT PAGE</p><ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside"><li>Why the project exists and who built it</li><li>Anything that supports credibility</li><li>A human touch — a name, a photo, a short note</li></ul></div>
-                    <div class="border-t-4 border-t-indGreen border border-gray-200 p-5"><p class="text-xs font-black text-indGreen tracking-wider mb-2">CONTACT PAGE</p><ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside"><li>An email address or contact form</li><li>Response hours, if relevant</li><li>Anything else visitors ask for most often</li></ul></div>
-                </div>
-            </div>
-            <div class="border border-gray-300 bg-gray-50 p-6 lg:p-8">
-                <p class="text-[10px] text-indGreen font-black tracking-[0.18em] mb-1">HOW TO WRITE FOR THE WEB</p>
-                <h3 class="text-xl font-black text-indText uppercase tracking-wide mb-5">Five habits that make pages easier to read</h3>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div class="bg-white border border-gray-200 p-4"><p class="text-sm font-black text-indText mb-1">Keep it scannable</p><p class="text-xs text-gray-600 leading-relaxed">Short paragraphs and bullet points beat long blocks of text.</p></div>
-                    <div class="bg-white border border-gray-200 p-4"><p class="text-sm font-black text-indText mb-1">Use clear headings</p><p class="text-xs text-gray-600 leading-relaxed">Break sections up so a skimming reader still gets the gist.</p></div>
-                    <div class="bg-white border border-gray-200 p-4"><p class="text-sm font-black text-indText mb-1">Speak to "you"</p><p class="text-xs text-gray-600 leading-relaxed">Write toward the reader's problem, not just your own story.</p></div>
-                    <div class="bg-white border border-gray-200 p-4"><p class="text-sm font-black text-indText mb-1">Skip the jargon</p><p class="text-xs text-gray-600 leading-relaxed">Plain words move faster than technical ones ever will.</p></div>
-                    <div class="bg-white border border-gray-200 p-4"><p class="text-sm font-black text-indText mb-1">Lead with verbs</p><p class="text-xs text-gray-600 leading-relaxed">"Resize", "download", "compare" — action words tell readers what happens next.</p></div>
-                </div>
-            </div>
-        </section>
-    </main>
-    <footer id="footer" class="bg-gray-100 border-t border-gray-300 pt-12 pb-8 mt-8">
-        <div class="max-w-[1400px] mx-auto px-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10 border-b border-gray-300 pb-10">
-                <div class="space-y-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 bg-indOrange text-white rounded-sm flex items-center justify-center text-sm shadow-md font-black">/></div>
-                        <span class="text-xl font-black tracking-widest text-indText">ImageReducer</span>
+
+                <!-- What to write on each page -->
+                <div class="mb-12 border border-gray-300 bg-white shadow-sm p-6 lg:p-8">
+                    <p class="text-[10px] text-indGreen font-black tracking-[0.18em] mb-1">WRITE FOR THE READER, NOT FOR YOURSELF</p>
+                    <h3 class="text-xl font-black text-indText uppercase tracking-wide mb-4">What to include on each page</h3>
+                    <p class="text-sm text-gray-600 font-medium leading-relaxed mb-6 max-w-3xl">Say clearly what you do, who it's for and how it helps — lead with the most useful information first, the same way a news article puts the key facts in the opening lines.</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="border-t-4 border-t-indOrange border border-gray-200 p-5">
+                            <p class="text-xs font-black text-indOrange tracking-wider mb-2">HOMEPAGE</p>
+                            <ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside">
+                                <li>A headline that says what you offer in a handful of words</li>
+                                <li>One or two lines on how it helps the visitor</li>
+                                <li>A clear next step ("Try the tool", "Get in touch")</li>
+                                <li>A short testimonial or trust signal if you have one</li>
+                            </ul>
+                        </div>
+                        <div class="border-t-4 border-t-indGreen border border-gray-200 p-5">
+                            <p class="text-xs font-black text-indGreen tracking-wider mb-2">SERVICES / TOOL PAGE</p>
+                            <ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside">
+                                <li>What it does and the specific problem it solves</li>
+                                <li>Any pricing or limits, stated upfront</li>
+                                <li>The steps involved, in plain order</li>
+                            </ul>
+                        </div>
+                        <div class="border-t-4 border-t-indOrange border border-gray-200 p-5">
+                            <p class="text-xs font-black text-indOrange tracking-wider mb-2">ABOUT PAGE</p>
+                            <ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside">
+                                <li>Why the project exists and who built it</li>
+                                <li>Anything that supports credibility</li>
+                                <li>A human touch — a name, a photo, a short note</li>
+                            </ul>
+                        </div>
+                        <div class="border-t-4 border-t-indGreen border border-gray-200 p-5">
+                            <p class="text-xs font-black text-indGreen tracking-wider mb-2">CONTACT PAGE</p>
+                            <ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside">
+                                <li>An email address or contact form</li>
+                                <li>Response hours, if relevant</li>
+                                <li>Anything else visitors ask for most often</li>
+                            </ul>
+                        </div>
                     </div>
-                    <p class="text-gray-600 text-sm font-bold max-w-xs">
-                        A focused image utility for resizing, compression, target file size and DPI control—built around a clear three-step workflow.
-                    </p>
                 </div>
-                <div>
-                    <h4 class="font-bold text-lg mb-4 text-indOrange tracking-wide">QUICK_LINKS</h4>
-                    <ul class="space-y-2 text-sm text-gray-600 font-bold">
-                        <li><a href="home_01.html" class="hover:text-indOrange transition">&gt; Home</a></li>
-                        <li><a href="#features" class="hover:text-indOrange transition">&gt; Features</a></li>
-                        <li><a href="index_02.html" class="hover:text-indOrange transition">&gt; The Resizer Tool</a></li>
-                        <li><a href="All_converter.html" class="hover:text-indOrange transition">&gt; Format Converter</a></li>
-                    </ul>
+
+                <!-- Writing tips -->
+                <div class="border border-gray-300 bg-gray-50 p-6 lg:p-8">
+                    <p class="text-[10px] text-indGreen font-black tracking-[0.18em] mb-1">HOW TO WRITE FOR THE WEB</p>
+                    <h3 class="text-xl font-black text-indText uppercase tracking-wide mb-5">Five habits that make pages easier to read</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div class="bg-white border border-gray-200 p-4">
+                            <p class="text-sm font-black text-indText mb-1">Keep it scannable</p>
+                            <p class="text-xs text-gray-600 leading-relaxed">Short paragraphs and bullet points beat long blocks of text.</p>
+                        </div>
+                        <div class="bg-white border border-gray-200 p-4">
+                            <p class="text-sm font-black text-indText mb-1">Use clear headings</p>
+                            <p class="text-xs text-gray-600 leading-relaxed">Break sections up so a skimming reader still gets the gist.</p>
+                        </div>
+                        <div class="bg-white border border-gray-200 p-4">
+                            <p class="text-sm font-black text-indText mb-1">Speak to "you"</p>
+                            <p class="text-xs text-gray-600 leading-relaxed">Write toward the reader's problem, not just your own story.</p>
+                        </div>
+                        <div class="bg-white border border-gray-200 p-4">
+                            <p class="text-sm font-black text-indText mb-1">Skip the jargon</p>
+                            <p class="text-xs text-gray-600 leading-relaxed">Plain words move faster than technical ones ever will.</p>
+                        </div>
+                        <div class="bg-white border border-gray-200 p-4">
+                            <p class="text-sm font-black text-indText mb-1">Lead with verbs</p>
+                            <p class="text-xs text-gray-600 leading-relaxed">"Resize", "download", "compare" — action words tell readers what happens next.</p>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <h4 class="font-bold text-lg mb-4 text-indOrange tracking-wide">LEGAL_&amp;_CONTACT</h4>
-                    <ul class="space-y-2 text-sm text-gray-600 font-bold">
-                        <li><a href="#" class="hover:text-indText transition">&gt; Privacy Policy</a></li>
-                        <li><a href="#" class="hover:text-indText transition">&gt; Terms of Service</a></li>
-                        <li><a href="mailto:hello@resizer.com" class="hover:text-indText transition">&gt; hello@resizer.com</a></li>
-                    </ul>
+            </section>
+        </main>
+
+        <!-- FOOTER SECTION[cite: 1] -->
+        <footer id="footer" class="bg-gray-100 border-t border-gray-300 pt-12 pb-8 mt-8">
+            <div class="max-w-[1400px] mx-auto px-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10 border-b border-gray-300 pb-10">
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 bg-indOrange text-white rounded-sm flex items-center justify-center text-sm shadow-md font-black">/></div>
+                            <span class="text-xl font-black tracking-widest text-indText">ImageReducer</span>
+                        </div>
+                        <p class="text-gray-600 text-sm font-bold max-w-xs">
+                            A focused image utility for resizing, compression, target file size and DPI control—built around a clear three-step workflow.
+                        </p>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-lg mb-4 text-indOrange tracking-wide">QUICK_LINKS</h4>
+                        <ul class="space-y-2 text-sm text-gray-600 font-bold">
+                            <li><a href="home_01.html" class="hover:text-indOrange transition">&gt; Home</a></li>
+                            <li><a href="#features" class="hover:text-indOrange transition">&gt; Features</a></li>
+                            <li><a href="index_02.html" class="hover:text-indOrange transition">&gt; The Resizer Tool</a></li>
+                            <li><a href="All_converter.html" class="hover:text-indOrange transition">&gt; Format Converter</a></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 class="font-bold text-lg mb-4 text-indOrange tracking-wide">LEGAL_&amp;_CONTACT</h4>
+                        <ul class="space-y-2 text-sm text-gray-600 font-bold">
+                            <li><a href="#" class="hover:text-indText transition">&gt; Privacy Policy</a></li>
+                            <li><a href="#" class="hover:text-indText transition">&gt; Terms of Service</a></li>
+                            <li><a href="mailto:hello@resizer.com" class="hover:text-indText transition">&gt; hello@resizer.com</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="text-center text-gray-500 text-xs font-bold tracking-widest">
+                    &copy; 2026 ImageReducer // ALL RIGHTS RESERVED.
                 </div>
             </div>
-            <div class="text-center text-gray-500 text-xs font-bold tracking-widest">
-                &copy; 2026 ImageReducer // ALL RIGHTS RESERVED.
-            </div>
-        </div>
-    </footer>
-</body>
-</html>
+        </footer>
+
+<script id="prototype-loader-script">
+(() => {
+  const loader = document.querySelector('.prototype-loader');
+  const started = performance.now();
+  const close = () => {
+    const wait = Math.max(0, 420 - (performance.now() - started));
+    window.setTimeout(() => loader?.classList.add('is-hidden'), wait);
+  };
+  if (document.readyState === 'complete') close();
+  else window.addEventListener('load', close, { once: true });
+  window.setTimeout(close, 1800);
+})();
+</script>
+    </body>
+    </html>
