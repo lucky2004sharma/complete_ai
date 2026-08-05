@@ -1,1072 +1,745 @@
- <!DOCTYPE html>
-    <!-- 
-    ======================================================================
-    * KYA KAR RAHA HAIN: Ye pehli line (<!DOCTYPE html>) browser ko batati hai ki ye file ek modern HTML5 document hai[cite: 1].
-    * KYUN KAR RAHA HAIN: Iske bina browser confuse ho sakta hai aur design bigad sakta hai (quirks mode me chala jaata hai)[cite: 1].
-    * CHANGE SE KYA HOGA (EFFECT): Ise kabhi mat hatana, ye har website ki neev (foundation) hoti hai[cite: 1].
-    * PYTHON FILE PAR ASAR: Koi asar nahi. Ye sirf Frontend (Browser) ke liye hai[cite: 1].
-    * KAB/KAHAN HOGA: Browser jab page load karega tab sabse pehle ise padhega[cite: 1].
-    ======================================================================
-    -->
-    <html lang="en" class="scroll-smooth">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>ImageReducer // Resize, Compress & Set Exact Image Size</title>
-        <meta name="description" content="Resize and compress images, set exact target KB, adjust dimensions and DPI, and download an optimized result.">
-        <script>
-            try {
-                document.documentElement.dataset.theme = localStorage.getItem('imageReducerTheme') || 'dark';
-            } catch (error) {
-                document.documentElement.dataset.theme = 'dark';
-            }
-        </script>
-        
-        <!-- Google Fonts: Roboto Mono[cite: 1] -->
-        <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700;900&display=swap" rel="stylesheet">
-        
-        <!-- Tailwind CSS CDN[cite: 1] -->
-        <script src="https://cdn.tailwindcss.com"></script>
-        
-        <!-- Tailwind Custom Colors & Font Config[cite: 1] -->
-        <script>
-            tailwind.config = {
-                theme: {
-                    extend: {
-                        fontFamily: { mono: ['Roboto Mono', 'Courier New', 'monospace'] },
-                        colors: {
-                            indBg: '#F9FAFB',     /* Light background canvas[cite: 1] */
-                            indPanel: '#E5E7EB',  /* Boxes/cards ki metallic-grey casing[cite: 1] */
-                            indText: '#111827',   /* Default dark text color[cite: 1] */
-                            indOrange: '#FF6D00', /* Primary action color[cite: 1] */
-                            indGreen: '#16A34A'   /* Secondary success/online color[cite: 1] */
-                        }
-                    }
-                }
-            }
-        </script>
-
-        <style>
-            /* ======================================================================
-            * KYA KAR RAHA HAIN: '.hardware-btn' class button ko 3D physical switch jaisa look deti hai[cite: 1].
-            * PYTHON FILE PAR ASAR: Zero. Sirf browser me CSS styling hai[cite: 1].
-            ====================================================================== */
-            .hardware-btn {
-                box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -4px 0 rgba(0,0,0,0.2), 0 4px 6px rgba(0,0,0,0.3);
-                text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
-                transition: all 0.1s ease;
-            }
-            .hardware-btn:active {
-                box-shadow: inset 0 4px 6px rgba(0,0,0,0.4);
-                transform: translateY(2px);
-            }
-
-            /* Body Blueprint Grid Pattern[cite: 1] */
-            body {
-                background-color: #F9FAFB;
-                background-image: linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
-                background-size: 40px 40px;
-            }
-
-            .hero-img-hover {
-                transition: transform 0.5s ease;
-            }
-            .hero-img-hover:hover {
-                transform: translateY(-10px); 
-            }
-
-            a:focus-visible, button:focus-visible {
-                outline: 3px solid #111827;
-                outline-offset: 4px;
-            }
-
-            .trust-signal {
-                display: flex;
-                align-items: flex-start;
-                gap: 0.65rem;
-                min-width: 0;
-            }
-
-            .trust-signal-mark {
-                width: 1.5rem;
-                height: 1.5rem;
-                flex: 0 0 auto;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border: 1px solid #BBF7D0;
-                background: #F0FDF4;
-                color: #15803D;
-                font-size: 0.7rem;
-                font-weight: 900;
-            }
-
-            .tool-preview-grid {
-                background-image: linear-gradient(rgba(17, 24, 39, 0.055) 1px, transparent 1px),
-                                linear-gradient(90deg, rgba(17, 24, 39, 0.055) 1px, transparent 1px);
-                background-size: 22px 22px;
-            }
-
-            /* ======================================================================
-            * NAYA ADDITION #1: DROPDOWN MENU KI SPECIAL CSS
-            * KYA KAR RAHA HAIN: Jab user mouse ko '.dropdown-container' pe le jayega (hover),
-            *                    toh andar ka hidden '.dropdown-menu' dikhne lagega (block ho jayega).
-            * KYUN KAR RAHA HAIN: Taki bina click kiye, sirf mouse move karne se converter options dikhein.
-            * CHANGE SE KYA HOGA: Agar 'display: none' ya 'display: block' hila diya, toh menu hamesha khula 
-            *                    rahega ya kabhi dikhega hi nahi!
-            * PYTHON FILE PAR ASAR: Zero. Completely frontend logic.
-            ====================================================================== */
-            .dropdown-menu {
-                display: none; /* Default me dropdown chhupa rahega */
-                position: absolute;
-                top: 100%;
-                left: 0;
-                min-width: 240px;
-                z-index: 100;
-            }
-            .dropdown-container:hover .dropdown-menu {
-                display: block; /* Hover karte hi menu dikhega */
-            }
-
-            @media (prefers-reduced-motion: reduce) {
-                html { scroll-behavior: auto; }
-                *, *::before, *::after {
-                    animation-duration: 0.01ms !important;
-                    animation-iteration-count: 1 !important;
-                    transition-duration: 0.01ms !important;
-                }
-                .hero-img-hover:hover { transform: none; }
-            }
-        </style>
-
-
-<style id="hybrid-wave-theme" data-concept="12 / Precision Console" data-tone="precision">
-
-*,*::before,*::after{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:130px}body{overflow-x:hidden}main>section{width:100%;min-width:0}.hybrid-loader{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;transition:opacity .65s ease,visibility .65s ease}.hybrid-loader.is-hidden{opacity:0;visibility:hidden;pointer-events:none}.hero-img-hover.is-hybridized>:not(.hybrid-machine){display:none!important}.hybrid-machine{display:block!important;position:relative;width:100%;isolation:isolate}.dropdown-menu{z-index:999!important}a:focus-visible,button:focus-visible{outline-offset:5px}
-#how-it-works>.flex{gap:28px!important;align-items:stretch!important;overflow:visible!important}#how-it-works>.flex>div:not(.hidden){border:0!important;border-radius:26px!important;box-shadow:14px 18px 0 var(--sequence-shadow)!important;transition:transform .28s ease,box-shadow .28s ease!important}#how-it-works>.flex>div:nth-of-type(1){transform:rotate(-2deg) translateY(12px)}#how-it-works>.flex>div:nth-of-type(3){transform:rotate(1.7deg) translateY(-9px)}#how-it-works>.flex>div:nth-of-type(5){transform:rotate(-.8deg) translateY(15px)}#how-it-works>.flex>div:not(.hidden):hover{transform:rotate(0) translateY(-7px)!important;box-shadow:19px 24px 0 var(--sequence-shadow)!important}#how-it-works>.flex>.hidden{display:none!important}
-@media(max-width:900px){body>header nav{display:none!important}#hero>div:first-child>div{grid-template-columns:1fr!important}#how-it-works>.flex{display:grid!important;grid-template-columns:1fr!important;gap:34px!important}#how-it-works>.flex>div:not(.hidden){transform:none!important}.hybrid-machine{min-height:610px!important}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
-
-
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
-:root{--night:#080814;--panel:#17172d;--glass:rgba(27,29,63,.72);--cyan:#64e4f4;--violet:#9f83ff;--copper:#d47d54;--paper:#f5eee3;--line:rgba(255,255,255,.16);--sequence-shadow:#d47d54}
-body{background:radial-gradient(circle at 18% 8%,rgba(100,228,244,.14),transparent 28%),radial-gradient(circle at 82% 20%,rgba(159,131,255,.2),transparent 30%),var(--night)!important;color:white!important;font-family:Manrope,Arial,sans-serif!important;padding-top:0}
-.hybrid-loader{background:var(--night);color:white}.load-pavilion{width:310px;height:190px;border:1px solid var(--line);border-radius:155px 155px 20px 20px;position:relative;display:grid;place-items:center;background:linear-gradient(180deg,rgba(159,131,255,.12),transparent)}.load-pavilion i{position:absolute;top:22px;width:150px;height:150px;border:1px solid var(--cyan);border-radius:50%;box-shadow:0 0 70px rgba(100,228,244,.2);animation:pavilionPulse 1.4s ease-in-out infinite alternate}.load-pavilion b{font:600 56px Fraunces;z-index:1}.load-pavilion small{position:absolute;top:225px;font-size:9px;letter-spacing:.2em;white-space:nowrap}@keyframes pavilionPulse{to{transform:scale(.75);border-color:var(--copper)}}
-body>header{top:18px!important;width:min(1400px,calc(100% - 34px))!important;margin:0 auto!important;background:rgba(10,10,25,.82)!important;backdrop-filter:blur(28px);border:1px solid var(--line)!important;border-radius:22px 22px 65px 65px!important;box-shadow:0 22px 70px rgba(0,0,0,.42)!important}body>header>div{max-width:none!important;min-height:90px;padding:14px 25px!important}body>header>div>a:first-child div{width:54px!important;height:54px!important;background:linear-gradient(145deg,var(--cyan),var(--violet) 58%,var(--copper))!important;color:var(--night)!important;border-radius:50% 50% 12px 12px!important;box-shadow:0 0 30px rgba(100,228,244,.3)!important;font-size:0!important;transform:rotate(-3deg)}body>header>div>a:first-child div:before{content:"15";font:italic 400 21px 'Instrument Serif',Georgia,serif}body>header>div>a:first-child span{font:italic 400 34px 'Instrument Serif',Georgia,serif!important;color:white!important;letter-spacing:-.025em!important;text-shadow:0 0 24px rgba(100,228,244,.18)}body>header nav a{color:#c5c6df!important;font-size:10px!important}body>header nav a:hover{color:var(--cyan)!important}.dropdown-menu{background:#101126!important;border:1px solid var(--line)!important;border-radius:16px!important;box-shadow:10px 12px 0 rgba(212,125,84,.35)!important}.hardware-btn{background:var(--copper)!important;color:white!important;border:0!important;border-radius:14px!important;box-shadow:6px 7px 0 rgba(100,228,244,.3)!important;text-shadow:none!important;transform:rotate(-1deg)}
-main{display:flex;flex-direction:column}#hero{order:1;max-width:none!important;padding:105px 4vw 90px!important}#how-it-works{order:2;max-width:none!important;padding:120px 5vw 135px!important;background:radial-gradient(circle at 9% 20%,rgba(100,228,244,.12),transparent 25%),radial-gradient(circle at 88% 82%,rgba(159,131,255,.15),transparent 30%),linear-gradient(180deg,#0b0c1e,#11132c 55%,#090a18)!important;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}#build-guide{order:3;max-width:none!important;padding:130px 5vw 150px!important;background:radial-gradient(circle at 80% 18%,rgba(212,125,84,.12),transparent 26%),radial-gradient(circle at 14% 75%,rgba(100,228,244,.09),transparent 30%),#080914!important;color:white;clip-path:polygon(0 3%,100% 0,100% 97%,0 100%)}#features{order:4;max-width:1320px!important;padding:110px 4vw!important}
-#hero>div:first-child{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important}#hero>div:first-child>div{background:linear-gradient(145deg,rgba(25,28,62,.78),rgba(10,11,28,.86))!important;backdrop-filter:blur(24px);border:1px solid var(--line)!important;border-radius:54px 54px 170px 54px!important;box-shadow:0 40px 110px rgba(0,0,0,.46)!important;padding:clamp(34px,5vw,72px)!important;grid-template-columns:.7fr 1.3fr!important;gap:4vw!important;overflow:hidden}#hero h1{font:600 clamp(54px,6.8vw,106px)/.88 Fraunces,Georgia,serif!important;letter-spacing:-.06em!important;text-transform:none!important;color:white!important}#hero h1 span,.text-indOrange{color:transparent!important;background:linear-gradient(110deg,var(--cyan),var(--violet),var(--copper));background-clip:text}.text-indGreen{color:var(--cyan)!important}.text-indText{color:white!important}.text-gray-700,.text-gray-600,.text-gray-500{color:#adb1ce!important}#hero .inline-flex{background:rgba(100,228,244,.06)!important;border:1px solid rgba(100,228,244,.3)!important;border-radius:999px!important;color:var(--cyan)!important}#hero>div:last-child{display:none!important}
-.pavilion-machine{min-height:720px;background:linear-gradient(180deg,#121327,#090a18);border-radius:160px 160px 24px 24px;overflow:hidden;border:1px solid var(--line);box-shadow:inset 0 -70px 100px rgba(0,0,0,.25)}.pavilion-lamp{position:absolute;z-index:4;left:50%;top:0;transform:translateX(-50%);width:125px;height:73px;background:linear-gradient(180deg,var(--copper),#7f3f2e);border-radius:0 0 75px 75px;box-shadow:0 0 50px rgba(212,125,84,.32)}.pavilion-lamp i{position:absolute;left:44px;bottom:-12px;width:38px;height:24px;border-radius:50%;background:var(--night)}.pavilion-glow{position:absolute;left:13%;right:13%;top:5%;height:65%;background:linear-gradient(180deg,rgba(100,228,244,.19),rgba(159,131,255,.06));clip-path:polygon(44% 0,56% 0,100% 100%,0 100%)}.pavilion-screen{position:absolute;left:12%;right:12%;top:15%;height:47%;background:linear-gradient(135deg,rgba(243,238,227,.96),rgba(205,210,235,.9));color:var(--night);border-radius:50% 50% 14px 14px/24% 24% 14px 14px;display:grid;place-items:center;align-content:center;text-align:center;gap:12px;box-shadow:0 26px 65px rgba(0,0,0,.42),12px 14px 0 rgba(159,131,255,.18);transform:rotate(-1.3deg)}.pavilion-screen:before{content:"";position:absolute;inset:8%;border:1px solid rgba(8,8,20,.28);border-radius:inherit}.pavilion-screen span{font-size:42px;color:var(--copper);z-index:1}.pavilion-screen strong{font:600 15px Fraunces;z-index:1}.pavilion-screen small{font-size:8px;letter-spacing:.17em;z-index:1}.pavilion-film{position:absolute;left:4%;right:4%;bottom:26%;height:34px;display:grid;grid-template-columns:repeat(6,1fr);gap:8px}.pavilion-film i{background:var(--paper);border:6px solid var(--night);box-shadow:0 0 0 1px var(--paper)}.pavilion-card{position:absolute;z-index:5;background:rgba(18,19,39,.92);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:8px 9px 0 var(--shadow,var(--copper));transform:rotate(var(--tilt,-2deg))}.pavilion-card small{display:block;font-size:7px;letter-spacing:.1em;color:#9097bb}.pavilion-card b{font-size:10px}.card-a{left:3%;top:18%;--shadow:var(--cyan);--tilt:-3deg}.card-b{right:3%;top:25%;--shadow:var(--copper);--tilt:2deg}.card-c{left:9%;bottom:12%;--shadow:var(--violet);--tilt:2deg}.card-d{right:8%;bottom:12%;--shadow:var(--cyan);--tilt:-2deg}.pavilion-command{position:absolute;left:22%;right:22%;bottom:6%;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;font-size:8px;letter-spacing:.12em}.pavilion-command b{background:linear-gradient(110deg,var(--violet),var(--copper));padding:12px 27px;border-radius:999px}.pavilion-command em{text-align:right;color:var(--cyan);font-style:normal}
-#how-it-works h2,#features h2,#build-guide h2{font:600 clamp(46px,5.5vw,82px)/.9 Fraunces!important;letter-spacing:-.055em!important;text-transform:none!important}#how-it-works>div:first-child,#features>div:first-child,#build-guide>div:first-child{text-align:left!important;border:0!important}#how-it-works>div:first-child,#how-it-works>.flex,#how-it-works>.mt-8{max-width:1320px;margin-left:auto!important;margin-right:auto!important}#how-it-works>div:first-child{padding-bottom:30px!important;margin-bottom:55px!important;border-bottom:1px solid var(--line)!important}#how-it-works>div:first-child .text-indGreen{color:var(--cyan)!important}#how-it-works>div:first-child .text-gray-600{color:#aeb4d2!important}#how-it-works>.flex{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:24px!important;align-items:stretch!important}#how-it-works>.flex>div:not(.hidden){min-width:0;min-height:330px;padding:38px 34px!important;color:white!important;display:flex!important;flex-direction:column;justify-content:flex-end;overflow:hidden;isolation:isolate;border:1px solid var(--line)!important;border-radius:30px!important;background:radial-gradient(circle at 82% 12%,rgba(100,228,244,.2),transparent 30%),linear-gradient(145deg,rgba(26,32,69,.96),rgba(12,14,35,.98))!important;box-shadow:14px 18px 0 rgba(100,228,244,.16),0 32px 70px rgba(0,0,0,.28)!important}#how-it-works>.flex>div:nth-of-type(3){background:radial-gradient(circle at 82% 12%,rgba(159,131,255,.24),transparent 30%),linear-gradient(145deg,rgba(31,29,70,.96),rgba(13,14,36,.98))!important;box-shadow:14px 18px 0 rgba(159,131,255,.18),0 32px 70px rgba(0,0,0,.28)!important}#how-it-works>.flex>div:nth-of-type(5){background:radial-gradient(circle at 82% 12%,rgba(212,125,84,.24),transparent 30%),linear-gradient(145deg,rgba(54,31,39,.96),rgba(17,14,31,.98))!important;box-shadow:14px 18px 0 rgba(212,125,84,.2),0 32px 70px rgba(0,0,0,.28)!important}#how-it-works>.flex>div:not(.hidden):before{content:"";position:absolute;left:34px;right:34px;top:86px;height:42px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.18) 0 6px,transparent 6px 15px);border-top:1px solid rgba(255,255,255,.12);border-bottom:1px solid rgba(255,255,255,.12);z-index:-1}#how-it-works>.flex>div:not(.hidden)>span{top:22px!important;right:27px!important;color:rgba(255,255,255,.15)!important;font:600 82px/1 Fraunces!important}#how-it-works>.flex>div:not(.hidden)>p:first-of-type{color:var(--cyan)!important;margin-bottom:12px!important}#how-it-works>.flex>div:nth-of-type(3)>p:first-of-type{color:#baaaff!important}#how-it-works>.flex>div:nth-of-type(5)>p:first-of-type{color:#f09b72!important}#how-it-works>.flex>div h3{color:white!important;font:600 25px/1.05 Fraunces!important;letter-spacing:-.025em!important}#how-it-works>.flex>div p:last-child{color:#b8bdd7!important;max-width:280px}#how-it-works>.mt-8{margin-top:58px!important;padding:22px 24px!important;background:rgba(23,24,52,.78)!important;backdrop-filter:blur(18px);border:1px solid var(--line)!important;border-radius:22px!important;box-shadow:10px 12px 0 rgba(100,228,244,.09)!important}#how-it-works>.mt-8 .text-indGreen{color:var(--cyan)!important}#how-it-works>.mt-8 .text-gray-700{color:#b8bdd7!important}
-#build-guide>div:first-child,#build-guide>div:nth-of-type(2),#build-guide>div:nth-of-type(3),#build-guide>div:nth-of-type(4){max-width:1320px;margin-left:auto!important;margin-right:auto!important}#build-guide>div:first-child{padding-bottom:30px!important;border-bottom:1px solid var(--line)!important}#build-guide h2,#build-guide h3,#build-guide .text-indText{color:white!important}#build-guide .text-gray-700,#build-guide .text-gray-600{color:#b3b8d1!important}#build-guide .text-indGreen{color:var(--cyan)!important}#build-guide .text-indOrange{color:var(--copper)!important;background:none!important;-webkit-text-fill-color:currentColor!important}#build-guide>div:nth-of-type(2)>div.grid{gap:22px!important}#build-guide>div:nth-of-type(2)>div.grid>div{background:rgba(22,24,52,.82)!important;border:1px solid var(--line)!important;border-radius:22px!important;box-shadow:9px 11px 0 rgba(100,228,244,.08)!important;padding:1px!important}#build-guide>div:nth-of-type(2)>div.grid>div:nth-child(even){transform:translateY(15px);box-shadow:9px 11px 0 rgba(159,131,255,.1)!important}#build-guide>div:nth-of-type(2)>div.grid>div>div{background:transparent!important;border:0!important;padding:25px!important}#build-guide>div:nth-of-type(3){background:linear-gradient(145deg,rgba(24,28,61,.94),rgba(12,14,32,.98))!important;border:1px solid var(--line)!important;border-radius:34px!important;box-shadow:16px 19px 0 rgba(159,131,255,.13)!important;padding:clamp(28px,4vw,50px)!important}#build-guide>div:nth-of-type(3)>div.grid{gap:22px!important}#build-guide>div:nth-of-type(3)>div.grid>div{background:rgba(255,255,255,.035)!important;border:1px solid var(--line)!important;border-top:1px solid var(--line)!important;border-radius:22px!important;padding:26px!important;box-shadow:8px 10px 0 rgba(100,228,244,.07)!important}#build-guide>div:nth-of-type(3)>div.grid>div:nth-child(2){box-shadow:8px 10px 0 rgba(159,131,255,.09)!important}#build-guide>div:nth-of-type(3)>div.grid>div:nth-child(3){box-shadow:8px 10px 0 rgba(212,125,84,.1)!important}#build-guide>div:nth-of-type(3)>div.grid>div:nth-child(4){box-shadow:8px 10px 0 rgba(100,228,244,.07)!important}#build-guide>div:nth-of-type(3)>div.grid>div:nth-child(1)>p:first-child{color:var(--cyan)!important}#build-guide>div:nth-of-type(3)>div.grid>div:nth-child(2)>p:first-child{color:#baaaff!important}#build-guide>div:nth-of-type(3)>div.grid>div:nth-child(3)>p:first-child{color:#f09b72!important}#build-guide>div:nth-of-type(3)>div.grid>div:nth-child(4)>p:first-child{color:var(--cyan)!important}#build-guide>div:nth-of-type(4){background:transparent!important;border:0!important;padding:12px 0 30px!important}#build-guide>div:nth-of-type(4)>div.grid{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:18px!important;align-items:stretch}#build-guide>div:nth-of-type(4)>div.grid>div{min-width:0;min-height:220px;padding:24px!important;display:flex;flex-direction:column;justify-content:flex-end;background:radial-gradient(circle at 80% 15%,rgba(100,228,244,.15),transparent 32%),rgba(22,24,52,.88)!important;border:1px solid var(--line)!important;border-radius:24px!important;box-shadow:9px 12px 0 rgba(100,228,244,.09)!important;transform:rotate(-1.2deg)}#build-guide>div:nth-of-type(4)>div.grid>div:nth-child(2){background:radial-gradient(circle at 80% 15%,rgba(159,131,255,.18),transparent 32%),rgba(22,24,52,.88)!important;box-shadow:9px 12px 0 rgba(159,131,255,.11)!important;transform:rotate(1.3deg) translateY(16px)}#build-guide>div:nth-of-type(4)>div.grid>div:nth-child(3){background:radial-gradient(circle at 80% 15%,rgba(212,125,84,.18),transparent 32%),rgba(38,24,43,.9)!important;box-shadow:9px 12px 0 rgba(212,125,84,.12)!important;transform:rotate(-.7deg)}#build-guide>div:nth-of-type(4)>div.grid>div:nth-child(4){transform:rotate(1deg) translateY(16px)}#build-guide>div:nth-of-type(4)>div.grid>div:nth-child(5){transform:rotate(-1.5deg)}#build-guide>div:nth-of-type(4)>div.grid>div>p:first-child{color:white!important;font:600 20px/1.05 Fraunces!important;margin-bottom:10px!important}#build-guide>div:nth-of-type(4)>div.grid>div>p:last-child{color:#b6bcd5!important;font-size:12px!important}#features>.grid{grid-template-columns:repeat(2,1fr)!important;gap:24px!important}#features>.grid>div{background:var(--glass)!important;border:1px solid var(--line)!important;border-radius:28px!important;box-shadow:14px 17px 0 rgba(100,228,244,.08)!important}#features>.grid>div:nth-child(even){transform:translateY(26px);box-shadow:14px 17px 0 rgba(212,125,84,.12)!important}#features>.grid>div>div{background:transparent!important;border:0!important}footer{background:#04050d!important;border-top:1px solid var(--line)!important}footer .text-indText,footer .text-gray-600,footer .text-gray-500{color:#aab0cb!important}footer .flex.items-center.gap-3>div{font-size:0!important;background:linear-gradient(145deg,var(--cyan),var(--violet) 58%,var(--copper))!important;border-radius:50% 50% 9px 9px!important}footer .flex.items-center.gap-3>div:before{content:"15";font:italic 400 16px 'Instrument Serif',Georgia,serif;color:var(--night)}footer .flex.items-center.gap-3>span{font:italic 400 27px 'Instrument Serif',Georgia,serif!important;letter-spacing:-.025em!important}
-#how-it-works>.mt-8{display:flex!important;grid-template-columns:none!important;align-items:center!important}#how-it-works>.mt-8>div{min-height:0!important;padding:0!important;display:block!important;color:inherit!important;background:transparent!important;background-image:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;transform:none!important;overflow:visible!important}#how-it-works>.mt-8>div:before,#how-it-works>.mt-8>div:after{display:none!important}
-@media(max-width:1100px){#build-guide>div:nth-of-type(4)>div.grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#build-guide>div:nth-of-type(4)>div.grid>div{transform:none!important;min-height:170px}#build-guide>div:nth-of-type(4)>div.grid>div:last-child{grid-column:1/-1}}
-@media(max-width:900px){body>header{top:8px!important;border-radius:20px 20px 38px 38px!important}#hero{padding-top:65px!important}#hero>div:first-child>div{border-radius:32px!important}.pavilion-screen{left:7%;right:7%;top:18%;height:45%}.pavilion-card{display:none}.pavilion-command{left:8%;right:8%}.pavilion-command span,.pavilion-command em{display:none}.pavilion-command{grid-template-columns:1fr;justify-items:center}#how-it-works>.flex{grid-template-columns:1fr!important}#how-it-works>.flex>div:not(.hidden){min-height:280px;transform:none!important}#features>.grid{grid-template-columns:1fr!important}#features>.grid>div:nth-child(even){transform:none}#build-guide>div:nth-of-type(2)>div.grid>div:nth-child(even){transform:none}}
-@media(max-width:620px){body>header>div>a:first-child span{font-size:27px!important}#build-guide>div:nth-of-type(4)>div.grid{grid-template-columns:1fr!important}#build-guide>div:nth-of-type(4)>div.grid>div:last-child{grid-column:auto}}
-
-</style>
-
-<style id="targeted-revision-and-theme">
-/* Targeted revision: preserve the approved feature, operation and writing-habit layouts. */
-:root{
-    --revision-surface:#17172d;
-    --revision-surface-2:#101126;
-    --revision-text:#f8f6f2;
-    --revision-muted:#b7bdd6;
-    --revision-line:rgba(255,255,255,.16);
-    --revision-cyan:#64e4f4;
-    --revision-violet:#9f83ff;
-    --revision-copper:#d47d54;
-    --revision-shadow-cyan:rgba(100,228,244,.14);
-    --revision-shadow-violet:rgba(159,131,255,.15);
-    --revision-shadow-copper:rgba(212,125,84,.16);
-}
-
-/* Theme control is the only new header element. */
-.header-actions{display:flex;align-items:center;gap:10px}
-#theme-toggle{
-    min-width:44px;
-    min-height:42px;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    gap:7px;
-    padding:9px 12px;
-    border:1px solid var(--line);
-    border-radius:12px;
-    background:rgba(255,255,255,.045);
-    color:#f7f6f2;
-    box-shadow:5px 6px 0 rgba(159,131,255,.15);
-    font:700 9px/1 Manrope,Arial,sans-serif;
-    letter-spacing:.12em;
-    cursor:pointer;
-    transition:transform .2s ease,border-color .2s ease,background-color .25s ease,color .25s ease;
-}
-#theme-toggle:hover{transform:translateY(-2px);border-color:var(--violet)}
-#theme-toggle:active{transform:translateY(1px)}
-.theme-toggle-icon{font-size:15px;color:var(--cyan)}
-
-/* Prototype 12: Precision Console replaces only the marked hero visual. */
-.precision-console{
-    min-height:720px;
-    padding:18px;
-    display:flex!important;
-    flex-direction:column;
-    gap:14px;
-    overflow:hidden;
-    color:var(--revision-text);
-    background:linear-gradient(155deg,#171a37 0%,#0c0e20 62%,#151229 100%);
-    border:1px solid var(--revision-line);
-    border-radius:38px;
-    box-shadow:16px 18px 0 var(--revision-shadow-violet),0 38px 85px rgba(0,0,0,.32);
-    isolation:isolate;
-}
-.precision-topbar{
-    min-height:48px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:18px;
-    padding:0 8px 0 12px;
-    border-bottom:1px solid var(--revision-line);
-    color:#aeb5d0;
-    font:700 9px/1 Manrope,Arial,sans-serif;
-    letter-spacing:.14em;
-}
-.precision-topbar span{display:flex;align-items:center;gap:9px}
-.precision-topbar i{width:8px;height:8px;border-radius:50%;background:var(--revision-cyan);box-shadow:0 0 18px var(--revision-cyan)}
-.precision-topbar b{padding:8px 11px;border:1px solid rgba(100,228,244,.32);border-radius:999px;color:var(--revision-cyan);font-size:8px}
-.precision-stage{
-    position:relative;
-    flex:1;
-    min-height:430px;
-    overflow:hidden;
-    border:1px solid var(--revision-line);
-    border-radius:27px;
-    background:
-        linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),
-        linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px),
-        radial-gradient(circle at 50% 48%,rgba(100,228,244,.1),transparent 35%),
-        #0c0e20;
-    background-size:26px 26px,26px 26px,auto,auto;
-}
-.precision-stage:before,.precision-stage:after{
-    content:"";
-    position:absolute;
-    left:50%;
-    top:50%;
-    border:1px solid rgba(159,131,255,.2);
-    border-radius:50%;
-    transform:translate(-50%,-50%);
-}
-.precision-stage:before{width:410px;height:410px}
-.precision-stage:after{width:295px;height:295px;border-color:rgba(100,228,244,.24)}
-.precision-axis{position:absolute;inset:0;z-index:1;pointer-events:none}
-.precision-axis:before,.precision-axis:after{content:"";position:absolute;background:rgba(255,255,255,.1)}
-.precision-axis:before{left:50%;top:8%;bottom:8%;width:1px}
-.precision-axis:after{top:50%;left:8%;right:8%;height:1px}
-.precision-drop{
-    position:absolute;
-    z-index:3;
-    left:50%;
-    top:50%;
-    width:min(390px,64%);
-    min-height:205px;
-    padding:35px 24px;
-    display:grid;
-    place-items:center;
-    align-content:center;
-    gap:10px;
-    transform:translate(-50%,-50%);
-    text-align:center;
-    background:linear-gradient(145deg,rgba(245,238,227,.97),rgba(211,215,235,.94));
-    color:#111326;
-    border:1px solid rgba(255,255,255,.7);
-    border-radius:30px 12px 30px 12px;
-    box-shadow:11px 13px 0 rgba(100,228,244,.35),0 24px 55px rgba(0,0,0,.34);
-}
-.precision-drop>span{
-    width:46px;
-    height:46px;
-    display:grid;
-    place-items:center;
-    margin-bottom:3px;
-    border:1px solid rgba(17,19,38,.22);
-    border-radius:50%;
-    color:var(--revision-copper);
-    font:500 30px/1 Fraunces,Georgia,serif;
-}
-.precision-drop strong{font:600 18px/1.1 Fraunces,Georgia,serif}
-.precision-drop small{font:700 7px/1 Manrope,Arial,sans-serif;letter-spacing:.18em;color:#60677d}
-.precision-badge{
-    position:absolute;
-    z-index:4;
-    min-width:122px;
-    padding:11px 13px;
-    background:rgba(18,19,39,.94);
-    border:1px solid var(--revision-line);
-    border-radius:12px;
-    box-shadow:7px 8px 0 var(--badge-shadow,var(--revision-shadow-cyan));
-    backdrop-filter:blur(12px);
-}
-.precision-badge small{display:block;margin-bottom:5px;color:#8f97b8;font:700 7px/1 Manrope,Arial,sans-serif;letter-spacing:.1em}
-.precision-badge b{font:700 10px/1 Manrope,Arial,sans-serif}
-.precision-badge-a{left:3%;top:10%;--badge-shadow:rgba(100,228,244,.48)}
-.precision-badge-b{right:3%;top:17%;--badge-shadow:rgba(212,125,84,.5)}
-.precision-badge-c{left:5%;bottom:9%;--badge-shadow:rgba(159,131,255,.5)}
-.precision-badge-d{right:5%;bottom:9%;--badge-shadow:rgba(100,228,244,.48)}
-.precision-controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
-.precision-controls>div{
-    min-width:0;
-    padding:12px 13px;
-    border:1px solid var(--revision-line);
-    border-radius:12px;
-    background:rgba(255,255,255,.035);
-}
-.precision-controls small{display:block;margin-bottom:6px;color:#858eaf;font:700 7px/1 Manrope,Arial,sans-serif;letter-spacing:.1em}
-.precision-controls b{display:block;overflow:hidden;color:#e8e8f1;font:700 9px/1 Manrope,Arial,sans-serif;white-space:nowrap;text-overflow:ellipsis}
-.precision-command{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;color:#8992b3;font:700 7px/1 Manrope,Arial,sans-serif;letter-spacing:.12em}
-.precision-command b{padding:12px 25px;border-radius:999px;background:var(--revision-copper);color:#fff;box-shadow:6px 7px 0 rgba(100,228,244,.23);font-size:9px}
-.precision-command span:last-child{text-align:right;color:var(--revision-cyan)}
-
-/* Update only the Seven Setup Steps area. */
-#build-guide>div:nth-of-type(2){
-    padding:28px!important;
-    border:1px solid var(--revision-line)!important;
-    border-radius:30px!important;
-    background:linear-gradient(145deg,rgba(18,20,43,.94),rgba(9,10,24,.96))!important;
-    box-shadow:14px 16px 0 rgba(100,228,244,.08)!important;
-}
-#build-guide>div:nth-of-type(2)>div.grid{gap:16px!important}
-#build-guide>div:nth-of-type(2)>div.grid>div,
-#build-guide>div:nth-of-type(2)>div.grid>div:nth-child(even){
-    padding:0!important;
-    border:0!important;
-    border-radius:19px!important;
-    background:transparent!important;
-    box-shadow:none!important;
-    transform:none!important;
-    overflow:hidden;
-}
-#build-guide>div:nth-of-type(2)>div.grid>div>div{
-    position:relative;
-    min-height:190px;
-    padding:29px 25px 24px!important;
-    overflow:hidden;
-    border:1px solid var(--revision-line)!important;
-    border-radius:19px!important;
-    background:#17192f!important;
-    box-shadow:7px 8px 0 var(--step-shadow,rgba(100,228,244,.1))!important;
-    transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease;
-}
-#build-guide>div:nth-of-type(2)>div.grid>div>div:before{
-    content:"";
-    position:absolute;
-    left:0;
-    right:0;
-    top:0;
-    height:4px;
-    background:var(--step-accent,var(--revision-cyan));
-}
-#build-guide>div:nth-of-type(2)>div.grid>div:nth-child(3n+2){--step-accent:var(--revision-violet);--step-shadow:rgba(159,131,255,.12)}
-#build-guide>div:nth-of-type(2)>div.grid>div:nth-child(3n){--step-accent:var(--revision-copper);--step-shadow:rgba(212,125,84,.13)}
-#build-guide>div:nth-of-type(2)>div.grid>div>div:hover{transform:translateY(-5px);border-color:var(--step-accent)!important;box-shadow:9px 12px 0 var(--step-shadow)!important}
-#build-guide>div:nth-of-type(2)>div.grid>div span{display:inline-grid;place-items:center;min-width:32px;height:25px;padding:0 8px;border:1px solid var(--step-accent,var(--revision-cyan));border-radius:999px;color:var(--step-accent,var(--revision-cyan))!important}
-#build-guide>div:nth-of-type(2)>div.grid>div p:nth-of-type(1){margin-top:18px!important;font:600 18px/1.12 Fraunces,Georgia,serif!important}
-
-/* Update only the What To Include area: editorial index instead of four floating boxes. */
-#build-guide>div:nth-of-type(3){
-    position:relative;
-    padding:clamp(30px,4vw,52px)!important;
-    border:1px solid var(--revision-line)!important;
-    border-radius:12px 48px 12px 48px!important;
-    background:linear-gradient(135deg,rgba(23,25,53,.96),rgba(10,11,27,.98))!important;
-    box-shadow:15px 18px 0 rgba(159,131,255,.12)!important;
-}
-#build-guide>div:nth-of-type(3):before{
-    content:"PAGE CONTENT INDEX";
-    position:absolute;
-    right:24px;
-    top:24px;
-    color:rgba(255,255,255,.16);
-    font:700 8px/1 Manrope,Arial,sans-serif;
-    letter-spacing:.18em;
-}
-#build-guide>div:nth-of-type(3)>div.grid{gap:0 34px!important;border-top:1px solid var(--revision-line)!important}
-#build-guide>div:nth-of-type(3)>div.grid>div{
-    position:relative;
-    min-height:185px;
-    padding:30px 24px 28px 76px!important;
-    border:0!important;
-    border-bottom:1px solid var(--revision-line)!important;
-    border-radius:0!important;
-    background:transparent!important;
-    box-shadow:none!important;
-    counter-increment:page-card;
-}
-#build-guide>div:nth-of-type(3)>div.grid{counter-reset:page-card}
-#build-guide>div:nth-of-type(3)>div.grid>div:before{
-    content:"0" counter(page-card);
-    position:absolute;
-    left:4px;
-    top:27px;
-    color:var(--page-accent,var(--revision-cyan));
-    font:600 36px/1 Fraunces,Georgia,serif;
-    opacity:.75;
-}
-#build-guide>div:nth-of-type(3)>div.grid>div:after{
-    content:"";
-    position:absolute;
-    left:56px;
-    top:28px;
-    bottom:28px;
-    width:1px;
-    background:var(--page-accent,var(--revision-cyan));
-    opacity:.42;
-}
-#build-guide>div:nth-of-type(3)>div.grid>div:nth-child(2){--page-accent:var(--revision-violet)}
-#build-guide>div:nth-of-type(3)>div.grid>div:nth-child(3){--page-accent:var(--revision-copper)}
-#build-guide>div:nth-of-type(3)>div.grid>div:nth-child(4){--page-accent:var(--revision-cyan)}
-#build-guide>div:nth-of-type(3)>div.grid>div>p:first-child{color:var(--page-accent,var(--revision-cyan))!important}
-
-/* Bright mode changes color only. Existing layouts, rotations and typography remain intact. */
-:root[data-theme="light"]{
-    color-scheme:light;
-    --night:#f5f2ea;
-    --panel:#ffffff;
-    --glass:rgba(255,255,255,.9);
-    --cyan:#007d8f;
-    --violet:#684cc0;
-    --copper:#ad4827;
-    --paper:#ffffff;
-    --line:rgba(28,34,57,.18);
-    --sequence-shadow:#d9e6e8;
-    --revision-surface:#ffffff;
-    --revision-surface-2:#f2f0f8;
-    --revision-text:#17192b;
-    --revision-muted:#556078;
-    --revision-line:rgba(28,34,57,.18);
-    --revision-cyan:#007d8f;
-    --revision-violet:#684cc0;
-    --revision-copper:#ad4827;
-    --revision-shadow-cyan:#d5e8ea;
-    --revision-shadow-violet:#ddd6ef;
-    --revision-shadow-copper:#ecd7ce;
-}
-:root[data-theme="light"] body{
-    background:radial-gradient(circle at 18% 8%,rgba(0,125,143,.1),transparent 28%),radial-gradient(circle at 82% 20%,rgba(104,76,192,.1),transparent 30%),var(--night)!important;
-    color:#17192b!important;
-}
-:root[data-theme="light"] .hybrid-loader{background:#f5f2ea;color:#17192b}
-:root[data-theme="light"] body>header{background:rgba(255,255,255,.9)!important;border-color:var(--line)!important;box-shadow:0 22px 70px rgba(36,42,67,.14)!important}
-:root[data-theme="light"] body>header>div>a:first-child div{color:#15172a!important}
-:root[data-theme="light"] body>header>div>a:first-child span{color:#17192b!important;text-shadow:none!important}
-:root[data-theme="light"] body>header nav a{color:#586178!important}
-:root[data-theme="light"] .dropdown-menu{background:#fff!important;border-color:var(--line)!important;box-shadow:10px 12px 0 rgba(104,76,192,.12)!important}
-:root[data-theme="light"] .dropdown-menu a{color:#3f4861!important}
-:root[data-theme="light"] .dropdown-menu a:hover{background:#f0edf8!important;color:var(--violet)!important}
-:root[data-theme="light"] #theme-toggle{background:#f4f1fa;color:#17192b;box-shadow:5px 6px 0 rgba(104,76,192,.14)}
-:root[data-theme="light"] .theme-toggle-icon{color:var(--violet)}
-:root[data-theme="light"] .text-indText{color:#17192b!important}
-:root[data-theme="light"] .text-indGreen{color:var(--cyan)!important}
-:root[data-theme="light"] .text-gray-700,
-:root[data-theme="light"] .text-gray-600,
-:root[data-theme="light"] .text-gray-500{color:#586178!important}
-:root[data-theme="light"] .text-gray-400{color:#778198!important}
-:root[data-theme="light"] #hero>div:first-child>div{background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(239,238,249,.94))!important;border-color:var(--line)!important;box-shadow:0 40px 90px rgba(36,42,67,.16)!important}
-:root[data-theme="light"] #hero h1{color:#17192b!important}
-:root[data-theme="light"] #hero .inline-flex{background:rgba(0,125,143,.07)!important;border-color:rgba(0,125,143,.26)!important;color:var(--cyan)!important}
-:root[data-theme="light"] .precision-console{color:var(--revision-text);background:linear-gradient(155deg,#fff 0%,#f0eef8 62%,#eef6f7 100%);box-shadow:16px 18px 0 var(--revision-shadow-violet),0 38px 70px rgba(36,42,67,.14)}
-:root[data-theme="light"] .precision-topbar{color:#606a80}
-:root[data-theme="light"] .precision-stage{background:linear-gradient(rgba(28,34,57,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(28,34,57,.055) 1px,transparent 1px),radial-gradient(circle at 50% 48%,rgba(0,125,143,.1),transparent 35%),#faf9fd;background-size:26px 26px,26px 26px,auto,auto}
-:root[data-theme="light"] .precision-stage:before{border-color:rgba(104,76,192,.2)}
-:root[data-theme="light"] .precision-stage:after{border-color:rgba(0,125,143,.24)}
-:root[data-theme="light"] .precision-axis:before,
-:root[data-theme="light"] .precision-axis:after{background:rgba(28,34,57,.12)}
-:root[data-theme="light"] .precision-badge{background:rgba(255,255,255,.95);color:#17192b;box-shadow:7px 8px 0 var(--badge-shadow,var(--revision-shadow-cyan))}
-:root[data-theme="light"] .precision-controls>div{background:rgba(255,255,255,.68)}
-:root[data-theme="light"] .precision-controls b{color:#252a41}
-:root[data-theme="light"] #how-it-works{background:radial-gradient(circle at 9% 20%,rgba(0,125,143,.08),transparent 25%),radial-gradient(circle at 88% 82%,rgba(104,76,192,.08),transparent 30%),linear-gradient(180deg,#f1f6f6,#f7f5ef 55%,#f5f2ea)!important}
-:root[data-theme="light"] #how-it-works .text-gray-600,
-:root[data-theme="light"] #how-it-works .text-gray-700{color:#586178!important}
-:root[data-theme="light"] #how-it-works>.flex:not(.mt-8)>div:not(.hidden){color:#17192b!important;background:radial-gradient(circle at 82% 12%,rgba(0,125,143,.12),transparent 30%),linear-gradient(145deg,#fff,#eef4f5)!important;box-shadow:14px 18px 0 #d5e8ea,0 28px 55px rgba(36,42,67,.12)!important}
-:root[data-theme="light"] #how-it-works>.flex:not(.mt-8)>div:nth-of-type(3){background:radial-gradient(circle at 82% 12%,rgba(104,76,192,.12),transparent 30%),linear-gradient(145deg,#fff,#f1eef9)!important;box-shadow:14px 18px 0 #ddd6ef,0 28px 55px rgba(36,42,67,.12)!important}
-:root[data-theme="light"] #how-it-works>.flex:not(.mt-8)>div:nth-of-type(5){background:radial-gradient(circle at 82% 12%,rgba(173,72,39,.11),transparent 30%),linear-gradient(145deg,#fff,#f7efec)!important;box-shadow:14px 18px 0 #ecd7ce,0 28px 55px rgba(36,42,67,.12)!important}
-:root[data-theme="light"] #how-it-works>.flex:not(.mt-8)>div:not(.hidden):before{background:repeating-linear-gradient(90deg,rgba(28,34,57,.18) 0 6px,transparent 6px 15px);border-color:rgba(28,34,57,.1)}
-:root[data-theme="light"] #how-it-works>.flex:not(.mt-8)>div:not(.hidden)>span{color:rgba(28,34,57,.14)!important}
-:root[data-theme="light"] #how-it-works>.flex:not(.mt-8)>div h3{color:#17192b!important}
-:root[data-theme="light"] #how-it-works>.flex:not(.mt-8)>div p:last-child{color:#586178!important}
-:root[data-theme="light"] #how-it-works>.mt-8{background:rgba(255,255,255,.84)!important;border-color:var(--line)!important;box-shadow:10px 12px 0 rgba(104,76,192,.1)!important}
-:root[data-theme="light"] #features h2,
-:root[data-theme="light"] #how-it-works h2,
-:root[data-theme="light"] #build-guide h2,
-:root[data-theme="light"] #build-guide h3{color:#17192b!important}
-:root[data-theme="light"] #features>.grid>div{background:rgba(255,255,255,.92)!important;border-color:var(--line)!important;box-shadow:14px 17px 0 #d5e8ea!important}
-:root[data-theme="light"] #features>.grid>div:nth-child(even){box-shadow:14px 17px 0 #ecd7ce!important}
-:root[data-theme="light"] #build-guide{background:radial-gradient(circle at 80% 18%,rgba(173,72,39,.07),transparent 26%),radial-gradient(circle at 14% 75%,rgba(0,125,143,.07),transparent 30%),#f5f2ea!important;color:#17192b!important}
-:root[data-theme="light"] #build-guide .text-gray-700,
-:root[data-theme="light"] #build-guide .text-gray-600{color:#586178!important}
-:root[data-theme="light"] #build-guide>div:nth-of-type(2){background:linear-gradient(145deg,#fff,#f0f4f5)!important;box-shadow:14px 16px 0 #d5e8ea!important}
-:root[data-theme="light"] #build-guide>div:nth-of-type(2)>div.grid>div>div{background:#fff!important;color:#17192b!important}
-:root[data-theme="light"] #build-guide>div:nth-of-type(3){background:linear-gradient(135deg,#fff,#f1eef8)!important;box-shadow:15px 18px 0 #ddd6ef!important}
-:root[data-theme="light"] #build-guide>div:nth-of-type(3):before{color:rgba(28,34,57,.2)}
-:root[data-theme="light"] #build-guide>div:nth-of-type(3)>div.grid>div{background:transparent!important}
-:root[data-theme="light"] #build-guide>div:nth-of-type(4)>div.grid>div{background:radial-gradient(circle at 80% 15%,rgba(0,125,143,.09),transparent 32%),#fff!important;border-color:var(--line)!important;box-shadow:9px 12px 0 #d5e8ea!important}
-:root[data-theme="light"] #build-guide>div:nth-of-type(4)>div.grid>div:nth-child(2){background:radial-gradient(circle at 80% 15%,rgba(104,76,192,.1),transparent 32%),#fff!important;box-shadow:9px 12px 0 #ddd6ef!important}
-:root[data-theme="light"] #build-guide>div:nth-of-type(4)>div.grid>div:nth-child(3){background:radial-gradient(circle at 80% 15%,rgba(173,72,39,.09),transparent 32%),#fff!important;box-shadow:9px 12px 0 #ecd7ce!important}
-:root[data-theme="light"] #build-guide>div:nth-of-type(4)>div.grid>div>p:first-child{color:#17192b!important}
-:root[data-theme="light"] #build-guide>div:nth-of-type(4)>div.grid>div>p:last-child{color:#586178!important}
-:root[data-theme="light"] footer{background:#e9ece9!important;border-color:var(--line)!important}
-:root[data-theme="light"] footer .text-indText,
-:root[data-theme="light"] footer .text-gray-600,
-:root[data-theme="light"] footer .text-gray-500{color:#586178!important}
-:root[data-theme="light"] footer .flex.items-center.gap-3>div:before{color:#17192b}
-:root[data-theme="light"] footer .flex.items-center.gap-3>span{color:#17192b!important}
-
-@media(max-width:900px){
-    .precision-console{min-height:610px}
-    .precision-badge{display:none}
-    .precision-drop{width:78%}
-}
-@media(max-width:620px){
-    body>header>div>a:first-child span{display:none!important}
-    .theme-toggle-label{display:none}
-    #theme-toggle{padding:8px}
-    .header-actions .hardware-btn{padding:10px 13px!important;font-size:10px!important}
-    .precision-console{min-height:570px;padding:12px}
-    .precision-stage{min-height:335px}
-    .precision-stage:before{width:330px;height:330px}
-    .precision-stage:after{width:230px;height:230px}
-    .precision-drop{width:86%;min-height:175px}
-    .precision-controls{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .precision-command{grid-template-columns:1fr;justify-items:center}
-    .precision-command span{display:none}
-    #build-guide>div:nth-of-type(2){padding:18px!important}
-    #build-guide>div:nth-of-type(3){border-radius:12px 32px 12px 32px!important}
-    #build-guide>div:nth-of-type(3)>div.grid>div{padding-left:65px!important}
-    #build-guide>div:nth-of-type(3)>div.grid>div:after{left:48px}
-}
-@media(prefers-reduced-motion:reduce){
-    #theme-toggle,
-    #build-guide>div:nth-of-type(2)>div.grid>div>div{transition-duration:.01ms!important}
-}
-</style>
-    </head>
-
-    <body class="text-indText font-mono min-h-screen flex flex-col antialiased">
-<div class="hybrid-loader" role="status" aria-label="Loading 15 / Aurora Film Pavilion"><div class="load-pavilion"><i></i><b>15</b><small>RAISING THE AURORA CURTAIN</small></div></div>
-
-
-        <!-- HEADER NAVIGATION[cite: 1] -->
-        <header class="w-full sticky top-0 z-50 bg-white border-b border-gray-300 shadow-sm">
-            <div class="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
-                
-                <!-- WEBSITE LOGO[cite: 1] -->
-                <a href="home_01.html" class="flex items-center gap-3 cursor-pointer hover:opacity-80 transition">
-                    <div class="w-8 h-8 bg-indOrange text-white rounded-sm flex items-center justify-center font-black shadow-md">
-                        />
-                    </div>
-                    <span class="text-xl font-bold tracking-widest text-indOrange">ImageReducer</span>
-                </a>
-
-                <!-- ======================================================================
-                * NAYA ADDITION #2: NAVIGATION MENU ME '[ CONVERTER ]' ADD KIYA GAYA
-                * KYA KAR RAHA HAIN: Purane 6 links[cite: 1] ke sath 7va link '[ CONVERTER ]' add kiya hai jo ek dropdown hai.
-                * WORKING RULES:
-                *   1. Main header text '[ CONVERTER ]' par CLICK karne se 'converter.html' khulega jahan saare info hain.
-                *   2. Mouse HOVER karne se dropdown khulega jisme 'JPEG TO PNG', 'PNG TO JPEG' etc. hain.
-                *   3. Dropdown ke kisi item pe click karne se direct wahi preference khulegi (e.g. converter.html?mode=jpeg2png).
-                * PYTHON FILE PAR ASAR: Koi nahi, backend routes same rahenge.
-                ====================================================================== -->
-                <nav class="hidden md:flex items-center gap-6 text-sm tracking-widest text-gray-600 font-bold">
-                    <a href="home_01.html" class="hover:text-indGreen transition">[ HOME ]</a>
-                    <a href="index_02.html" class="hover:text-indGreen transition">[ RESIZE ]</a>
-                    <a href="#" class="hover:text-indGreen transition">[ CROP ]</a>
-                    
-                    <!-- NEW CONVERTER DROPDOWN CONTAINER -->
-                    <div class="dropdown-container relative py-2">
-                        <!-- MAIN HEADER LINK: Click karne pe converter.html (All converters page) khulega -->
-                        <a href="All_converter.html" class="hover:text-indOrange text-indText font-black transition flex items-center gap-1 border-b-2 border-transparent hover:border-indOrange">
-                            [ CONVERTER ▼ ]
-                        </a>
-                        
-                        <!-- DROPDOWN OPTIONS: Hover karne pe dikhenge -->
-                        <div class="dropdown-menu bg-white border-2 border-gray-300 shadow-2xl rounded-sm p-2">
-                            <div class="text-[10px] text-gray-400 font-black px-3 py-1 border-b border-gray-200">SELECT FORMAT</div>
-                            <a href="All_converter.html?from=jpg&amp;to=png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPG TO PNG</a>
-                            <a href="All_converter.html?from=jpeg&amp;to=png" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; JPEG TO PNG</a>
-                            <a href="All_converter.html?from=png&amp;to=jpg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; PNG TO JPEG</a>
-                            <a href="All_converter.html?from=webp&amp;to=jpg" class="block px-3 py-2 text-xs hover:bg-indPanel hover:text-indOrange transition font-bold">&gt; WEBP TO JPEG</a>
-                            <div class="border-t border-gray-200 my-1"></div>
-                            <a href="All_converter.html?mode=universal" class="block px-3 py-2 text-xs bg-orange-50 text-indOrange hover:bg-indOrange hover:text-white transition font-black">&gt;&gt; UNIVERSAL CONVERTER</a>
-                        </div>
-                    </div>
-
-                    <a href="#features" class="hover:text-indGreen transition">[ FEATURES ]</a>
-                    <a href="#" class="hover:text-indGreen transition">[ MORE ]</a>
-                    <a href="#footer" class="hover:text-indGreen transition">[ CONTACT ]</a>
-                </nav>
-
-                <!-- CTA BUTTON[cite: 1] -->
-                <div class="header-actions">
-                    <button id="theme-toggle" type="button" aria-label="Switch to bright theme" aria-pressed="false">
-                        <span class="theme-toggle-icon" aria-hidden="true">☀</span>
-                        <span class="theme-toggle-label">BRIGHT</span>
-                    </button>
-                    <a href="index_02.html" class="hardware-btn bg-indOrange text-white px-6 py-2.5 rounded font-black tracking-wider transition flex items-center gap-2">
-                        RESIZE IMAGE &gt;&gt;
-                    </a>
-                </div>
-            </div>
-        </header>
-
-        <!-- MAIN CONTENT: Zero changes made here to preserve exact original landing page[cite: 1] -->
-        <main class="flex-grow">
-            <!-- HERO SECTION[cite: 1] -->
-            <section id="hero" class="max-w-[1400px] mx-auto px-6 pt-10 pb-8">
-                <div class="w-full bg-indPanel p-3 rounded-lg border-4 border-gray-300 shadow-2xl">
-                    <div class="bg-white p-7 md:p-10 lg:p-12 border-2 border-gray-300 shadow-inner grid grid-cols-1 lg:grid-cols-[1.02fr_0.98fr] gap-10 lg:gap-14 items-center">
-
-                        <div class="text-center lg:text-left">
-                            <div class="inline-flex items-center gap-2 border border-green-200 bg-green-50 px-3 py-2 text-indGreen font-bold text-[11px] sm:text-xs tracking-[0.14em]">
-                                <span class="w-2 h-2 bg-indGreen" aria-hidden="true"></span>
-                                IMAGE RESIZE // COMPRESSION // DPI CONTROL
-                            </div>
-
-                            <h1 class="mt-6 text-4xl lg:text-6xl font-black leading-[1.08] text-indText uppercase tracking-tight max-w-3xl">
-                                Resize, Compress &amp; Set an <span class="text-indOrange">Exact Image Size.</span>
-                            </h1>
-
-                            <p class="mt-5 text-base lg:text-lg text-gray-700 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                                Upload an image, set the pixel dimensions, target KB or DPI, and download the optimized result from one focused tool.
-                            </p>
-                            <p class="mt-3 text-sm text-gray-500 font-bold leading-relaxed max-w-xl mx-auto lg:mx-0">
-                                Built for application forms, websites, social media and printing—without making you search through confusing settings.
-                            </p>
-
-                            <div class="mt-7 flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
-                                <a href="index_02.html" class="hardware-btn w-full sm:w-auto bg-indOrange text-white px-8 py-4 rounded font-black text-base tracking-wider transition flex items-center justify-center gap-2">
-                                    RESIZE AN IMAGE
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                                </a>
-
-                                <a href="#how-it-works" class="w-full sm:w-auto bg-white hover:bg-gray-50 text-indText border-2 border-gray-300 px-8 py-4 rounded font-bold text-base tracking-wider transition text-center">
-                                    HOW IT WORKS
-                                </a>
-                            </div>
-
-                            <div class="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left max-w-2xl mx-auto lg:mx-0">
-                                <div class="trust-signal border-t border-gray-300 pt-3">
-                                    <span class="trust-signal-mark">01</span>
-                                    <div><p class="text-xs font-black text-indText">EXACT TARGET KB</p><p class="text-xs text-gray-500 mt-1">Enter the file-size requirement.</p></div>
-                                </div>
-                                <div class="trust-signal border-t border-gray-300 pt-3">
-                                    <span class="trust-signal-mark">02</span>
-                                    <div><p class="text-xs font-black text-indText">RATIO PROTECTION</p><p class="text-xs text-gray-500 mt-1">Resize without unwanted stretching.</p></div>
-                                </div>
-                                <div class="trust-signal border-t border-gray-300 pt-3">
-                                    <span class="trust-signal-mark">03</span>
-                                    <div><p class="text-xs font-black text-indText">DPI CONTROL</p><p class="text-xs text-gray-500 mt-1">Prepare output for web or print.</p></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="hero-img-hover relative w-full">
-                            <div class="bg-gray-300 p-2 border-2 border-gray-400 shadow-2xl">
-                                <div class="bg-white border-2 border-gray-300">
-                                    <div class="flex items-center justify-between gap-3 border-b-2 border-gray-300 bg-gray-100 px-4 py-3">
-                                        <div class="flex items-center gap-2">
-                                            <span class="w-2.5 h-2.5 bg-indGreen" aria-hidden="true"></span>
-                                            <span class="text-xs sm:text-sm font-black tracking-wider">IMAGE_PROCESSOR // READY</span>
-                                        </div>
-                                        <span class="text-[10px] sm:text-xs font-bold text-gray-500">OUTPUT CONTROL</span>
-                                    </div>
-
-                                    <div class="tool-preview-grid p-4 sm:p-6">
-                                        <div class="border-2 border-dashed border-gray-400 bg-white p-7 text-center">
-                                            <div class="w-12 h-12 mx-auto border-2 border-indOrange bg-orange-50 flex items-center justify-center text-indOrange text-xl font-black">+</div>
-                                            <p class="mt-3 text-sm font-black">DROP OR CHOOSE AN IMAGE</p>
-                                            <p class="mt-1 text-xs text-gray-500 font-bold">Your file enters the processing workspace here.</p>
-                                        </div>
-
-                                        <div class="mt-4 grid grid-cols-2 gap-3">
-                                            <div class="bg-white border border-gray-300 p-3">
-                                                <p class="text-[10px] font-black text-gray-500 tracking-wider">WIDTH × HEIGHT</p>
-                                                <p class="mt-2 text-sm font-black">1200 × 800 PX</p>
-                                            </div>
-                                            <div class="bg-white border border-gray-300 p-3">
-                                                <p class="text-[10px] font-black text-gray-500 tracking-wider">TARGET FILE SIZE</p>
-                                                <p class="mt-2 text-sm font-black">50 KB</p>
-                                            </div>
-                                            <div class="bg-white border border-gray-300 p-3">
-                                                <p class="text-[10px] font-black text-gray-500 tracking-wider">RESOLUTION</p>
-                                                <p class="mt-2 text-sm font-black">72 DPI</p>
-                                            </div>
-                                            <div class="bg-white border border-gray-300 p-3">
-                                                <p class="text-[10px] font-black text-gray-500 tracking-wider">ASPECT RATIO</p>
-                                                <p class="mt-2 text-sm font-black text-indGreen">LOCKED</p>
-                                            </div>
-                                        </div>
-
-                                        <div class="mt-4 bg-indOrange text-white px-4 py-3 text-center text-sm font-black tracking-wider shadow-md">
-                                            PROCESS IMAGE
-                                        </div>
-
-                                        <div class="mt-3 flex items-center justify-between gap-3 border-t border-gray-300 pt-3 text-[10px] sm:text-xs font-bold text-gray-500">
-                                            <span>INPUT → SETTINGS → OUTPUT</span>
-                                            <span class="text-indGreen">STATUS: READY</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="absolute -bottom-5 left-3 sm:-left-5 bg-white p-3 sm:p-4 border-2 border-gray-300 shadow-xl flex items-center gap-3">
-                                <div class="bg-green-100 text-indGreen p-2 text-lg border border-green-200">✓</div>
-                                <div>
-                                    <p class="text-[10px] text-gray-500 font-bold tracking-wider">TASK_MATCH</p>
-                                    <p class="text-sm sm:text-base font-black text-indText">SEE THE TOOL BEFORE CLICKING</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border border-gray-300 bg-white shadow-sm">
-                    <div class="p-4 border-b sm:border-r border-gray-300 sm:border-b-0">
-                        <p class="text-[10px] text-indGreen font-black tracking-[0.18em]">01 // WHAT</p>
-                        <p class="mt-1 text-sm font-black">Resize and compress images</p>
-                    </div>
-                    <div class="p-4 border-b lg:border-r border-gray-300 sm:border-b-0">
-                        <p class="text-[10px] text-indGreen font-black tracking-[0.18em]">02 // CONTROL</p>
-                        <p class="mt-1 text-sm font-black">Pixels, target KB and DPI</p>
-                    </div>
-                    <div class="p-4 border-b sm:border-r border-gray-300 sm:border-b-0">
-                        <p class="text-[10px] text-indGreen font-black tracking-[0.18em]">03 // RESULT</p>
-                        <p class="mt-1 text-sm font-black">An optimized downloadable image</p>
-                    </div>
-                    <div class="p-4">
-                        <p class="text-[10px] text-indGreen font-black tracking-[0.18em]">04 // NEXT STEP</p>
-                        <p class="mt-1 text-sm font-black">Open the tool and upload</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- FEATURE SECTION[cite: 1] -->
-            <section id="features" class="max-w-[1400px] mx-auto px-6 py-14">
-                <div class="mb-10 border-b border-gray-300 pb-5 text-center">
-                    <p class="text-indGreen text-xs font-black tracking-[0.22em] mb-2">WHAT YOU CAN CONTROL</p>
-                    <h2 class="text-2xl lg:text-3xl font-black text-indOrange tracking-widest uppercase mb-3">SYS.CAPABILITIES</h2>
-                    <p class="text-gray-600 font-medium text-sm lg:text-base max-w-3xl mx-auto">Everything needed to prepare an image for online forms, websites, social media or printing—inside one consistent workflow.</p>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm hover:-translate-y-1 transition-all">
-                        <div class="bg-white p-6 h-full border border-gray-200">
-                            <div class="flex items-start justify-between gap-4 mb-4">
-                                <div class="w-10 h-10 bg-orange-100 text-indOrange border border-orange-200 flex items-center justify-center text-xl">↔</div>
-                                <span class="text-[10px] font-black text-gray-400">PRIMARY</span>
-                            </div>
-                            <div class="text-indGreen font-black text-base mb-2 border-b border-gray-200 pb-2 tracking-wide">01_RESIZE_DIMENSIONS</div>
-                            <p class="text-sm text-gray-700 font-medium leading-relaxed">Set width and height in pixels or percentage, while the aspect-ratio lock prevents unwanted stretching.</p>
-                        </div>
-                    </div>
-
-                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm hover:-translate-y-1 transition-all">
-                        <div class="bg-white p-6 h-full border border-gray-200">
-                            <div class="w-10 h-10 bg-blue-100 text-blue-600 border border-blue-200 flex items-center justify-center text-xl mb-4">◎</div>
-                            <div class="text-indGreen font-black text-base mb-2 border-b border-gray-200 pb-2 tracking-wide">02_TARGET_FILE_SIZE</div>
-                            <p class="text-sm text-gray-700 font-medium leading-relaxed">Enter a required size such as 50 KB and let the tool prepare an output for that upload limit.</p>
-                        </div>
-                    </div>
-
-                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm hover:-translate-y-1 transition-all">
-                        <div class="bg-white p-6 h-full border border-gray-200">
-                            <div class="w-10 h-10 bg-purple-100 text-purple-600 border border-purple-200 flex items-center justify-center text-xl mb-4">▦</div>
-                            <div class="text-indGreen font-black text-base mb-2 border-b border-gray-200 pb-2 tracking-wide">03_DPI_CONTROL</div>
-                            <p class="text-sm text-gray-700 font-medium leading-relaxed">Choose an appropriate resolution for web use, regular printing or higher-quality photo printing.</p>
-                        </div>
-                    </div>
-
-                    <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm hover:-translate-y-1 transition-all">
-                        <div class="bg-white p-6 h-full border border-gray-200">
-                            <div class="w-10 h-10 bg-pink-100 text-pink-600 border border-pink-200 flex items-center justify-center text-xl mb-4">◐</div>
-                            <div class="text-indGreen font-black text-base mb-2 border-b border-gray-200 pb-2 tracking-wide">04_IMAGE_ADJUSTMENTS</div>
-                            <p class="text-sm text-gray-700 font-medium leading-relaxed">Adjust brightness, contrast and saturation before download, with the existing undo and redo controls.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- HOW IT WORKS SECTION[cite: 1] -->
-            <section id="how-it-works" class="max-w-[1400px] mx-auto px-6 py-14">
-                <div class="mb-10 border-b border-gray-300 pb-5 text-center">
-                    <p class="text-indGreen text-xs font-black tracking-[0.22em] mb-2">ONE TASK // THREE STEPS</p>
-                    <h2 class="text-2xl lg:text-3xl font-black text-indOrange tracking-widest uppercase mb-3">OPERATION_SEQUENCE</h2>
-                    <p class="text-gray-600 font-medium text-sm lg:text-base">You always know where you are, what to set and what happens next.</p>
-                </div>
-
-                <div class="flex flex-col md:flex-row gap-5 items-stretch">
-                    <div class="flex-1 bg-white border border-gray-300 shadow-sm p-6 relative border-t-4 border-t-gray-400">
-                        <span class="absolute top-2 right-3 text-gray-200 font-black text-5xl">1</span>
-                        <p class="text-[10px] text-indGreen font-black tracking-[0.16em] mb-2">UPLOAD_PAYLOAD</p>
-                        <h3 class="text-indText font-black mb-2 tracking-wide text-lg">Choose your image</h3>
-                        <p class="text-sm text-gray-600 font-medium leading-relaxed">Drag and drop the file or select it from your device to begin.</p>
-                    </div>
-
-                    <div class="hidden md:flex items-center text-gray-400 font-black text-xl" aria-hidden="true">&gt;&gt;</div>
-
-                    <div class="flex-1 bg-white border border-gray-300 shadow-sm p-6 relative border-t-4 border-t-indOrange">
-                        <span class="absolute top-2 right-3 text-gray-200 font-black text-5xl">2</span>
-                        <p class="text-[10px] text-indGreen font-black tracking-[0.16em] mb-2">SET_PARAMETERS</p>
-                        <h3 class="text-indText font-black mb-2 tracking-wide text-lg">Enter your requirement</h3>
-                        <p class="text-sm text-gray-600 font-medium leading-relaxed">Set dimensions, target KB, DPI or the available image adjustments.</p>
-                    </div>
-
-                    <div class="hidden md:flex items-center text-gray-400 font-black text-xl" aria-hidden="true">&gt;&gt;</div>
-
-                    <div class="flex-1 bg-white border border-gray-300 shadow-sm p-6 relative border-t-4 border-t-indGreen">
-                        <span class="absolute top-2 right-3 text-gray-200 font-black text-5xl">3</span>
-                        <p class="text-[10px] text-indGreen font-black tracking-[0.16em] mb-2">PROCESS_&amp;_DOWNLOAD</p>
-                        <h3 class="text-indText font-black mb-2 tracking-wide text-lg">Download the result</h3>
-                        <p class="text-sm text-gray-600 font-medium leading-relaxed">The tool applies your settings and prepares the optimized image for download.</p>
-                    </div>
-                </div>
-
-                <div class="mt-8 border border-gray-300 bg-gray-50 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                        <p class="text-xs font-black text-indGreen tracking-wider">LOW-RISK FIRST ACTION</p>
-                        <p class="mt-1 text-sm text-gray-700 font-medium">Open the workspace first, then choose a file when you are ready.</p>
-                    </div>
-                    <a href="index_02.html" class="hardware-btn inline-block bg-white hover:bg-orange-50 border-2 border-indOrange text-indOrange px-7 py-3 rounded font-black tracking-wider transition whitespace-nowrap">
-                        TRY THE TOOL NOW
-                    </a>
-                </div>
-            </section>
-
-            <!-- BUILD GUIDE SECTION: Added per request — practical, plain-language notes on planning a small website -->
-            <section id="build-guide" class="max-w-[1400px] mx-auto px-6 py-14">
-                <div class="mb-10 border-b border-gray-300 pb-5 text-center">
-                    <p class="text-indGreen text-xs font-black tracking-[0.22em] mb-2">BEFORE YOU LAUNCH</p>
-                    <h2 class="text-2xl lg:text-3xl font-black text-indOrange tracking-widest uppercase mb-3">WEBSITE_BUILD_GUIDE</h2>
-                    <p class="text-gray-600 font-medium text-sm lg:text-base max-w-3xl mx-auto">A short, practical checklist for planning a site and writing pages people actually read — useful context whether you're setting up a tool like this one or a full business site.</p>
-                </div>
-
-                <!-- 7-step setup checklist -->
-                <div class="mb-12">
-                    <p class="text-[10px] text-indGreen font-black tracking-[0.18em] mb-4 text-center sm:text-left">SEVEN SETUP STEPS</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
-                            <div class="bg-white p-5 h-full border border-gray-200">
-                                <span class="text-indOrange font-black text-xs">01</span>
-                                <p class="mt-2 text-sm font-black text-indText">Define the site's purpose</p>
-                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Decide who it's for and what you want a visitor to do before you write a single page.</p>
-                            </div>
-                        </div>
-                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
-                            <div class="bg-white p-5 h-full border border-gray-200">
-                                <span class="text-indOrange font-black text-xs">02</span>
-                                <p class="mt-2 text-sm font-black text-indText">Choose a site builder</p>
-                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Pick a platform that matches your comfort with code and the features the site needs.</p>
-                            </div>
-                        </div>
-                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
-                            <div class="bg-white p-5 h-full border border-gray-200">
-                                <span class="text-indOrange font-black text-xs">03</span>
-                                <p class="mt-2 text-sm font-black text-indText">Register a domain</p>
-                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Something short, easy to say out loud, and close to your brand name.</p>
-                            </div>
-                        </div>
-                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
-                            <div class="bg-white p-5 h-full border border-gray-200">
-                                <span class="text-indOrange font-black text-xs">04</span>
-                                <p class="mt-2 text-sm font-black text-indText">Pick a hosting plan</p>
-                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Match the plan to expected traffic; you can usually upgrade later without a rebuild.</p>
-                            </div>
-                        </div>
-                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
-                            <div class="bg-white p-5 h-full border border-gray-200">
-                                <span class="text-indOrange font-black text-xs">05</span>
-                                <p class="mt-2 text-sm font-black text-indText">Customize a template</p>
-                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Start from a layout that fits your content type, then adjust colors and fonts to match your brand.</p>
-                            </div>
-                        </div>
-                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
-                            <div class="bg-white p-5 h-full border border-gray-200">
-                                <span class="text-indOrange font-black text-xs">06</span>
-                                <p class="mt-2 text-sm font-black text-indText">Plan the site structure</p>
-                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Sketch your pages and how they link together before you start filling them in.</p>
-                            </div>
-                        </div>
-                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
-                            <div class="bg-white p-5 h-full border border-gray-200">
-                                <span class="text-indOrange font-black text-xs">07</span>
-                                <p class="mt-2 text-sm font-black text-indText">Add the essential pages</p>
-                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Home, services, about and contact cover most of what a visitor is looking for.</p>
-                            </div>
-                        </div>
-                        <div class="bg-indPanel p-1 rounded border-2 border-gray-300 shadow-sm">
-                            <div class="bg-white p-5 h-full border border-gray-200">
-                                <span class="text-indGreen font-black text-xs">+</span>
-                                <p class="mt-2 text-sm font-black text-indText">Build a content strategy</p>
-                                <p class="mt-1 text-xs text-gray-600 leading-relaxed">Cover your offerings and the one thing that makes you different from the competition.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- What to write on each page -->
-                <div class="mb-12 border border-gray-300 bg-white shadow-sm p-6 lg:p-8">
-                    <p class="text-[10px] text-indGreen font-black tracking-[0.18em] mb-1">WRITE FOR THE READER, NOT FOR YOURSELF</p>
-                    <h3 class="text-xl font-black text-indText uppercase tracking-wide mb-4">What to include on each page</h3>
-                    <p class="text-sm text-gray-600 font-medium leading-relaxed mb-6 max-w-3xl">Say clearly what you do, who it's for and how it helps — lead with the most useful information first, the same way a news article puts the key facts in the opening lines.</p>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="border-t-4 border-t-indOrange border border-gray-200 p-5">
-                            <p class="text-xs font-black text-indOrange tracking-wider mb-2">HOMEPAGE</p>
-                            <ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside">
-                                <li>A headline that says what you offer in a handful of words</li>
-                                <li>One or two lines on how it helps the visitor</li>
-                                <li>A clear next step ("Try the tool", "Get in touch")</li>
-                                <li>A short testimonial or trust signal if you have one</li>
-                            </ul>
-                        </div>
-                        <div class="border-t-4 border-t-indGreen border border-gray-200 p-5">
-                            <p class="text-xs font-black text-indGreen tracking-wider mb-2">SERVICES / TOOL PAGE</p>
-                            <ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside">
-                                <li>What it does and the specific problem it solves</li>
-                                <li>Any pricing or limits, stated upfront</li>
-                                <li>The steps involved, in plain order</li>
-                            </ul>
-                        </div>
-                        <div class="border-t-4 border-t-indOrange border border-gray-200 p-5">
-                            <p class="text-xs font-black text-indOrange tracking-wider mb-2">ABOUT PAGE</p>
-                            <ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside">
-                                <li>Why the project exists and who built it</li>
-                                <li>Anything that supports credibility</li>
-                                <li>A human touch — a name, a photo, a short note</li>
-                            </ul>
-                        </div>
-                        <div class="border-t-4 border-t-indGreen border border-gray-200 p-5">
-                            <p class="text-xs font-black text-indGreen tracking-wider mb-2">CONTACT PAGE</p>
-                            <ul class="text-sm text-gray-700 font-medium space-y-1.5 list-disc list-inside">
-                                <li>An email address or contact form</li>
-                                <li>Response hours, if relevant</li>
-                                <li>Anything else visitors ask for most often</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Writing tips -->
-                <div class="border border-gray-300 bg-gray-50 p-6 lg:p-8">
-                    <p class="text-[10px] text-indGreen font-black tracking-[0.18em] mb-1">HOW TO WRITE FOR THE WEB</p>
-                    <h3 class="text-xl font-black text-indText uppercase tracking-wide mb-5">Five habits that make pages easier to read</h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                        <div class="bg-white border border-gray-200 p-4">
-                            <p class="text-sm font-black text-indText mb-1">Keep it scannable</p>
-                            <p class="text-xs text-gray-600 leading-relaxed">Short paragraphs and bullet points beat long blocks of text.</p>
-                        </div>
-                        <div class="bg-white border border-gray-200 p-4">
-                            <p class="text-sm font-black text-indText mb-1">Use clear headings</p>
-                            <p class="text-xs text-gray-600 leading-relaxed">Break sections up so a skimming reader still gets the gist.</p>
-                        </div>
-                        <div class="bg-white border border-gray-200 p-4">
-                            <p class="text-sm font-black text-indText mb-1">Speak to "you"</p>
-                            <p class="text-xs text-gray-600 leading-relaxed">Write toward the reader's problem, not just your own story.</p>
-                        </div>
-                        <div class="bg-white border border-gray-200 p-4">
-                            <p class="text-sm font-black text-indText mb-1">Skip the jargon</p>
-                            <p class="text-xs text-gray-600 leading-relaxed">Plain words move faster than technical ones ever will.</p>
-                        </div>
-                        <div class="bg-white border border-gray-200 p-4">
-                            <p class="text-sm font-black text-indText mb-1">Lead with verbs</p>
-                            <p class="text-xs text-gray-600 leading-relaxed">"Resize", "download", "compare" — action words tell readers what happens next.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <!-- FOOTER SECTION[cite: 1] -->
-        <footer id="footer" class="bg-gray-100 border-t border-gray-300 pt-12 pb-8 mt-8">
-            <div class="max-w-[1400px] mx-auto px-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10 border-b border-gray-300 pb-10">
-                    <div class="space-y-4">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 bg-indOrange text-white rounded-sm flex items-center justify-center text-sm shadow-md font-black">/></div>
-                            <span class="text-xl font-black tracking-widest text-indText">ImageReducer</span>
-                        </div>
-                        <p class="text-gray-600 text-sm font-bold max-w-xs">
-                            A focused image utility for resizing, compression, target file size and DPI control—built around a clear three-step workflow.
-                        </p>
-                    </div>
-
-                    <div>
-                        <h4 class="font-bold text-lg mb-4 text-indOrange tracking-wide">QUICK_LINKS</h4>
-                        <ul class="space-y-2 text-sm text-gray-600 font-bold">
-                            <li><a href="home_01.html" class="hover:text-indOrange transition">&gt; Home</a></li>
-                            <li><a href="#features" class="hover:text-indOrange transition">&gt; Features</a></li>
-                            <li><a href="index_02.html" class="hover:text-indOrange transition">&gt; The Resizer Tool</a></li>
-                            <li><a href="All_converter.html" class="hover:text-indOrange transition">&gt; Format Converter</a></li>
-                        </ul>
-                    </div>
-
-                    <div>
-                        <h4 class="font-bold text-lg mb-4 text-indOrange tracking-wide">LEGAL_&amp;_CONTACT</h4>
-                        <ul class="space-y-2 text-sm text-gray-600 font-bold">
-                            <li><a href="#" class="hover:text-indText transition">&gt; Privacy Policy</a></li>
-                            <li><a href="#" class="hover:text-indText transition">&gt; Terms of Service</a></li>
-                            <li><a href="mailto:hello@resizer.com" class="hover:text-indText transition">&gt; hello@resizer.com</a></li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="text-center text-gray-500 text-xs font-bold tracking-widest">
-                    &copy; 2026 ImageReducer // ALL RIGHTS RESERVED.
-                </div>
-            </div>
-        </footer>
-
-
-<script id="hybrid-wave-runtime">
-(() => {
-  const start = performance.now();
-  const mount = () => {
-    const host = document.querySelector('.hero-img-hover');
-    if (host && !host.classList.contains('is-hybridized')) {
-      host.classList.add('is-hybridized');
-      host.insertAdjacentHTML('afterbegin', "<div class=\"hybrid-machine precision-console\" aria-label=\"Precision image-resize control console\">\n      <div class=\"precision-topbar\"><span><i></i>IMAGE_PROCESSOR / CONSOLE_12</span><b>READY</b></div>\n      <div class=\"precision-stage\"><div class=\"precision-axis\" aria-hidden=\"true\"></div><div class=\"precision-drop\"><span>+</span><strong>DROP OR CHOOSE AN IMAGE</strong><small>LOCAL PROCESSING · NO UPLOAD</small></div>\n      <div class=\"precision-badge precision-badge-a\"><small>WIDTH × HEIGHT</small><b>1200 × 800 PX</b></div><div class=\"precision-badge precision-badge-b\"><small>TARGET FILE SIZE</small><b>50 KB</b></div><div class=\"precision-badge precision-badge-c\"><small>RESOLUTION</small><b>72 DPI</b></div><div class=\"precision-badge precision-badge-d\"><small>ASPECT RATIO</small><b>LOCKED</b></div></div>\n      <div class=\"precision-controls\"><div><small>DIMENSIONS</small><b>1200 × 800</b></div><div><small>FILE LIMIT</small><b>50 KB</b></div><div><small>OUTPUT DPI</small><b>72 DPI</b></div><div><small>FORMAT</small><b>KEEP ORIGINAL</b></div></div>\n      <div class=\"precision-command\"><span>INPUT 01 / VERIFIED</span><b>PROCESS IMAGE</b><span>OUTPUT READY</span></div>\n    </div>");
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Social Media Resizer — Aurora Precision</title>
+  
+  <style id="prototype-theme">
+    @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
+
+    :root {
+      color-scheme: dark;
+      --night: #080814;
+      --glass: rgba(27,29,63,.76);
+      --cyan: #64e4f4;
+      --violet: #9f83ff;
+      --copper: #d47d54;
+      --paper: #f5eee3;
+      --bg: #080814;
+      --panel: #17172d;
+      --panel-2: #101126;
+      --text: #f8f6f2;
+      --muted: #b7bdd6;
+      --line: rgba(255,255,255,.16);
+      --line-strong: rgba(255,255,255,.27);
+      --orange: #d47d54;
+      --green: #64e4f4;
+      --white: #121327;
+      --danger: #ff7d85;
+      --shadow-cyan: rgba(100,228,244,.14);
+      --shadow-violet: rgba(159,131,255,.15);
+      --shadow-copper: rgba(212,125,84,.16);
     }
-    const loader = document.querySelector('.hybrid-loader');
-    const hide = () => window.setTimeout(() => loader?.classList.add('is-hidden'), Math.max(0, 560 - (performance.now() - start)));
-    if (document.readyState === 'complete') hide(); else window.addEventListener('load', hide, { once:true });
-    window.setTimeout(hide, 1900);
-  };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once:true }); else mount();
-})();
-</script>
-<script id="theme-toggle-runtime">
-(() => {
-  const root = document.documentElement;
-  const toggle = document.getElementById('theme-toggle');
-  if (!toggle) return;
 
-  const sync = () => {
-    const isLight = root.dataset.theme === 'light';
-    toggle.setAttribute('aria-pressed', String(isLight));
-    toggle.setAttribute('aria-label', isLight ? 'Switch to dark theme' : 'Switch to bright theme');
-    toggle.querySelector('.theme-toggle-icon').textContent = isLight ? '☾' : '☀';
-    toggle.querySelector('.theme-toggle-label').textContent = isLight ? 'DARK' : 'BRIGHT';
-  };
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 18% 8%,rgba(100,228,244,.14),transparent 28%),
+        radial-gradient(circle at 82% 20%,rgba(159,131,255,.2),transparent 30%),
+        var(--night);
+      font-family: Manrope, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
 
-  toggle.addEventListener('click', () => {
-    root.dataset.theme = root.dataset.theme === 'light' ? 'dark' : 'light';
-    try { localStorage.setItem('imageReducerTheme', root.dataset.theme); } catch (error) {}
-    sync();
-  });
+    h1, h2, h3, h4 { font-family: Fraunces, Georgia, serif; margin: 0; }
+    a { text-decoration: none; color: inherit; }
+    button { font: inherit; cursor: pointer; border: none; outline: none; -webkit-tap-highlight-color: transparent; }
 
-  sync();
-})();
-</script>
-    </body>
-    </html>
+    /* Header (Aurora Theme) */
+    .site-header {
+      position: sticky; top: 18px; z-index: 50;
+      width: min(1400px,calc(100% - 34px));
+      margin: 0 auto 18px;
+      background: rgba(10,10,25,.84);
+      border: 1px solid var(--line);
+      border-radius: 22px 22px 65px 65px;
+      box-shadow: 0 22px 70px rgba(0,0,0,.42);
+      backdrop-filter: blur(28px);
+    }
+    .header-inner { min-height: 90px; padding: 14px 25px; display: flex; align-items: center; justify-content: space-between; }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-mark {
+      width: 54px; height: 54px; display: grid; place-items: center;
+      color: var(--night); background: linear-gradient(145deg,var(--cyan),var(--violet) 58%,var(--copper));
+      border-radius: 50% 50% 12px 12px; box-shadow: 0 0 30px rgba(100,228,244,.3);
+      font: italic 400 21px/1 "Instrument Serif",Georgia,serif; transform: rotate(-3deg);
+    }
+    .brand-copy b { display: block; color: #fff; font: italic 400 31px/1 "Instrument Serif",Georgia,serif; letter-spacing: -.025em; text-shadow: 0 0 24px rgba(100,228,244,.18); }
+    .brand-copy small { display: block; color: #8f97b8; font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+
+    /* Main Workspace Container */
+    .workspace {
+      width: min(1400px, calc(100% - 34px));
+      margin: 40px auto 80px;
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    /* Left Panel: Settings */
+    .settings-panel {
+      background: linear-gradient(145deg,rgba(18,20,43,.94),rgba(9,10,24,.96));
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      padding: 30px;
+      box-shadow: 14px 16px 0 var(--shadow-cyan),0 28px 60px rgba(0,0,0,.24);
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .panel-section-title {
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .panel-section-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+    /* Platform Selectors */
+    .platform-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .platform-btn {
+      padding: 10px 16px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+    .platform-btn:hover { color: var(--cyan); border-color: var(--cyan); background: rgba(100,228,244,.07); }
+    .platform-btn.active { color: #fff; border-color: var(--cyan); background: linear-gradient(110deg,rgba(100,228,244,.15),rgba(159,131,255,.15)); box-shadow: 0 0 12px rgba(100,228,244,.15); }
+
+    /* Resolutions/Modes Grid */
+    .resolution-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .res-btn {
+      padding: 14px 12px;
+      background: rgba(255,255,255,.02);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      text-align: left;
+      color: var(--muted);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .res-btn b { font-size: 12px; color: var(--text); }
+    .res-btn small { font-size: 10px; color: var(--violet); font-weight: 700; }
+    .res-btn:hover { border-color: var(--violet); background: rgba(159,131,255,.05); }
+    .res-btn.active { border-color: var(--violet); background: rgba(159,131,255,.15); box-shadow: inset 0 -4px 0 var(--violet); }
+    .res-btn.active b { color: #fff; }
+
+    /* Toggle Groups (Fit, Fill, Stretch, Blur) */
+    .toggle-group {
+      display: flex;
+      background: rgba(255,255,255,.03);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      padding: 4px;
+    }
+    .toggle-btn {
+      flex: 1;
+      padding: 12px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 10px;
+      transition: all 0.2s ease;
+    }
+    .toggle-btn:hover { color: #fff; }
+    .toggle-btn.active { background: rgba(255,255,255,.1); color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+
+    .hardware-btn {
+      width: 100%;
+      padding: 18px;
+      margin-top: auto;
+      background: linear-gradient(110deg,var(--cyan),var(--violet));
+      color: var(--night);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      border-radius: 16px;
+      box-shadow: 0 8px 25px rgba(100,228,244,.3);
+      transition: transform 0.1s ease;
+    }
+    .hardware-btn:active { transform: translateY(2px); }
+    .hardware-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+
+    /* Right Panel: Preview Stage */
+    .stage-panel {
+      position: relative;
+      background: linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px), linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px), #0c0e20;
+      background-size: 30px 30px;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      box-shadow: 14px 16px 0 var(--shadow-violet),0 28px 60px rgba(0,0,0,.24);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      min-height: 600px;
+    }
+
+    /* Dropzone State */
+    .dropzone {
+      position: absolute; inset: 20px;
+      border: 2px dashed var(--line-strong);
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 10;
+      background: rgba(12,14,32,0.6);
+      backdrop-filter: blur(4px);
+    }
+    .dropzone:hover, .dropzone.is-over { border-color: var(--cyan); background: rgba(100,228,244,.05); }
+    .drop-symbol {
+      width: 72px; height: 72px; display: grid; place-items: center;
+      background: var(--paper); color: var(--copper);
+      border-radius: 50% 50% 12px 12px; box-shadow: 7px 8px 0 rgba(100,228,244,.26);
+      font-size: 28px; font-weight: 900; margin-bottom: 20px;
+    }
+    .dropzone h3 { font-size: 24px; color: #fff; margin-bottom: 8px; }
+    .dropzone p { color: var(--muted); font-size: 13px; }
+    .file-input { display: none; }
+
+    /* Live Image Preview */
+    .preview-container {
+      position: relative;
+      width: 90%;
+      height: 90%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+      display: none; /* Hidden until upload */
+    }
+    .preview-container.has-image { display: flex; }
+    
+    .canvas-wrapper {
+      position: relative;
+      box-shadow: 0 20px 50px rgba(0,0,0,.5);
+      transition: all 0.3s ease;
+    }
+    
+    /* Result Ticket Overlay */
+    .result-overlay {
+      position: absolute;
+      top: 24px; right: 24px;
+      background: rgba(10,10,25,.9);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px 20px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      z-index: 20;
+      display: none;
+      min-width: 200px;
+    }
+    .result-overlay.visible { display: block; }
+    .result-overlay small { color: var(--cyan); font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+    .result-overlay b { color: #fff; font-size: 16px; display: block; margin-bottom: 4px; }
+    .result-overlay p { color: var(--muted); font-size: 11px; margin: 0 0 14px 0; }
+    
+    .action-row { display: flex; gap: 8px; }
+    .action-btn { flex: 1; padding: 10px; border-radius: 10px; font-size: 11px; font-weight: 700; text-align: center; }
+    .btn-download { background: var(--copper); color: #fff; box-shadow: 0 4px 15px rgba(212,125,84,.3); }
+    .btn-reset { background: rgba(255,255,255,.05); color: #fff; border: 1px solid var(--line); }
+
+    /* Active indicator for target preview */
+    .target-badge {
+      position: absolute;
+      bottom: 24px; left: 24px;
+      background: rgba(159,131,255,.15);
+      border: 1px solid var(--violet);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+      backdrop-filter: blur(10px);
+      z-index: 20;
+      display: none;
+    }
+    .target-badge.visible { display: block; }
+
+    @media (max-width: 960px) {
+      .workspace { grid-template-columns: 1fr; }
+      .stage-panel { min-height: 400px; order: -1; } /* Stage on top on mobile */
+      .site-header { width: calc(100% - 20px); border-radius: 18px; top: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#">
+        <span class="brand-mark">15</span>
+        <span class="brand-copy"><b>ImageReducer</b><small>Aurora Social Resizer</small></span>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main App Workspace -->
+  <main class="workspace">
+    
+    <!-- Left: Control Panel -->
+    <aside class="settings-panel">
+      
+      <div>
+        <div class="panel-section-title">01 // Select Platform</div>
+        <div class="platform-list" id="platformList">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-section-title">02 // Target Resolution</div>
+        <div class="resolution-grid" id="resolutionGrid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div>
+        <div class="panel-section-title">03 // Resize Type</div>
+        <div class="toggle-group" id="resizeTypeGroup">
+          <button class="toggle-btn active" data-type="fit">FIT (Pad)</button>
+          <button class="toggle-btn" data-type="fill">FILL (Crop)</button>
+          <button class="toggle-btn" data-type="stretch">STRETCH</button>
+        </div>
+      </div>
+
+      <div id="backgroundSettings">
+        <div class="panel-section-title">04 // Background Fill</div>
+        <div class="toggle-group" id="bgTypeGroup">
+          <button class="toggle-btn active" data-bg="color">COLOR</button>
+          <button class="toggle-btn" data-bg="blur">BLUR</button>
+        </div>
+      </div>
+
+      <button class="hardware-btn" id="btnResize" disabled>RESIZE IMAGE TO POST</button>
+    </aside>
+
+    <!-- Right: Preview Stage -->
+    <section class="stage-panel">
+      
+      <!-- Uploader State -->
+      <label class="dropzone" id="dropzone" for="fileInput">
+        <span class="drop-symbol">↑</span>
+        <h3>Drop your image here</h3>
+        <p>Or click to securely upload<br>JPG, PNG, WebP supported</p>
+      </label>
+      <input class="file-input" id="fileInput" type="file" accept="image/jpeg, image/png, image/webp">
+
+      <!-- Interactive Preview State -->
+      <div class="preview-container" id="previewContainer">
+        <div class="canvas-wrapper" id="canvasWrapper">
+          <canvas id="liveCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- Overlays -->
+      <div class="target-badge" id="targetBadge">Target: 1080 x 1080 (1:1)</div>
+      
+      <div class="result-overlay" id="resultOverlay">
+        <small>CONVERSION COMPLETE</small>
+        <b id="resultTitle">Instagram Post</b>
+        <p id="resultDetails">1080 × 1080 px • Fit • Blur</p>
+        <div class="action-row">
+          <button class="action-btn btn-reset" id="btnReset">NEW IMAGE</button>
+          <button class="action-btn btn-download" id="btnDownload">DOWNLOAD ↓</button>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    // --- Data Model based on User's Screenshots ---
+    const socialData = {
+      Instagram: [
+        { label: "Profile Picture", ratio: "1:1", width: 320, height: 320 },
+        { label: "Post (square)", ratio: "1:1", width: 1080, height: 1080 },
+        { label: "Post (portrait)", ratio: "4:5", width: 1080, height: 1350 },
+        { label: "Post (landscape)", ratio: "1.91:1", width: 1080, height: 566 },
+        { label: "Story", ratio: "9:16", width: 1080, height: 1920 },
+        { label: "Reels", ratio: "9:16", width: 1080, height: 1920 },
+        { label: "Reels Cover", ratio: "9:16", width: 1080, height: 1920 }
+      ],
+      Facebook: [
+        { label: "Profile Photo", ratio: "1:1", width: 176, height: 176 },
+        { label: "Post Square", ratio: "1:1", width: 1200, height: 1200 },
+        { label: "Stories", ratio: "9:16", width: 1080, height: 1920 },
+        { label: "Reels", ratio: "9:16", width: 1080, height: 1920 },
+        { label: "Group Cover Image", ratio: "16:9", width: 1640, height: 856 },
+        { label: "Cover Event Image", ratio: "1.92:1", width: 1200, height: 628 }
+      ],
+      YouTube: [
+        { label: "Profile Photo", ratio: "1:1", width: 800, height: 800 },
+        { label: "Thumbnail", ratio: "16:9", width: 1280, height: 720 },
+        { label: "Banner", ratio: "16:9", width: 2560, height: 1440 }
+      ],
+      X: [
+        { label: "Profile Picture", ratio: "1:1", width: 400, height: 400 },
+        { label: "Header Picture", ratio: "16:9", width: 1500, height: 500 }
+      ],
+      LinkedIn: [
+        { label: "Profile Photo", ratio: "1:1", width: 400, height: 400 },
+        { label: "Background Photo", ratio: "4:1", width: 1584, height: 396 },
+        { label: "Company Logo", ratio: "1:1", width: 300, height: 300 },
+        { label: "Company Cover", ratio: "5.91:1", width: 1128, height: 191 }
+      ],
+      Pinterest: [
+        { label: "Square Pin", ratio: "1:1", width: 1000, height: 1000 },
+        { label: "Standard Pin", ratio: "2:3", width: 1000, height: 1500 },
+        { label: "Vertical Pin", ratio: "9:16", width: 1000, height: 1778 }
+      ],
+      TikTok: [
+        { label: "Profile Picture", ratio: "1:1", width: 200, height: 200 },
+        { label: "In-feed Ad", ratio: "1:1", width: 1080, height: 1080 }
+      ],
+      Tumblr: [
+        { label: "Profile Picture", ratio: "1:1", width: 128, height: 128 },
+        { label: "Header Picture", ratio: "16:9", width: 3000, height: 1055 }
+      ],
+      Snapchat: [
+        { label: "Image Share", ratio: "9:16", width: 1080, height: 1920 }
+      ],
+      Vinted: [
+        { label: "Profile Picture", ratio: "1:1", width: 300, height: 300 },
+        { label: "Item Photo", ratio: "2:3", width: 800, height: 1200 }
+      ],
+      Email: [
+        { label: "Blog Featured 1", ratio: "3:1", width: 600, height: 200 },
+        { label: "Blog Image", ratio: "1:1", width: 600, height: 600 },
+        { label: "Blog Featured 2", ratio: "2:1", width: 600, height: 300 }
+      ]
+    };
+
+    // --- State Management ---
+    const state = {
+      platform: 'Instagram',
+      modeIndex: 1, // Default: Post (square)
+      resizeType: 'fit', // fit, fill, stretch
+      bgType: 'color', // color, blur
+      imageObj: null,
+      fileName: 'resized_image',
+      resultBlob: null
+    };
+
+    // --- DOM Elements ---
+    const platformList = document.getElementById('platformList');
+    const resolutionGrid = document.getElementById('resolutionGrid');
+    const bgSettingsGroup = document.getElementById('backgroundSettings');
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const previewContainer = document.getElementById('previewContainer');
+    const liveCanvas = document.getElementById('liveCanvas');
+    const canvasCtx = liveCanvas.getContext('2d');
+    const canvasWrapper = document.getElementById('canvasWrapper');
+    const targetBadge = document.getElementById('targetBadge');
+    const btnResize = document.getElementById('btnResize');
+    const resultOverlay = document.getElementById('resultOverlay');
+
+    // --- Initialization & UI Building ---
+    function init() {
+      buildPlatforms();
+      buildResolutions();
+      bindEvents();
+      updateExecuteButton();
+    }
+
+    function buildPlatforms() {
+      platformList.innerHTML = '';
+      Object.keys(socialData).forEach(platform => {
+        const btn = document.createElement('button');
+        btn.className = `platform-btn ${platform === state.platform ? 'active' : ''}`;
+        btn.textContent = platform;
+        btn.onclick = () => {
+          state.platform = platform;
+          state.modeIndex = 0; // Reset mode on platform change
+          buildPlatforms();
+          buildResolutions();
+          updateLivePreview();
+        };
+        platformList.appendChild(btn);
+      });
+    }
+
+    function buildResolutions() {
+      resolutionGrid.innerHTML = '';
+      const modes = socialData[state.platform];
+      modes.forEach((mode, idx) => {
+        const btn = document.createElement('button');
+        btn.className = `res-btn ${idx === state.modeIndex ? 'active' : ''}`;
+        btn.innerHTML = `<b>${mode.label}</b><small>RATIO ${mode.ratio}</small>`;
+        btn.onclick = () => {
+          state.modeIndex = idx;
+          buildResolutions();
+          updateLivePreview();
+        };
+        resolutionGrid.appendChild(btn);
+      });
+      updateExecuteButton();
+    }
+
+    function bindEvents() {
+      // Resize Type Toggles
+      document.querySelectorAll('#resizeTypeGroup .toggle-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          document.querySelectorAll('#resizeTypeGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          state.resizeType = e.target.dataset.type;
+          
+          // Toggle visibility of Background settings (only needed for Fit)
+          bgSettingsGroup.style.display = state.resizeType === 'fit' ? 'block' : 'none';
+          
+          updateLivePreview();
+        };
+      });
+
+      // Background Fill Toggles
+      document.querySelectorAll('#bgTypeGroup .toggle-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          document.querySelectorAll('#bgTypeGroup .toggle-btn').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          state.bgType = e.target.dataset.bg;
+          updateLivePreview();
+        };
+      });
+
+      // File Upload Events
+      dropzone.addEventListener('click', () => fileInput.click());
+      
+      ['dragenter', 'dragover'].forEach(evt => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          dropzone.classList.add('is-over');
+        });
+      });
+      
+      ['dragleave', 'drop'].forEach(evt => {
+        dropzone.addEventListener(evt, (e) => {
+          e.preventDefault();
+          dropzone.classList.remove('is-over');
+        });
+      });
+      
+      dropzone.addEventListener('drop', (e) => {
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleFile(e.dataTransfer.files[0]);
+        }
+      });
+      
+      fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleFile(e.target.files[0]);
+        }
+      });
+
+      // Actions
+      btnResize.addEventListener('click', performResize);
+      document.getElementById('btnReset').addEventListener('click', resetApp);
+      document.getElementById('btnDownload').addEventListener('click', downloadResult);
+    }
+
+    function updateExecuteButton() {
+      const mode = socialData[state.platform][state.modeIndex];
+      btnResize.textContent = `RESIZE TO ${mode.label.toUpperCase()}`;
+    }
+
+    // --- Image Handling & Canvas Rendering ---
+    function handleFile(file) {
+      if (!file.type.match('image.*')) return alert('Please upload an image file.');
+      
+      state.fileName = file.name.split('.')[0] + '_resized';
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          state.imageObj = img;
+          dropzone.style.display = 'none';
+          previewContainer.classList.add('has-image');
+          targetBadge.classList.add('visible');
+          btnResize.disabled = false;
+          updateLivePreview();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updateLivePreview() {
+      if (!state.imageObj) return;
+
+      const mode = socialData[state.platform][state.modeIndex];
+      const targetW = mode.width;
+      const targetH = mode.height;
+
+      // Update badge
+      targetBadge.textContent = `Target: ${targetW} × ${targetH} (${mode.ratio})`;
+
+      // Set canvas internal resolution to target for accurate processing
+      liveCanvas.width = targetW;
+      liveCanvas.height = targetH;
+      
+      // Calculate responsive preview display size
+      const maxDisplaySize = 480; 
+      let displayW = targetW;
+      let displayH = targetH;
+      
+      if (displayW > maxDisplaySize || displayH > maxDisplaySize) {
+        const scale = Math.min(maxDisplaySize / displayW, maxDisplaySize / displayH);
+        displayW *= scale;
+        displayH *= scale;
+      }
+      
+      liveCanvas.style.width = `${displayW}px`;
+      liveCanvas.style.height = `${displayH}px`;
+
+      // Clear Canvas
+      canvasCtx.clearRect(0, 0, targetW, targetH);
+
+      // Rendering Logic based on Resize Type
+      const img = state.imageObj;
+      const srcW = img.width;
+      const srcH = img.height;
+      const ratioSrc = srcW / srcH;
+      const ratioTarget = targetW / targetH;
+
+      if (state.resizeType === 'stretch') {
+        canvasCtx.drawImage(img, 0, 0, targetW, targetH);
+      } 
+      else if (state.resizeType === 'fill') {
+        // Crop to fill
+        let renderW, renderH, offsetX = 0, offsetY = 0;
+        if (ratioSrc > ratioTarget) {
+          // Source is wider, crop sides
+          renderH = targetH;
+          renderW = srcW * (targetH / srcH);
+          offsetX = (targetW - renderW) / 2;
+        } else {
+          // Source is taller, crop top/bottom
+          renderW = targetW;
+          renderH = srcH * (targetW / srcW);
+          offsetY = (targetH - renderH) / 2;
+        }
+        canvasCtx.drawImage(img, offsetX, offsetY, renderW, renderH);
+      } 
+      else if (state.resizeType === 'fit') {
+        // Pad to fit
+        let renderW, renderH, offsetX = 0, offsetY = 0;
+        if (ratioSrc > ratioTarget) {
+          // Source is wider, pad top/bottom
+          renderW = targetW;
+          renderH = srcH * (targetW / srcW);
+          offsetY = (targetH - renderH) / 2;
+        } else {
+          // Source is taller, pad sides
+          renderH = targetH;
+          renderW = srcW * (targetH / srcH);
+          offsetX = (targetW - renderW) / 2;
+        }
+
+        // Draw Background
+        if (state.bgType === 'color') {
+          // Use a dark background matching the theme
+          canvasCtx.fillStyle = '#080814';
+          canvasCtx.fillRect(0, 0, targetW, targetH);
+        } else if (state.bgType === 'blur') {
+          canvasCtx.save();
+          canvasCtx.filter = 'blur(20px) brightness(0.6)';
+          // Stretch image behind for blurred background
+          canvasCtx.drawImage(img, -10, -10, targetW + 20, targetH + 20); 
+          canvasCtx.restore();
+        }
+
+        // Draw image on top
+        canvasCtx.drawImage(img, offsetX, offsetY, renderW, renderH);
+      }
+    }
+
+    // --- Actions ---
+    function performResize() {
+      // Trigger a visual confirmation (simulate backend processing)
+      btnResize.textContent = "PROCESSING...";
+      btnResize.disabled = true;
+      
+      setTimeout(() => {
+        const mode = socialData[state.platform][state.modeIndex];
+        
+        document.getElementById('resultTitle').textContent = `${state.platform} ${mode.label}`;
+        document.getElementById('resultDetails').textContent = `${mode.width} × ${mode.height} px • ${state.resizeType.toUpperCase()} • ${state.resizeType === 'fit' ? state.bgType.toUpperCase() : ''}`;
+        
+        liveCanvas.toBlob((blob) => {
+          state.resultBlob = blob;
+          resultOverlay.classList.add('visible');
+          btnResize.textContent = "DONE";
+        }, 'image/jpeg', 0.95);
+      }, 600);
+    }
+
+    function downloadResult() {
+      if (!state.resultBlob) return;
+      const url = URL.createObjectURL(state.resultBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const mode = socialData[state.platform][state.modeIndex];
+      link.download = `${state.fileName}_${state.platform}_${mode.ratio.replace(':','x')}.jpg`;
+      
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function resetApp() {
+      state.imageObj = null;
+      state.resultBlob = null;
+      fileInput.value = '';
+      
+      dropzone.style.display = 'flex';
+      previewContainer.classList.remove('has-image');
+      targetBadge.classList.remove('visible');
+      resultOverlay.classList.remove('visible');
+      btnResize.disabled = true;
+      updateExecuteButton();
+    }
+
+    // Initialize App
+    init();
+  </script>
+</body>
+</html>
