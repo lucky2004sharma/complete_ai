@@ -1,745 +1,1832 @@
 <!doctype html>
-<html lang="en">
+<!--
+  ============================================================================
+  AURORA PHOTO-MODE PAVILION // BEGINNER GUIDE
+  ============================================================================
+  KYA: Yeh page sirf social-media / e-mail photo modes badalne ke liye hai.
+  KYUN: Purane index_03.html me controls kaafi technical the; yahan workflow
+        ko "Upload -> Platform -> Shape -> Quality -> Download" rakha gaya hai.
+  PYTHON PAR ASAR: Is HTML ko edit karne se prototype.py ka code change nahi
+        hota. JavaScript sirf Python ke existing HTTP routes ko call karta hai.
+  BACKEND ROUTES: /photo-modes, /analyze-photo-mode, /convert-photo-mode.
+  ============================================================================
+-->
+<html lang="en" data-theme="dark">
 <head>
+  <!-- Browser ko Unicode/Hinglish characters sahi tarah dikhane ke liye UTF-8. -->
   <meta charset="utf-8">
+
+  <!-- Mobile par page ko device width ke hisaab se responsive banata hai. -->
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Social Media Resizer — Aurora Precision</title>
-  
-  <style id="prototype-theme">
-    @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
+
+  <!-- Browser tab ka naam. Is text ka Python processing par koi asar nahi. -->
+  <title>Aurora Photo-Mode Pavilion — ImageReducer</title>
+
+  <!-- Search/share description; converter logic par zero effect. -->
+  <meta name="description" content="Turn one photo into platform-ready Facebook, Instagram, YouTube, LinkedIn, Pinterest, TikTok and e-mail frames.">
+
+  <script id="theme-bootstrap">
+    /*
+      KYA: Paint hone se pehle saved bright/dark theme read hoti hai.
+      KYUN: Isse page load par ek second ke liye galat theme flash nahi karti.
+      CHANGE EFFECT: Storage key badloge to purane pages ka saved theme share nahi hoga.
+      PYTHON EFFECT: Zero; localStorage sirf browser me rehta hai.
+    */
+    try {
+      document.documentElement.dataset.theme = localStorage.getItem("imageReducerTheme") || "dark";
+    } catch (error) {
+      /* Private/restricted browser storage fail ho to safe dark fallback use hota hai. */
+      document.documentElement.dataset.theme = "dark";
+    }
+  </script>
+
+  <style>
+    /*
+      ========================================================================
+      01 // FONT + THEME CONSTANTS
+      KYA: All_converter.html ke Aurora Pavilion fonts/colors yahan reuse hain.
+      CHANGE EFFECT: Neeche variables badalne se poore page ka palette ek saath
+                     badlega; Python output image par koi effect nahi padega.
+      ========================================================================
+    */
+    @import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap");
 
     :root {
       color-scheme: dark;
       --night: #080814;
-      --glass: rgba(27,29,63,.76);
+      --surface: #17172d;
+      --surface-deep: #101126;
+      --surface-soft: rgba(27,29,63,.76);
+      --text: #f8f6f2;
+      --muted: #b7bdd6;
+      --line: rgba(255,255,255,.16);
+      --line-strong: rgba(255,255,255,.28);
       --cyan: #64e4f4;
       --violet: #9f83ff;
       --copper: #d47d54;
       --paper: #f5eee3;
-      --bg: #080814;
-      --panel: #17172d;
-      --panel-2: #101126;
-      --text: #f8f6f2;
-      --muted: #b7bdd6;
-      --line: rgba(255,255,255,.16);
-      --line-strong: rgba(255,255,255,.27);
-      --orange: #d47d54;
-      --green: #64e4f4;
-      --white: #121327;
-      --danger: #ff7d85;
-      --shadow-cyan: rgba(100,228,244,.14);
-      --shadow-violet: rgba(159,131,255,.15);
-      --shadow-copper: rgba(212,125,84,.16);
+      --danger: #ff8d95;
+      --success: #6de1ba;
+      --shadow-cyan: rgba(100,228,244,.15);
+      --shadow-violet: rgba(159,131,255,.16);
+      --shadow-copper: rgba(212,125,84,.17);
+      --page-width: 1380px;
     }
 
-    * { box-sizing: border-box; }
+    /* Bright theme: same layout, lighter surfaces. Processing values unchanged. */
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --night: #f5f2ea;
+      --surface: #ffffff;
+      --surface-deep: #f2f0f8;
+      --surface-soft: rgba(255,255,255,.88);
+      --text: #17192b;
+      --muted: #586178;
+      --line: rgba(28,34,57,.18);
+      --line-strong: rgba(28,34,57,.31);
+      --cyan: #007d8f;
+      --violet: #684cc0;
+      --copper: #ad4827;
+      --paper: #ffffff;
+      --danger: #b4232d;
+      --success: #087a5d;
+      --shadow-cyan: #d5e8ea;
+      --shadow-violet: #ddd6ef;
+      --shadow-copper: #ecd7ce;
+    }
+
+    /*
+      ========================================================================
+      02 // RESET + ACCESSIBILITY
+      KYA: Browser defaults ko predictable banata aur keyboard focus dikhata hai.
+      CHANGE EFFECT: box-sizing hatane se widths/padding unexpectedly overflow karenge.
+      ========================================================================
+    */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 128px; }
     body {
       margin: 0;
       min-height: 100vh;
+      overflow-x: hidden;
       color: var(--text);
       background:
-        radial-gradient(circle at 18% 8%,rgba(100,228,244,.14),transparent 28%),
-        radial-gradient(circle at 82% 20%,rgba(159,131,255,.2),transparent 30%),
+        radial-gradient(circle at 16% 7%,rgba(100,228,244,.14),transparent 28%),
+        radial-gradient(circle at 86% 19%,rgba(159,131,255,.20),transparent 30%),
         var(--night);
-      font-family: Manrope, Arial, sans-serif;
+      font-family: Manrope,Arial,sans-serif;
       -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
     }
+    :root[data-theme="light"] body {
+      background:
+        radial-gradient(circle at 16% 7%,rgba(0,125,143,.10),transparent 28%),
+        radial-gradient(circle at 86% 19%,rgba(104,76,192,.10),transparent 30%),
+        var(--night);
+    }
+    button, input, select { font: inherit; }
+    button, label, a { -webkit-tap-highlight-color: transparent; }
+    button { cursor: pointer; }
+    a { color: inherit; }
+    button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, label:focus-within {
+      outline: 3px solid var(--cyan);
+      outline-offset: 4px;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .wrap { width: min(var(--page-width),calc(100% - 34px)); margin-inline: auto; }
 
-    h1, h2, h3, h4 { font-family: Fraunces, Georgia, serif; margin: 0; }
-    a { text-decoration: none; color: inherit; }
-    button { font: inherit; cursor: pointer; border: none; outline: none; -webkit-tap-highlight-color: transparent; }
+    /*
+      ========================================================================
+      03 // SMALL PAGE LOADER
+      KYA: Fonts/layout settle hote waqt Aurora pavilion identity dikhata hai.
+      CHANGE EFFECT: .is-hidden class na lage to loader page ko cover karta rahega.
+      ========================================================================
+    */
+    .page-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      background: var(--night);
+      transition: opacity .45s ease,visibility .45s ease;
+    }
+    .page-loader.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-arch {
+      width: min(320px,calc(100vw - 44px));
+      min-height: 198px;
+      position: relative;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 160px 160px 22px 22px;
+      background: linear-gradient(180deg,rgba(159,131,255,.14),transparent);
+    }
+    .loader-arch::before {
+      content: "";
+      position: absolute;
+      width: 142px;
+      height: 142px;
+      border: 1px solid var(--cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 70px rgba(100,228,244,.20);
+      animation: loaderPulse 1.3s ease-in-out infinite alternate;
+    }
+    .loader-arch b { z-index: 1; font: 600 56px/1 Fraunces,Georgia,serif; }
+    .loader-arch small { position: absolute; top: 220px; font-size: 8px; font-weight: 700; letter-spacing: .18em; white-space: nowrap; }
+    @keyframes loaderPulse { to { transform: scale(.74); border-color: var(--copper); } }
 
-    /* Header (Aurora Theme) */
+    /*
+      ========================================================================
+      04 // HEADER
+      KYA: All_converter ke Aurora glass header ko same visual family me rakhta hai.
+      CHANGE EFFECT: sticky hatane par scroll ke baad navigation visible nahi rahega.
+      ========================================================================
+    */
     .site-header {
-      position: sticky; top: 18px; z-index: 50;
-      width: min(1400px,calc(100% - 34px));
+      position: sticky;
+      top: 18px;
+      z-index: 80;
+      width: min(var(--page-width),calc(100% - 34px));
       margin: 0 auto 18px;
-      background: rgba(10,10,25,.84);
       border: 1px solid var(--line);
       border-radius: 22px 22px 65px 65px;
+      background: rgba(10,10,25,.84);
       box-shadow: 0 22px 70px rgba(0,0,0,.42);
       backdrop-filter: blur(28px);
     }
-    .header-inner { min-height: 90px; padding: 14px 25px; display: flex; align-items: center; justify-content: space-between; }
-    .brand { display: flex; align-items: center; gap: 14px; }
-    .brand-mark {
-      width: 54px; height: 54px; display: grid; place-items: center;
-      color: var(--night); background: linear-gradient(145deg,var(--cyan),var(--violet) 58%,var(--copper));
-      border-radius: 50% 50% 12px 12px; box-shadow: 0 0 30px rgba(100,228,244,.3);
-      font: italic 400 21px/1 "Instrument Serif",Georgia,serif; transform: rotate(-3deg);
-    }
-    .brand-copy b { display: block; color: #fff; font: italic 400 31px/1 "Instrument Serif",Georgia,serif; letter-spacing: -.025em; text-shadow: 0 0 24px rgba(100,228,244,.18); }
-    .brand-copy small { display: block; color: #8f97b8; font-size: 8px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-
-    /* Main Workspace Container */
-    .workspace {
-      width: min(1400px, calc(100% - 34px));
-      margin: 40px auto 80px;
+    :root[data-theme="light"] .site-header { background: rgba(255,255,255,.90); box-shadow: 0 22px 70px rgba(36,42,67,.14); }
+    .header-inner {
+      min-height: 90px;
+      padding: 14px 25px;
       display: grid;
-      grid-template-columns: 420px 1fr;
-      gap: 24px;
-      align-items: stretch;
-    }
-
-    /* Left Panel: Settings */
-    .settings-panel {
-      background: linear-gradient(145deg,rgba(18,20,43,.94),rgba(9,10,24,.96));
-      border: 1px solid var(--line);
-      border-radius: 30px;
-      padding: 30px;
-      box-shadow: 14px 16px 0 var(--shadow-cyan),0 28px 60px rgba(0,0,0,.24);
-      display: flex;
-      flex-direction: column;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
       gap: 28px;
     }
-
-    .panel-section-title {
-      color: var(--cyan);
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      margin-bottom: 12px;
+    .brand { display: flex; align-items: center; gap: 13px; text-decoration: none; }
+    .brand-mark {
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      color: #111326;
+      background: linear-gradient(145deg,var(--cyan),var(--violet) 58%,var(--copper));
+      border-radius: 50% 50% 12px 12px;
+      box-shadow: 0 0 30px rgba(100,228,244,.30);
+      font: italic 400 21px/1 "Instrument Serif",Georgia,serif;
+      transform: rotate(-3deg);
+    }
+    .brand-copy b { display: block; color: var(--text); font: italic 400 31px/1 "Instrument Serif",Georgia,serif; letter-spacing: -.025em; }
+    .brand-copy small { display: block; margin-top: 4px; color: var(--muted); font-size: 7px; font-weight: 700; letter-spacing: .14em; }
+    .site-nav { justify-self: center; display: flex; align-self: stretch; }
+    .site-nav a {
+      min-width: 88px;
+      padding: 0 13px;
       display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      color: var(--muted);
+      border-inline-start: 1px solid var(--line);
+      text-align: center;
+      text-decoration: none;
+    }
+    .site-nav a:last-child { border-inline-end: 1px solid var(--line); }
+    .site-nav a span { font-size: 9px; font-weight: 700; letter-spacing: .08em; }
+    .site-nav a small { color: var(--muted); font-size: 6px; font-weight: 700; letter-spacing: .11em; }
+    .site-nav a:hover { color: var(--cyan); background: rgba(100,228,244,.07); }
+    .site-nav a.active { color: var(--text); background: rgba(159,131,255,.12); box-shadow: inset 0 -4px 0 var(--cyan); }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .engine-chip { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 7px; font-weight: 700; letter-spacing: .09em; white-space: nowrap; }
+    .engine-chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--copper); box-shadow: 0 0 0 4px rgba(212,125,84,.10); }
+    .engine-chip.online { color: var(--cyan); }
+    .engine-chip.online i { background: var(--cyan); box-shadow: 0 0 0 4px rgba(100,228,244,.10),0 0 17px var(--cyan); }
+    .theme-button {
+      min-width: 44px;
+      min-height: 42px;
+      padding: 9px 12px;
+      display: inline-flex;
       align-items: center;
-      gap: 10px;
-    }
-    .panel-section-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-
-    /* Platform Selectors */
-    .platform-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .platform-btn {
-      padding: 10px 16px;
-      background: rgba(255,255,255,.04);
+      justify-content: center;
+      gap: 7px;
       border: 1px solid var(--line);
       border-radius: 12px;
-      color: var(--muted);
-      font-size: 11px;
+      color: var(--text);
+      background: rgba(255,255,255,.045);
+      box-shadow: 5px 6px 0 var(--shadow-violet);
+      font-size: 9px;
       font-weight: 700;
-      transition: all 0.2s ease;
+      letter-spacing: .1em;
     }
-    .platform-btn:hover { color: var(--cyan); border-color: var(--cyan); background: rgba(100,228,244,.07); }
-    .platform-btn.active { color: #fff; border-color: var(--cyan); background: linear-gradient(110deg,rgba(100,228,244,.15),rgba(159,131,255,.15)); box-shadow: 0 0 12px rgba(100,228,244,.15); }
+    .theme-button:hover { border-color: var(--violet); transform: translateY(-2px); }
+    .theme-icon { color: var(--cyan); font-size: 15px; }
 
-    /* Resolutions/Modes Grid */
-    .resolution-grid {
+    /*
+      ========================================================================
+      05 // HERO
+      KYA: Page ka concept bina technical language ke turant samjhata hai.
+      CHANGE EFFECT: Hero copy/design badalne se converter request fields nahi badlenge.
+      ========================================================================
+    */
+    .hero { padding: 86px 0 46px; }
+    .hero-panel {
+      padding: clamp(34px,5vw,72px);
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    .res-btn {
-      padding: 14px 12px;
-      background: rgba(255,255,255,.02);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      text-align: left;
-      color: var(--muted);
-      transition: all 0.2s ease;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .res-btn b { font-size: 12px; color: var(--text); }
-    .res-btn small { font-size: 10px; color: var(--violet); font-weight: 700; }
-    .res-btn:hover { border-color: var(--violet); background: rgba(159,131,255,.05); }
-    .res-btn.active { border-color: var(--violet); background: rgba(159,131,255,.15); box-shadow: inset 0 -4px 0 var(--violet); }
-    .res-btn.active b { color: #fff; }
-
-    /* Toggle Groups (Fit, Fill, Stretch, Blur) */
-    .toggle-group {
-      display: flex;
-      background: rgba(255,255,255,.03);
-      border: 1px solid var(--line);
-      border-radius: 14px;
+      grid-template-columns: .84fr 1.16fr;
+      align-items: center;
+      gap: clamp(32px,5vw,76px);
       overflow: hidden;
-      padding: 4px;
-    }
-    .toggle-btn {
-      flex: 1;
-      padding: 12px;
-      background: transparent;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 700;
-      border-radius: 10px;
-      transition: all 0.2s ease;
-    }
-    .toggle-btn:hover { color: #fff; }
-    .toggle-btn.active { background: rgba(255,255,255,.1); color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
-
-    .hardware-btn {
-      width: 100%;
-      padding: 18px;
-      margin-top: auto;
-      background: linear-gradient(110deg,var(--cyan),var(--violet));
-      color: var(--night);
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing: 0.05em;
-      border-radius: 16px;
-      box-shadow: 0 8px 25px rgba(100,228,244,.3);
-      transition: transform 0.1s ease;
-    }
-    .hardware-btn:active { transform: translateY(2px); }
-    .hardware-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
-
-    /* Right Panel: Preview Stage */
-    .stage-panel {
-      position: relative;
-      background: linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px), linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px), #0c0e20;
-      background-size: 30px 30px;
       border: 1px solid var(--line);
-      border-radius: 30px;
-      box-shadow: 14px 16px 0 var(--shadow-violet),0 28px 60px rgba(0,0,0,.24);
-      display: flex;
+      border-radius: 54px 54px 170px 54px;
+      background: linear-gradient(145deg,rgba(25,28,62,.78),rgba(10,11,28,.88));
+      box-shadow: 0 40px 110px rgba(0,0,0,.40);
+      backdrop-filter: blur(24px);
+    }
+    :root[data-theme="light"] .hero-panel { background: linear-gradient(145deg,rgba(255,255,255,.96),rgba(239,238,249,.94)); box-shadow: 0 40px 90px rgba(36,42,67,.16); }
+    .eyebrow {
+      width: fit-content;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 11px;
+      color: var(--cyan);
+      border: 1px solid rgba(100,228,244,.30);
+      border-radius: 999px;
+      background: rgba(100,228,244,.06);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: .13em;
+    }
+    .eyebrow i { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 16px var(--cyan); }
+    .hero h1 { margin: 23px 0 18px; font: 600 clamp(54px,6.3vw,94px)/.88 Fraunces,Georgia,serif; letter-spacing: -.058em; }
+    .hero h1 span { color: transparent; background: linear-gradient(110deg,var(--cyan),var(--violet),var(--copper)); background-clip: text; }
+    .hero p { max-width: 650px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.75; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 26px; }
+    .primary-link, .secondary-link {
+      min-height: 50px;
+      padding: 0 20px;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
+      border-radius: 14px;
+      text-decoration: none;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .05em;
+    }
+    .primary-link { color: #fff; background: var(--copper); box-shadow: 6px 7px 0 var(--shadow-cyan); }
+    .secondary-link { color: var(--text); border: 1px solid var(--line-strong); background: rgba(255,255,255,.04); }
+
+    /* Hero ka CSS-only shape theater: image file/network ki zarurat nahi. */
+    .shape-theater {
+      min-height: 470px;
+      position: relative;
       overflow: hidden;
-      min-height: 600px;
-    }
-
-    /* Dropzone State */
-    .dropzone {
-      position: absolute; inset: 20px;
-      border: 2px dashed var(--line-strong);
-      border-radius: 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      z-index: 10;
-      background: rgba(12,14,32,0.6);
-      backdrop-filter: blur(4px);
-    }
-    .dropzone:hover, .dropzone.is-over { border-color: var(--cyan); background: rgba(100,228,244,.05); }
-    .drop-symbol {
-      width: 72px; height: 72px; display: grid; place-items: center;
-      background: var(--paper); color: var(--copper);
-      border-radius: 50% 50% 12px 12px; box-shadow: 7px 8px 0 rgba(100,228,244,.26);
-      font-size: 28px; font-weight: 900; margin-bottom: 20px;
-    }
-    .dropzone h3 { font-size: 24px; color: #fff; margin-bottom: 8px; }
-    .dropzone p { color: var(--muted); font-size: 13px; }
-    .file-input { display: none; }
-
-    /* Live Image Preview */
-    .preview-container {
-      position: relative;
-      width: 90%;
-      height: 90%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 5;
-      display: none; /* Hidden until upload */
-    }
-    .preview-container.has-image { display: flex; }
-    
-    .canvas-wrapper {
-      position: relative;
-      box-shadow: 0 20px 50px rgba(0,0,0,.5);
-      transition: all 0.3s ease;
-    }
-    
-    /* Result Ticket Overlay */
-    .result-overlay {
-      position: absolute;
-      top: 24px; right: 24px;
-      background: rgba(10,10,25,.9);
       border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 16px 20px;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      z-index: 20;
-      display: none;
-      min-width: 200px;
+      border-radius: 150px 150px 28px 28px;
+      background:
+        linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px),
+        linear-gradient(180deg,#15172f,#090a18);
+      background-size: 28px 28px,28px 28px,auto;
+      box-shadow: 16px 18px 0 var(--shadow-violet),0 34px 75px rgba(0,0,0,.30);
     }
-    .result-overlay.visible { display: block; }
-    .result-overlay small { color: var(--cyan); font-size: 9px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; display: block; margin-bottom: 8px; }
-    .result-overlay b { color: #fff; font-size: 16px; display: block; margin-bottom: 4px; }
-    .result-overlay p { color: var(--muted); font-size: 11px; margin: 0 0 14px 0; }
-    
-    .action-row { display: flex; gap: 8px; }
-    .action-btn { flex: 1; padding: 10px; border-radius: 10px; font-size: 11px; font-weight: 700; text-align: center; }
-    .btn-download { background: var(--copper); color: #fff; box-shadow: 0 4px 15px rgba(212,125,84,.3); }
-    .btn-reset { background: rgba(255,255,255,.05); color: #fff; border: 1px solid var(--line); }
+    :root[data-theme="light"] .shape-theater { background: linear-gradient(rgba(28,34,57,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(28,34,57,.055) 1px,transparent 1px),linear-gradient(155deg,#fff,#f0eef8 62%,#eef6f7); background-size: 28px 28px,28px 28px,auto; }
+    .theater-lamp { position: absolute; left: 50%; top: 0; width: 126px; height: 72px; transform: translateX(-50%); border-radius: 0 0 75px 75px; background: linear-gradient(180deg,var(--copper),#7f3f2e); box-shadow: 0 0 50px rgba(212,125,84,.34); }
+    .shape-orbit { position: absolute; inset: 82px 9% 58px; display: grid; place-items: center; }
+    .shape-orbit::before, .shape-orbit::after { content: ""; position: absolute; border: 1px solid rgba(159,131,255,.28); border-radius: 50%; }
+    .shape-orbit::before { width: 340px; height: 340px; max-width: 90%; }
+    .shape-orbit::after { width: 230px; height: 230px; max-width: 68%; border-color: rgba(100,228,244,.32); }
+    .shape-card { position: absolute; z-index: 2; display: grid; place-items: center; color: #111326; background: linear-gradient(145deg,rgba(245,238,227,.98),rgba(211,215,235,.96)); border: 1px solid rgba(255,255,255,.7); box-shadow: 8px 9px 0 var(--card-shadow); font: 600 13px/1 Fraunces,Georgia,serif; }
+    .shape-square { width: 150px; aspect-ratio: 1; --card-shadow: rgba(100,228,244,.42); transform: rotate(-3deg); }
+    .shape-story { right: 3%; width: 96px; aspect-ratio: 9/16; --card-shadow: rgba(159,131,255,.42); transform: rotate(3deg); }
+    .shape-banner { left: 0; bottom: 8%; width: 215px; aspect-ratio: 16/5; --card-shadow: rgba(212,125,84,.42); transform: rotate(2deg); }
+    .theater-caption { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); color: var(--cyan); font-size: 8px; font-weight: 700; letter-spacing: .15em; white-space: nowrap; }
 
-    /* Active indicator for target preview */
-    .target-badge {
-      position: absolute;
-      bottom: 24px; left: 24px;
-      background: rgba(159,131,255,.15);
-      border: 1px solid var(--violet);
-      color: #fff;
-      padding: 10px 16px;
-      border-radius: 99px;
-      font-size: 11px;
-      font-weight: 700;
-      backdrop-filter: blur(10px);
-      z-index: 20;
-      display: none;
+    /*
+      ========================================================================
+      06 // STUDIO SHELL
+      KYA: Saari working controls ko ek hi understandable workspace me rakhta hai.
+      CHANGE EFFECT: Grid columns sirf layout badlenge, backend FormData nahi.
+      ========================================================================
+    */
+    .studio-section { padding: 42px 0 120px; }
+    .section-heading { max-width: 760px; margin-bottom: 34px; }
+    .section-heading small { color: var(--cyan); font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+    .section-heading h2 { margin: 11px 0 12px; font: 600 clamp(42px,5vw,72px)/.92 Fraunces,Georgia,serif; letter-spacing: -.05em; }
+    .section-heading p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .studio-shell { padding: 18px; border: 1px solid var(--line); border-radius: 34px; background: linear-gradient(145deg,rgba(18,20,43,.95),rgba(9,10,24,.97)); box-shadow: 16px 19px 0 var(--shadow-cyan),0 34px 78px rgba(0,0,0,.28); }
+    :root[data-theme="light"] .studio-shell { background: linear-gradient(145deg,#fff,#f0f4f5); box-shadow: 16px 19px 0 var(--shadow-cyan),0 28px 55px rgba(36,42,67,.11); }
+    .studio-topbar { min-height: 58px; padding: 0 17px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid var(--line); border-radius: 17px 17px 7px 7px; background: rgba(255,255,255,.035); }
+    .studio-topbar b { display: flex; align-items: center; gap: 9px; font-size: 9px; letter-spacing: .09em; }
+    .studio-topbar b i { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 16px var(--cyan); }
+    .step-line { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 7px; font-weight: 700; letter-spacing: .06em; }
+    .step-line span { display: grid; place-items: center; width: 24px; height: 24px; color: var(--text); border: 1px solid var(--line); border-radius: 50%; }
+    .studio-grid { display: grid; grid-template-columns: minmax(390px,.82fr) minmax(0,1.18fr); gap: 18px; margin-top: 18px; }
+
+    /*
+      ========================================================================
+      07 // LEFT PREVIEW DECK
+      KYA: Upload, automatic analysis, live frame preview aur result ek jagah.
+      CHANGE EFFECT: Preview canvas low-size copy hai; final pixels Python banata hai.
+      ========================================================================
+    */
+    .preview-deck { min-width: 0; align-self: start; position: sticky; top: 126px; padding: 20px; border: 1px solid var(--line); border-radius: 26px; background: rgba(255,255,255,.025); }
+    .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    .panel-title b { font-size: 9px; letter-spacing: .10em; }
+    .panel-title span { color: var(--cyan); font-size: 7px; font-weight: 700; letter-spacing: .09em; }
+    .dropzone { min-height: 150px; margin-top: 14px; padding: 18px; display: flex; align-items: center; justify-content: center; gap: 16px; border: 1px dashed var(--line-strong); border-radius: 20px; background: linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px),var(--surface-deep); background-size: 24px 24px; text-align: left; transition: .18s ease; }
+    .dropzone:hover, .dropzone.is-over { color: var(--cyan); border-color: var(--cyan); background-color: rgba(100,228,244,.06); }
+    .drop-icon { width: 58px; height: 58px; flex: 0 0 auto; display: grid; place-items: center; color: var(--copper); background: var(--paper); border-radius: 50% 50% 12px 12px; box-shadow: 7px 8px 0 var(--shadow-cyan); font-size: 25px; font-weight: 700; }
+    .drop-copy strong { display: block; font: 600 20px/1.1 Fraunces,Georgia,serif; }
+    .drop-copy small { display: block; margin-top: 7px; color: var(--muted); font-size: 8px; line-height: 1.55; }
+    .file-input { position: absolute; opacity: 0; pointer-events: none; }
+    .file-meta { display: none; grid-template-columns: 46px minmax(0,1fr) auto; align-items: center; gap: 10px; margin-top: 11px; padding: 10px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.035); }
+    .file-meta.visible { display: grid; }
+    .file-thumb { width: 46px; height: 46px; object-fit: cover; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-deep); }
+    .file-copy { min-width: 0; }
+    .file-copy b, .file-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-copy b { font-size: 9px; }
+    .file-copy small { margin-top: 4px; color: var(--muted); font-size: 7px; }
+    .remove-file { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: rgba(255,255,255,.04); }
+    .remove-file:hover { color: var(--danger); border-color: var(--danger); }
+
+    /* Analysis tiles backend ke real source metadata dikhate hain. */
+    .analysis-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; margin-top: 12px; }
+    .analysis-item { min-width: 0; min-height: 61px; padding: 9px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.03); }
+    .analysis-item small { display: block; color: var(--muted); font-size: 6px; font-weight: 700; letter-spacing: .08em; }
+    .analysis-item b { display: block; margin-top: 6px; overflow: hidden; color: var(--text); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+    .preview-stage { min-height: 430px; margin-top: 12px; padding: 18px; position: relative; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px),#0c0e20; background-size: 24px 24px; }
+    :root[data-theme="light"] .preview-stage { background: linear-gradient(rgba(28,34,57,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(28,34,57,.055) 1px,transparent 1px),#faf9fd; background-size: 24px 24px; }
+    .preview-empty { text-align: center; color: var(--muted); }
+    .preview-empty strong { display: block; color: var(--text); font: 600 21px/1 Fraunces,Georgia,serif; }
+    .preview-empty small { display: block; max-width: 270px; margin-top: 9px; font-size: 8px; line-height: 1.6; }
+    #previewCanvas, #resultImage { display: none; max-width: 96%; max-height: 390px; object-fit: contain; box-shadow: 0 24px 52px rgba(0,0,0,.36); }
+    #previewCanvas.visible, #resultImage.visible { display: block; }
+    .preview-badge { position: absolute; left: 14px; bottom: 14px; padding: 9px 11px; color: var(--text); border: 1px solid var(--line); border-radius: 999px; background: rgba(10,10,25,.82); backdrop-filter: blur(12px); font-size: 7px; font-weight: 700; }
+    :root[data-theme="light"] .preview-badge { background: rgba(255,255,255,.88); }
+    .preview-tabs { display: none; position: absolute; top: 14px; right: 14px; z-index: 2; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: rgba(10,10,25,.82); }
+    :root[data-theme="light"] .preview-tabs { background: rgba(255,255,255,.90); }
+    .preview-tabs.visible { display: flex; }
+    .preview-tab { min-height: 30px; padding: 0 11px; border: 0; border-radius: 999px; color: var(--muted); background: transparent; font-size: 7px; font-weight: 700; }
+    .preview-tab.active { color: #fff; background: var(--violet); }
+    .browser-preview-note { display: none; max-width: 300px; color: var(--muted); text-align: center; font-size: 9px; line-height: 1.65; }
+    .browser-preview-note.visible { display: block; }
+
+    /*
+      ========================================================================
+      08 // RIGHT CONTROL PATH
+      KYA: Platform, exact mode, fit aur quality ko child-friendly cards me rakhta hai.
+      CHANGE EFFECT: Button data values Python dictionary keys se exact match chahiye.
+      ========================================================================
+    */
+    .control-path { min-width: 0; display: grid; gap: 14px; }
+    .control-card { padding: 20px; border: 1px solid var(--line); border-radius: 26px; background: rgba(255,255,255,.025); }
+    .control-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+    .control-heading span { color: var(--cyan); font-size: 8px; font-weight: 700; letter-spacing: .12em; }
+    .control-heading h3 { margin: 7px 0 0; font: 600 25px/1 Fraunces,Georgia,serif; }
+    .control-heading small { max-width: 270px; color: var(--muted); font-size: 8px; line-height: 1.55; text-align: right; }
+    .platform-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 17px; }
+    .platform-button { min-height: 39px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: rgba(255,255,255,.035); font-size: 8px; font-weight: 700; }
+    .platform-button:hover { color: var(--cyan); border-color: var(--cyan); }
+    .platform-button.active { color: #fff; border-color: var(--violet); background: linear-gradient(110deg,rgba(159,131,255,.82),rgba(212,125,84,.72)); box-shadow: 4px 5px 0 var(--shadow-cyan); }
+    .mode-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin-top: 19px; }
+    .mode-button { min-width: 0; min-height: 124px; padding: 13px; position: relative; display: grid; grid-template-columns: 56px minmax(0,1fr); align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 18px; color: var(--text); background: radial-gradient(circle at 82% 12%,rgba(100,228,244,.13),transparent 32%),rgba(255,255,255,.025); text-align: left; box-shadow: 6px 7px 0 var(--shadow-cyan); transition: transform .16s ease,border-color .16s ease; }
+    .mode-button:nth-child(3n+2) { background: radial-gradient(circle at 82% 12%,rgba(159,131,255,.16),transparent 32%),rgba(255,255,255,.025); box-shadow: 6px 7px 0 var(--shadow-violet); }
+    .mode-button:nth-child(3n) { background: radial-gradient(circle at 82% 12%,rgba(212,125,84,.16),transparent 32%),rgba(255,255,255,.025); box-shadow: 6px 7px 0 var(--shadow-copper); }
+    .mode-button:hover { transform: translateY(-3px); border-color: var(--cyan); }
+    .mode-button.active { border-color: var(--cyan); background-color: rgba(100,228,244,.08); box-shadow: 0 0 0 2px var(--cyan),6px 7px 0 var(--shadow-violet); }
+    .mode-shape { width: 50px; height: 72px; display: grid; place-items: center; }
+    .mode-shape i { display: block; max-width: 50px; max-height: 70px; min-width: 13px; min-height: 13px; border: 1px solid var(--line-strong); border-radius: 5px; background: linear-gradient(145deg,var(--paper),#cfd4e6); box-shadow: 4px 5px 0 var(--shadow-violet); }
+    .mode-copy { min-width: 0; }
+    .mode-copy b { display: block; font-size: 9px; line-height: 1.4; }
+    .mode-copy small { display: block; margin-top: 6px; color: var(--muted); font-size: 7px; line-height: 1.45; }
+    .best-badge { position: absolute; top: -7px; right: 8px; display: none; padding: 5px 7px; border-radius: 999px; color: #111326; background: var(--cyan); font-size: 6px; font-weight: 700; letter-spacing: .07em; }
+    .mode-button.recommended .best-badge { display: block; }
+
+    /* Fit and quality use equal, large click targets. */
+    .choice-row { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-top: 17px; }
+    .choice-button { min-height: 104px; padding: 15px; border: 1px solid var(--line); border-radius: 18px; color: var(--text); background: rgba(255,255,255,.03); text-align: left; }
+    .choice-button:hover { border-color: var(--violet); }
+    .choice-button.active { border-color: var(--violet); background: rgba(159,131,255,.13); box-shadow: inset 0 -4px 0 var(--violet); }
+    .choice-button b { display: block; font: 600 18px/1 Fraunces,Georgia,serif; }
+    .choice-button small { display: block; margin-top: 8px; color: var(--muted); font-size: 8px; line-height: 1.55; }
+    .quality-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin-top: 17px; }
+    .quality-button { min-height: 98px; padding: 14px; border: 1px solid var(--line); border-radius: 18px; color: var(--text); background: rgba(255,255,255,.03); text-align: left; }
+    .quality-button:hover { border-color: var(--copper); }
+    .quality-button.active { border-color: var(--copper); background: rgba(212,125,84,.12); box-shadow: inset 0 -4px 0 var(--copper); }
+    .quality-button b { display: block; font-size: 9px; }
+    .quality-button small { display: block; margin-top: 7px; color: var(--muted); font-size: 7px; line-height: 1.5; }
+
+    /* Output line sirf format aur final action rakhti hai; unnecessary settings nahi. */
+    .finish-grid { display: grid; grid-template-columns: minmax(170px,.42fr) minmax(0,.58fr); gap: 12px; margin-top: 17px; align-items: end; }
+    .field label { display: flex; justify-content: space-between; gap: 9px; margin-bottom: 7px; color: var(--muted); font-size: 7px; font-weight: 700; letter-spacing: .08em; }
+    .field select { width: 100%; min-height: 52px; padding: 0 12px; border: 1px solid var(--line); border-radius: 14px; color: var(--text); background: var(--surface-deep); font-size: 9px; font-weight: 700; }
+    .convert-button { width: 100%; min-height: 54px; padding: 0 18px; border: 0; border-radius: 999px; color: #fff; background: linear-gradient(110deg,var(--violet),var(--copper)); box-shadow: 7px 8px 0 var(--shadow-cyan); font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+    .convert-button:active { transform: translateY(2px); }
+    .convert-button:disabled { opacity: .46; cursor: not-allowed; filter: grayscale(.45); }
+    .status-box { min-height: 56px; margin-top: 13px; padding: 12px 13px; border: 1px solid rgba(100,228,244,.28); border-left: 4px solid var(--cyan); border-radius: 13px; color: var(--cyan); background: rgba(100,228,244,.07); font-size: 8px; line-height: 1.55; }
+    .status-box.processing { color: #f09b72; border-color: rgba(212,125,84,.34); background: rgba(212,125,84,.09); }
+    .status-box.error { color: var(--danger); border-color: rgba(255,125,133,.38); background: rgba(255,125,133,.08); }
+
+    /*
+      ========================================================================
+      09 // RESULT PANEL
+      KYA: Python response headers ki real dimensions/size aur warnings dikhata hai.
+      CHANGE EFFECT: Header names badloge to prototype.py me bhi same names chahiye.
+      ========================================================================
+    */
+    .result-panel { display: none; margin-top: 14px; padding-top: 15px; border-top: 1px solid var(--line); }
+    .result-panel.visible { display: block; }
+    .result-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .result-head b { color: var(--success); font-size: 9px; letter-spacing: .08em; }
+    .result-head span { color: var(--muted); font-size: 7px; }
+    .result-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; margin-top: 10px; }
+    .result-stat { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.03); }
+    .result-stat small { display: block; color: var(--muted); font-size: 6px; font-weight: 700; letter-spacing: .08em; }
+    .result-stat b { display: block; margin-top: 6px; overflow: hidden; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+    .warning-list { display: none; margin: 11px 0 0; padding: 11px 11px 11px 28px; border: 1px solid rgba(212,125,84,.30); border-radius: 12px; color: #f0a585; background: rgba(212,125,84,.08); font-size: 7px; line-height: 1.6; }
+    .warning-list.visible { display: block; }
+    .download-button { width: 100%; min-height: 52px; margin-top: 11px; border: 1px solid rgba(100,228,244,.34); border-radius: 14px; color: #111326; background: var(--cyan); box-shadow: 6px 7px 0 var(--shadow-violet); font-size: 9px; font-weight: 700; letter-spacing: .06em; }
+
+    /*
+      ========================================================================
+      10 // FOOTER
+      KYA: Related existing tools ki navigation aur page scope explain karta hai.
+      ========================================================================
+    */
+    .trust-strip { border-block: 1px solid var(--line); background: var(--surface-soft); }
+    .trust-grid { display: grid; grid-template-columns: repeat(4,1fr); }
+    .trust-grid article { min-height: 116px; padding: 21px; border-right: 1px solid var(--line); }
+    .trust-grid article:last-child { border-right: 0; }
+    .trust-mark { width: 28px; height: 28px; display: grid; place-items: center; color: var(--cyan); border: 1px solid rgba(100,228,244,.30); border-radius: 50%; background: rgba(100,228,244,.07); font-size: 8px; font-weight: 700; }
+    .trust-grid b { display: block; margin-top: 11px; font-size: 8px; }
+    .trust-grid p { margin: 6px 0 0; color: var(--muted); font-size: 7px; line-height: 1.5; }
+    footer { padding: 28px 0; color: var(--muted); background: rgba(4,5,13,.72); }
+    :root[data-theme="light"] footer { background: #e9ece9; }
+    .footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 18px; font-size: 7px; }
+    .footer-links { display: flex; flex-wrap: wrap; gap: 16px; }
+    .footer-links a:hover { color: var(--cyan); }
+
+    /*
+      ========================================================================
+      11 // RESPONSIVE RULES
+      KYA: Desktop grid ko tablet/mobile par single column me badalta hai.
+      CHANGE EFFECT: Breakpoint value badalne se sirf layout switch timing badlegi.
+      ========================================================================
+    */
+    @media (max-width: 1120px) {
+      .site-nav { display: none; }
+      .hero-panel { grid-template-columns: 1fr; }
+      .shape-theater { min-height: 430px; }
+      .studio-grid { grid-template-columns: 1fr; }
+      .preview-deck { position: static; }
+      .mode-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
     }
-    .target-badge.visible { display: block; }
-
-    @media (max-width: 960px) {
-      .workspace { grid-template-columns: 1fr; }
-      .stage-panel { min-height: 400px; order: -1; } /* Stage on top on mobile */
-      .site-header { width: calc(100% - 20px); border-radius: 18px; top: 10px; }
+    @media (max-width: 760px) {
+      .wrap { width: min(100% - 20px,var(--page-width)); }
+      .site-header { top: 8px; width: calc(100% - 14px); border-radius: 18px 18px 44px 44px; }
+      .header-inner { min-height: 78px; padding-inline: 14px; grid-template-columns: 1fr auto; }
+      .engine-chip, .theme-label { display: none; }
+      .brand-mark { width: 46px; height: 46px; }
+      .brand-copy b { font-size: 27px; }
+      .hero { padding-top: 58px; }
+      .hero-panel { padding: 31px 21px 48px; border-radius: 36px 36px 90px 36px; }
+      .hero h1 { font-size: 52px; }
+      .shape-theater { min-height: 390px; border-radius: 100px 100px 22px 22px; }
+      .studio-shell { padding: 9px; border-radius: 25px; }
+      .studio-topbar { align-items: flex-start; flex-direction: column; padding: 13px; }
+      .step-line { flex-wrap: wrap; }
+      .mode-grid { grid-template-columns: 1fr 1fr; }
+      .quality-grid { grid-template-columns: 1fr; }
+      .finish-grid { grid-template-columns: 1fr; }
+      .trust-grid { grid-template-columns: 1fr 1fr; }
+      .trust-grid article:nth-child(2) { border-right: 0; }
+      .trust-grid article { border-bottom: 1px solid var(--line); }
+    }
+    @media (max-width: 480px) {
+      .brand-copy small { display: none; }
+      .hero h1 { font-size: 44px; }
+      .shape-theater { min-height: 350px; }
+      .shape-square { width: 125px; }
+      .shape-story { width: 78px; }
+      .shape-banner { width: 170px; }
+      .preview-deck, .control-card { padding: 14px; }
+      .dropzone { align-items: center; flex-direction: column; text-align: center; }
+      .analysis-grid, .result-stats { grid-template-columns: 1fr 1fr; }
+      .preview-stage { min-height: 340px; }
+      .mode-grid, .choice-row { grid-template-columns: 1fr; }
+      .mode-button { min-height: 106px; }
+      .control-heading { flex-direction: column; }
+      .control-heading small { text-align: left; }
+      .trust-grid { grid-template-columns: 1fr; }
+      .trust-grid article { border-right: 0; }
+      .footer-inner { align-items: flex-start; flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
     }
   </style>
 </head>
-<body>
 
-  <!-- Header -->
+<body>
+  <!-- Loader wrapper: JS window.load event par isme .is-hidden class lagata hai. -->
+  <div class="page-loader" id="pageLoader" role="status" aria-label="Opening Aurora Photo-Mode Pavilion">
+    <!-- Loader ka visible arch; purely decorative, Python se connected nahi. -->
+    <div class="loader-arch">
+      <b>15</b>
+      <small>PREPARING THE PHOTO FRAMES</small>
+    </div>
+  </div>
+
+  <!-- Main header: existing project pages ke saath same brand family maintain karta hai. -->
   <header class="site-header">
+    <!-- Header inner grid: brand, navigation aur live controls ko align karta hai. -->
     <div class="header-inner">
-      <a class="brand" href="#">
-        <span class="brand-mark">15</span>
-        <span class="brand-copy"><b>ImageReducer</b><small>Aurora Social Resizer</small></span>
+      <a class="brand" href="home_01.html" aria-label="ImageReducer home">
+        <span class="brand-mark" aria-hidden="true">15</span>
+        <span class="brand-copy"><b>ImageReducer</b><small>AURORA PRECISION SYSTEMS</small></span>
       </a>
+
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="home_01.html"><span>HOME</span><small>PAVILION</small></a>
+        <a href="index_02.html"><span>RESIZE</span><small>PRECISION</small></a>
+        <a href="All_converter.html"><span>CONVERT</span><small>42 ROUTES</small></a>
+        <a class="active" href="#studio"><span>MODES</span><small>35 FRAMES</small></a>
+      </nav>
+
+      <!-- Header action group: backend status + appearance theme. -->
+      <div class="header-actions">
+        <span class="engine-chip" id="engineChip"><i aria-hidden="true"></i><span id="engineText">ENGINE CHECKING</span></span>
+        <button class="theme-button" id="themeToggle" type="button" aria-label="Switch to bright theme" aria-pressed="false">
+          <span class="theme-icon" aria-hidden="true">☀</span>
+          <span class="theme-label">BRIGHT</span>
+        </button>
+      </div>
     </div>
   </header>
 
-  <!-- Main App Workspace -->
-  <main class="workspace">
-    
-    <!-- Left: Control Panel -->
-    <aside class="settings-panel">
-      
-      <div>
-        <div class="panel-section-title">01 // Select Platform</div>
-        <div class="platform-list" id="platformList">
-          <!-- Populated by JS -->
+  <!-- Page main: hero concept aur actual working studio dono rakhta hai. -->
+  <main>
+    <!-- Hero section: user ko page ka single purpose samjhata hai. -->
+    <section class="hero" aria-labelledby="pageTitle">
+      <!-- Shared width wrapper. -->
+      <div class="wrap">
+        <!-- Hero glass panel: text aur CSS shape theater ka two-column layout. -->
+        <div class="hero-panel">
+          <!-- Hero copy group. -->
+          <div class="hero-copy">
+            <span class="eyebrow"><i aria-hidden="true"></i> ONE PHOTO · EVERY PLATFORM</span>
+            <h1 id="pageTitle">Change the frame.<br><span>Keep the moment.</span></h1>
+            <p>Upload once, choose where the photo is going, and pick the shape you need. The pavilion handles square posts, tall stories, wide banners, profile pictures, pins and e-mail covers.</p>
+            <!-- Hero links only scroll/navigate; they never start conversion automatically. -->
+            <div class="hero-actions">
+              <a class="primary-link" href="#studio">CHOOSE A PHOTO MODE →</a>
+              <a class="secondary-link" href="#howItWorks">SEE THE 3 EASY STEPS</a>
+            </div>
+          </div>
+
+          <!-- CSS-only hero visual: square, story and banner shapes. -->
+          <div class="shape-theater" aria-label="Square, story and banner photo frame examples">
+            <span class="theater-lamp" aria-hidden="true"></span>
+            <!-- Shape orbit groups the three sample frames. -->
+            <div class="shape-orbit">
+              <span class="shape-card shape-square">1:1</span>
+              <span class="shape-card shape-story">9:16</span>
+              <span class="shape-card shape-banner">WIDE</span>
+            </div>
+            <span class="theater-caption">SQUARE · TALL · WIDE · READY</span>
+          </div>
         </div>
       </div>
-
-      <div>
-        <div class="panel-section-title">02 // Target Resolution</div>
-        <div class="resolution-grid" id="resolutionGrid">
-          <!-- Populated by JS -->
-        </div>
-      </div>
-
-      <div>
-        <div class="panel-section-title">03 // Resize Type</div>
-        <div class="toggle-group" id="resizeTypeGroup">
-          <button class="toggle-btn active" data-type="fit">FIT (Pad)</button>
-          <button class="toggle-btn" data-type="fill">FILL (Crop)</button>
-          <button class="toggle-btn" data-type="stretch">STRETCH</button>
-        </div>
-      </div>
-
-      <div id="backgroundSettings">
-        <div class="panel-section-title">04 // Background Fill</div>
-        <div class="toggle-group" id="bgTypeGroup">
-          <button class="toggle-btn active" data-bg="color">COLOR</button>
-          <button class="toggle-btn" data-bg="blur">BLUR</button>
-        </div>
-      </div>
-
-      <button class="hardware-btn" id="btnResize" disabled>RESIZE IMAGE TO POST</button>
-    </aside>
-
-    <!-- Right: Preview Stage -->
-    <section class="stage-panel">
-      
-      <!-- Uploader State -->
-      <label class="dropzone" id="dropzone" for="fileInput">
-        <span class="drop-symbol">↑</span>
-        <h3>Drop your image here</h3>
-        <p>Or click to securely upload<br>JPG, PNG, WebP supported</p>
-      </label>
-      <input class="file-input" id="fileInput" type="file" accept="image/jpeg, image/png, image/webp">
-
-      <!-- Interactive Preview State -->
-      <div class="preview-container" id="previewContainer">
-        <div class="canvas-wrapper" id="canvasWrapper">
-          <canvas id="liveCanvas"></canvas>
-        </div>
-      </div>
-
-      <!-- Overlays -->
-      <div class="target-badge" id="targetBadge">Target: 1080 x 1080 (1:1)</div>
-      
-      <div class="result-overlay" id="resultOverlay">
-        <small>CONVERSION COMPLETE</small>
-        <b id="resultTitle">Instagram Post</b>
-        <p id="resultDetails">1080 × 1080 px • Fit • Blur</p>
-        <div class="action-row">
-          <button class="action-btn btn-reset" id="btnReset">NEW IMAGE</button>
-          <button class="action-btn btn-download" id="btnDownload">DOWNLOAD ↓</button>
-        </div>
-      </div>
-
     </section>
 
+    <!-- Actual converter studio begins here. -->
+    <section class="studio-section" id="studio" aria-labelledby="studioTitle">
+      <!-- Studio shared width wrapper. -->
+      <div class="wrap">
+        <!-- Studio intro. -->
+        <div class="section-heading">
+          <small>PHOTO-MODE STUDIO // 35 READY FRAMES</small>
+          <h2 id="studioTitle">Three choices. One ready photo.</h2>
+          <p>Choose a platform, tap the picture shape, then export. Your original file stays untouched; Python creates a new result.</p>
+        </div>
+
+        <!-- Working studio outer shell. -->
+        <div class="studio-shell">
+          <!-- Studio top bar: status identity and short workflow reminder. -->
+          <div class="studio-topbar">
+            <b><i aria-hidden="true"></i> AURORA_MODE_ENGINE // <span id="topbarState">WAITING FOR PHOTO</span></b>
+            <span class="step-line"><span>1</span> UPLOAD <span>2</span> PICK A FRAME <span>3</span> DOWNLOAD</span>
+          </div>
+
+          <!-- Main two-column working area. -->
+          <div class="studio-grid">
+            <!-- LEFT: upload, analysis and live preview stay together. -->
+            <aside class="preview-deck" aria-label="Photo upload and preview">
+              <!-- Preview deck title. -->
+              <div class="panel-title">
+                <b>01 // YOUR PHOTO</b>
+                <span id="sourceState">NOT UPLOADED</span>
+              </div>
+
+              <label class="dropzone" id="dropzone" for="fileInput">
+                <span class="drop-icon" aria-hidden="true">↑</span>
+                <span class="drop-copy"><strong>Drop or choose a photo</strong><small>JPG, JPEG, WEBP, GIF, TIF, PNG or SVG · max 25 MB</small></span>
+              </label>
+              <input class="file-input" id="fileInput" type="file" accept=".jpg,.jpeg,.webp,.gif,.tif,.tiff,.png,.svg,image/jpeg,image/webp,image/gif,image/tiff,image/png,image/svg+xml">
+
+              <!-- Selected file summary appears after upload. -->
+              <div class="file-meta" id="fileMeta">
+                <img class="file-thumb" id="fileThumb" alt="Selected photo thumbnail">
+                <span class="file-copy"><b id="fileName">NO FILE</b><small id="fileSize">—</small><small id="fileHint">Waiting for analysis</small></span>
+                <button class="remove-file" id="removeFile" type="button" aria-label="Remove selected photo">×</button>
+              </div>
+
+              <!-- Backend analysis: these four values come from the uploaded source. -->
+              <div class="analysis-grid" aria-label="Uploaded photo information">
+                <div class="analysis-item"><small>FORMAT</small><b id="sourceFormat">—</b></div>
+                <div class="analysis-item"><small>DIMENSIONS</small><b id="sourceDimensions">—</b></div>
+                <div class="analysis-item"><small>ORIENTATION</small><b id="sourceOrientation">—</b></div>
+                <div class="analysis-item"><small>NEAREST RATIO</small><b id="sourceRatio">—</b></div>
+              </div>
+
+              <!-- Live preview stage: small browser rendering; final file always comes from Python. -->
+              <div class="preview-stage" id="previewStage">
+                <!-- Source/result switch only appears after a backend result exists. -->
+                <div class="preview-tabs" id="previewTabs" role="group" aria-label="Preview source or result">
+                  <button class="preview-tab active" id="showSource" type="button">LIVE FRAME</button>
+                  <button class="preview-tab" id="showResult" type="button">PYTHON RESULT</button>
+                </div>
+
+                <!-- Empty state is visible until browser can decode an uploaded image. -->
+                <div class="preview-empty" id="previewEmpty"><strong>Your frame will appear here</strong><small>Upload a photo, then tap any platform mode to see its new shape.</small></div>
+                <canvas id="previewCanvas" aria-label="Live target frame preview"></canvas>
+                <img id="resultImage" alt="Converted Python result preview">
+                <p class="browser-preview-note" id="browserPreviewNote">This browser cannot display this format, but Python can still convert and download it.</p>
+                <span class="preview-badge" id="previewBadge">NO FRAME SELECTED</span>
+              </div>
+            </aside>
+
+            <!-- RIGHT: guided selection path. -->
+            <div class="control-path">
+              <!-- Step 2A: platform + exact target mode. -->
+              <section class="control-card" aria-labelledby="modeHeading">
+                <!-- Heading includes one-line child-friendly instruction. -->
+                <div class="control-heading">
+                  <!-- Heading copy wrapper keeps the small step label with its title. -->
+                  <div><span>02 // WHERE WILL YOU USE IT?</span><h3 id="modeHeading">Pick a platform and shape</h3></div>
+                  <small>Choose the app first. Then choose profile, post, story, banner or another picture shape.</small>
+                </div>
+                <div class="platform-list" id="platformList" role="group" aria-label="Photo platforms"></div>
+                <div class="mode-grid" id="modeGrid" role="group" aria-label="Available photo modes"></div>
+              </section>
+
+              <!-- Step 2B: how the source fits inside a different ratio. -->
+              <section class="control-card" aria-labelledby="fitHeading">
+                <!-- Fit heading. -->
+                <div class="control-heading">
+                  <!-- Heading copy wrapper keeps the small step label with its title. -->
+                  <div><span>03 // HOW SHOULD IT FIT?</span><h3 id="fitHeading">Fill it or show it all</h3></div>
+                  <small>The live preview shows the difference before Python makes the file.</small>
+                </div>
+                <div class="choice-row" id="fitChoices" role="group" aria-label="Photo fit style">
+                  <button class="choice-button active" type="button" data-fit="cover" aria-pressed="true"><b>Fill the frame</b><small>No empty space. A little from the edges may be cropped.</small></button>
+                  <button class="choice-button" type="button" data-fit="contain" aria-pressed="false"><b>Show the whole photo</b><small>Nothing is cropped. Empty space may appear around the photo.</small></button>
+                </div>
+              </section>
+
+              <!-- Step 2C: backend quality multiplier. -->
+              <section class="control-card" aria-labelledby="qualityHeading">
+                <!-- Quality heading. -->
+                <div class="control-heading">
+                  <!-- Heading copy wrapper keeps the small step label with its title. -->
+                  <div><span>04 // HOW SHARP?</span><h3 id="qualityHeading">Choose export quality</h3></div>
+                  <small>Higher quality makes more pixels and usually a larger file.</small>
+                </div>
+                <div class="quality-grid" id="qualityGrid" role="group" aria-label="Export quality"></div>
+              </section>
+
+              <!-- Final action card: output format + convert + real result. -->
+              <section class="control-card" aria-labelledby="finishHeading">
+                <!-- Finish heading. -->
+                <div class="control-heading">
+                  <!-- Heading copy wrapper keeps the small step label with its title. -->
+                  <div><span>05 // MAKE THE PHOTO</span><h3 id="finishHeading">Create the new file</h3></div>
+                  <small>Your uploaded original is never overwritten.</small>
+                </div>
+
+                <!-- Output format and main conversion button. -->
+                <div class="finish-grid">
+                  <div class="field">
+                    <label for="outputFormat">OUTPUT FORMAT <span>AUTO KEEPS SOURCE</span></label>
+                    <select id="outputFormat">
+                      <option value="AUTO">Auto (same as source)</option>
+                      <option value="JPG">JPG</option>
+                      <option value="JPEG">JPEG</option>
+                      <option value="WEBP">WEBP</option>
+                      <option value="GIF">GIF</option>
+                      <option value="TIF">TIF</option>
+                      <option value="PNG">PNG</option>
+                      <option value="SVG">SVG</option>
+                    </select>
+                  </div>
+                  <button class="convert-button" id="convertButton" type="button" disabled>UPLOAD A PHOTO TO START</button>
+                </div>
+
+                <div class="status-box" id="statusBox" role="status" aria-live="polite">READY // Start by choosing one photo.</div>
+
+                <!-- Result panel remains hidden until /convert-photo-mode succeeds. -->
+                <div class="result-panel" id="resultPanel">
+                  <!-- Result header. -->
+                  <div class="result-head">
+                    <b>✓ PYTHON CONVERSION COMPLETE</b>
+                    <span id="resultMode">—</span>
+                  </div>
+
+                  <!-- Real response metadata from exposed Python headers. -->
+                  <div class="result-stats">
+                    <div class="result-stat"><small>DIMENSIONS</small><b id="resultDimensions">—</b></div>
+                    <div class="result-stat"><small>FILE SIZE</small><b id="resultSize">—</b></div>
+                    <div class="result-stat"><small>FORMAT</small><b id="resultFormat">—</b></div>
+                    <div class="result-stat"><small>FIT</small><b id="resultFit">—</b></div>
+                  </div>
+
+                  <ul class="warning-list" id="warningList"></ul>
+                  <button class="download-button" id="downloadButton" type="button">DOWNLOAD THE NEW PHOTO ↓</button>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
 
+  <!-- Simple three-step reassurance strip. -->
+  <section class="trust-strip" id="howItWorks" aria-label="How the photo mode tool works">
+    <!-- Four concise facts stay scannable on desktop and mobile. -->
+    <div class="wrap trust-grid">
+      <article><span class="trust-mark">01</span><b>UPLOAD ONCE</b><p>One source photo can become any of the ready platform frames.</p></article>
+      <article><span class="trust-mark">02</span><b>SEE THE SHAPE</b><p>The live preview changes as soon as you tap another mode.</p></article>
+      <article><span class="trust-mark">03</span><b>PYTHON BUILDS IT</b><p>The backend creates the exact pixels and validates the output.</p></article>
+      <article><span class="trust-mark">04</span><b>ORIGINAL STAYS SAFE</b><p>Only a new downloadable file is made; the original is untouched.</p></article>
+    </div>
+  </section>
+
+  <!-- Footer: links back to the rest of the existing ImageReducer project. -->
+  <footer>
+    <!-- Footer inner flex row. -->
+    <div class="wrap footer-inner">
+      <span>IMAGEREDUCER // AURORA PHOTO-MODE PAVILION</span>
+      <nav class="footer-links" aria-label="Footer navigation"><a href="home_01.html">Pavilion</a><a href="index_02.html">Precision Resizer</a><a href="All_converter.html">Route Console</a></nav>
+      <span>35 MODES · 12 PLATFORM GROUPS · 3 QUALITY LEVELS</span>
+    </div>
+  </footer>
+
   <script>
-    // --- Data Model based on User's Screenshots ---
-    const socialData = {
-      Instagram: [
-        { label: "Profile Picture", ratio: "1:1", width: 320, height: 320 },
-        { label: "Post (square)", ratio: "1:1", width: 1080, height: 1080 },
-        { label: "Post (portrait)", ratio: "4:5", width: 1080, height: 1350 },
-        { label: "Post (landscape)", ratio: "1.91:1", width: 1080, height: 566 },
-        { label: "Story", ratio: "9:16", width: 1080, height: 1920 },
-        { label: "Reels", ratio: "9:16", width: 1080, height: 1920 },
-        { label: "Reels Cover", ratio: "9:16", width: 1080, height: 1920 }
-      ],
-      Facebook: [
-        { label: "Profile Photo", ratio: "1:1", width: 176, height: 176 },
-        { label: "Post Square", ratio: "1:1", width: 1200, height: 1200 },
-        { label: "Stories", ratio: "9:16", width: 1080, height: 1920 },
-        { label: "Reels", ratio: "9:16", width: 1080, height: 1920 },
-        { label: "Group Cover Image", ratio: "16:9", width: 1640, height: 856 },
-        { label: "Cover Event Image", ratio: "1.92:1", width: 1200, height: 628 }
-      ],
-      YouTube: [
-        { label: "Profile Photo", ratio: "1:1", width: 800, height: 800 },
-        { label: "Thumbnail", ratio: "16:9", width: 1280, height: 720 },
-        { label: "Banner", ratio: "16:9", width: 2560, height: 1440 }
-      ],
-      X: [
-        { label: "Profile Picture", ratio: "1:1", width: 400, height: 400 },
-        { label: "Header Picture", ratio: "16:9", width: 1500, height: 500 }
-      ],
-      LinkedIn: [
-        { label: "Profile Photo", ratio: "1:1", width: 400, height: 400 },
-        { label: "Background Photo", ratio: "4:1", width: 1584, height: 396 },
-        { label: "Company Logo", ratio: "1:1", width: 300, height: 300 },
-        { label: "Company Cover", ratio: "5.91:1", width: 1128, height: 191 }
-      ],
-      Pinterest: [
-        { label: "Square Pin", ratio: "1:1", width: 1000, height: 1000 },
-        { label: "Standard Pin", ratio: "2:3", width: 1000, height: 1500 },
-        { label: "Vertical Pin", ratio: "9:16", width: 1000, height: 1778 }
-      ],
-      TikTok: [
-        { label: "Profile Picture", ratio: "1:1", width: 200, height: 200 },
-        { label: "In-feed Ad", ratio: "1:1", width: 1080, height: 1080 }
-      ],
-      Tumblr: [
-        { label: "Profile Picture", ratio: "1:1", width: 128, height: 128 },
-        { label: "Header Picture", ratio: "16:9", width: 3000, height: 1055 }
-      ],
-      Snapchat: [
-        { label: "Image Share", ratio: "9:16", width: 1080, height: 1920 }
-      ],
-      Vinted: [
-        { label: "Profile Picture", ratio: "1:1", width: 300, height: 300 },
-        { label: "Item Photo", ratio: "2:3", width: 800, height: 1200 }
-      ],
-      Email: [
-        { label: "Blog Featured 1", ratio: "3:1", width: 600, height: 200 },
-        { label: "Blog Image", ratio: "1:1", width: 600, height: 600 },
-        { label: "Blog Featured 2", ratio: "2:1", width: 600, height: 300 }
-      ]
-    };
+    (function () {
+      "use strict";
 
-    // --- State Management ---
-    const state = {
-      platform: 'Instagram',
-      modeIndex: 1, // Default: Post (square)
-      resizeType: 'fit', // fit, fill, stretch
-      bgType: 'color', // color, blur
-      imageObj: null,
-      fileName: 'resized_image',
-      resultBlob: null
-    };
+      /*
+        ======================================================================
+        01 // FRONTEND CONSTANTS
+        KYA: API address aur upload limit fixed, readable names me rakhe hain.
+        KYUN: Ek hi place edit karna easy hai; code me address repeat nahi hota.
+        CHANGE EFFECT: Port change karoge to prototype.py ki app.run(port=...)
+                       value bhi same honi chahiye, warna connection fail hoga.
+        PYTHON EFFECT: Is constant ko edit karna Python file ko edit nahi karta.
+        ======================================================================
+      */
+      const API_BASE = "http://127.0.0.1:5000";
+      const MAX_FILE_BYTES = 25 * 1024 * 1024;
+      const PREVIEW_MAX_SIDE = 900;
 
-    // --- DOM Elements ---
-    const platformList = document.getElementById('platformList');
-    const resolutionGrid = document.getElementById('resolutionGrid');
-    const bgSettingsGroup = document.getElementById('backgroundSettings');
-    const dropzone = document.getElementById('dropzone');
-    const fileInput = document.getElementById('fileInput');
-    const previewContainer = document.getElementById('previewContainer');
-    const liveCanvas = document.getElementById('liveCanvas');
-    const canvasCtx = liveCanvas.getContext('2d');
-    const canvasWrapper = document.getElementById('canvasWrapper');
-    const targetBadge = document.getElementById('targetBadge');
-    const btnResize = document.getElementById('btnResize');
-    const resultOverlay = document.getElementById('resultOverlay');
-
-    // --- Initialization & UI Building ---
-    function init() {
-      buildPlatforms();
-      buildResolutions();
-      bindEvents();
-      updateExecuteButton();
-    }
-
-    function buildPlatforms() {
-      platformList.innerHTML = '';
-      Object.keys(socialData).forEach(platform => {
-        const btn = document.createElement('button');
-        btn.className = `platform-btn ${platform === state.platform ? 'active' : ''}`;
-        btn.textContent = platform;
-        btn.onclick = () => {
-          state.platform = platform;
-          state.modeIndex = 0; // Reset mode on platform change
-          buildPlatforms();
-          buildResolutions();
-          updateLivePreview();
-        };
-        platformList.appendChild(btn);
-      });
-    }
-
-    function buildResolutions() {
-      resolutionGrid.innerHTML = '';
-      const modes = socialData[state.platform];
-      modes.forEach((mode, idx) => {
-        const btn = document.createElement('button');
-        btn.className = `res-btn ${idx === state.modeIndex ? 'active' : ''}`;
-        btn.innerHTML = `<b>${mode.label}</b><small>RATIO ${mode.ratio}</small>`;
-        btn.onclick = () => {
-          state.modeIndex = idx;
-          buildResolutions();
-          updateLivePreview();
-        };
-        resolutionGrid.appendChild(btn);
-      });
-      updateExecuteButton();
-    }
-
-    function bindEvents() {
-      // Resize Type Toggles
-      document.querySelectorAll('#resizeTypeGroup .toggle-btn').forEach(btn => {
-        btn.onclick = (e) => {
-          document.querySelectorAll('#resizeTypeGroup .toggle-btn').forEach(b => b.classList.remove('active'));
-          e.target.classList.add('active');
-          state.resizeType = e.target.dataset.type;
-          
-          // Toggle visibility of Background settings (only needed for Fit)
-          bgSettingsGroup.style.display = state.resizeType === 'fit' ? 'block' : 'none';
-          
-          updateLivePreview();
-        };
-      });
-
-      // Background Fill Toggles
-      document.querySelectorAll('#bgTypeGroup .toggle-btn').forEach(btn => {
-        btn.onclick = (e) => {
-          document.querySelectorAll('#bgTypeGroup .toggle-btn').forEach(b => b.classList.remove('active'));
-          e.target.classList.add('active');
-          state.bgType = e.target.dataset.bg;
-          updateLivePreview();
-        };
-      });
-
-      // File Upload Events
-      dropzone.addEventListener('click', () => fileInput.click());
-      
-      ['dragenter', 'dragover'].forEach(evt => {
-        dropzone.addEventListener(evt, (e) => {
-          e.preventDefault();
-          dropzone.classList.add('is-over');
-        });
-      });
-      
-      ['dragleave', 'drop'].forEach(evt => {
-        dropzone.addEventListener(evt, (e) => {
-          e.preventDefault();
-          dropzone.classList.remove('is-over');
-        });
-      });
-      
-      dropzone.addEventListener('drop', (e) => {
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-          handleFile(e.dataTransfer.files[0]);
-        }
-      });
-      
-      fileInput.addEventListener('change', (e) => {
-        if (e.target.files && e.target.files[0]) {
-          handleFile(e.target.files[0]);
-        }
-      });
-
-      // Actions
-      btnResize.addEventListener('click', performResize);
-      document.getElementById('btnReset').addEventListener('click', resetApp);
-      document.getElementById('btnDownload').addEventListener('click', downloadResult);
-    }
-
-    function updateExecuteButton() {
-      const mode = socialData[state.platform][state.modeIndex];
-      btnResize.textContent = `RESIZE TO ${mode.label.toUpperCase()}`;
-    }
-
-    // --- Image Handling & Canvas Rendering ---
-    function handleFile(file) {
-      if (!file.type.match('image.*')) return alert('Please upload an image file.');
-      
-      state.fileName = file.name.split('.')[0] + '_resized';
-      
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          state.imageObj = img;
-          dropzone.style.display = 'none';
-          previewContainer.classList.add('has-image');
-          targetBadge.classList.add('visible');
-          btnResize.disabled = false;
-          updateLivePreview();
-        };
-        img.src = e.target.result;
+      /*
+        FALLBACK CATALOG:
+        KYA: Backend start na ho tab bhi user platform/mode layout explore kar sake.
+        IMPORTANT: Final conversion ke waqt Python hi source of truth hai.
+        CHANGE EFFECT: Sirf fallback edit karne se Python export size nahi badlega;
+                       real size badalne ke liye prototype.py SMART_MODE_PRESETS edit karo.
+      */
+      const FALLBACK_MODES = {
+        FACEBOOK_PROFILE_PHOTO: { label: "Profile Photo Size", platform: "Facebook", width: 1080, height: 1080, aspect_label: "1:1" },
+        FACEBOOK_POST_SQUARE: { label: "Post Square Size", platform: "Facebook", width: 1080, height: 1080, aspect_label: "1:1" },
+        FACEBOOK_STORIES: { label: "Stories Size", platform: "Facebook", width: 1080, height: 1920, aspect_label: "9:16" },
+        FACEBOOK_REELS: { label: "Reels Size", platform: "Facebook", width: 1080, height: 1920, aspect_label: "9:16" },
+        FACEBOOK_GROUP_COVER_IMAGE: { label: "Group Cover Image Size", platform: "Facebook", width: 1920, height: 1080, aspect_label: "16:9" },
+        FACEBOOK_COVER_EVENT_IMAGE: { label: "Cover Event Image Size", platform: "Facebook", width: 1920, height: 1000, aspect_label: "1.92:1" },
+        INSTAGRAM_PROFILE_PICTURE: { label: "Profile Picture Size", platform: "Instagram", width: 1080, height: 1080, aspect_label: "1:1" },
+        INSTAGRAM_POST: { label: "Post (square) Size", platform: "Instagram", width: 1080, height: 1080, aspect_label: "1:1" },
+        INSTAGRAM_POST_PORTRAIT: { label: "Post (portrait) Size", platform: "Instagram", width: 1080, height: 1350, aspect_label: "4:5" },
+        INSTAGRAM_POST_LANDSCAPE: { label: "Post (landscape) Size", platform: "Instagram", width: 1910, height: 1000, aspect_label: "1.91:1" },
+        INSTAGRAM_STORY: { label: "Story Size", platform: "Instagram", width: 1080, height: 1920, aspect_label: "9:16" },
+        INSTAGRAM_REELS: { label: "Reels Size", platform: "Instagram", width: 1080, height: 1920, aspect_label: "9:16" },
+        INSTAGRAM_REELS_COVER: { label: "Reels Cover Size", platform: "Instagram", width: 1080, height: 1920, aspect_label: "9:16" },
+        YOUTUBE_PROFILE_PHOTO: { label: "Profile Photo Size", platform: "YouTube", width: 1080, height: 1080, aspect_label: "1:1" },
+        YOUTUBE_THUMBNAIL: { label: "Thumbnail Size", platform: "YouTube", width: 1280, height: 720, aspect_label: "16:9" },
+        YOUTUBE_BANNER: { label: "Banner Size", platform: "YouTube", width: 2560, height: 1440, aspect_label: "16:9" },
+        X_PROFILE_PICTURE: { label: "Profile Picture Size", platform: "X", width: 1080, height: 1080, aspect_label: "1:1" },
+        X_HEADER_PICTURE: { label: "Header Picture Size", platform: "X", width: 1920, height: 1080, aspect_label: "16:9" },
+        LINKEDIN_PERSONAL_PROFILE_PHOTO: { label: "Profile Photo Size", platform: "LinkedIn Personal", width: 1080, height: 1080, aspect_label: "1:1" },
+        LINKEDIN_PERSONAL_BACKGROUND_PHOTO: { label: "Background Photo Size", platform: "LinkedIn Personal", width: 1584, height: 396, aspect_label: "4:1" },
+        LINKEDIN_COMPANY_LOGO: { label: "Company Logo Size", platform: "LinkedIn Company", width: 1080, height: 1080, aspect_label: "1:1" },
+        LINKEDIN_COMPANY_COVER_PHOTO: { label: "Cover Photo Size", platform: "LinkedIn Company", width: 1182, height: 200, aspect_label: "5.91:1" },
+        PINTEREST_SQUARE_IMAGES_PIN: { label: "Square Images Pin Size", platform: "Pinterest", width: 1080, height: 1080, aspect_label: "1:1" },
+        PINTEREST_STANDARD_IMAGE_PIN: { label: "Standard Image Pin Size", platform: "Pinterest", width: 1000, height: 1500, aspect_label: "2:3" },
+        PINTEREST_VERTICAL_IMAGE_PIN: { label: "Vertical Image Pin Size", platform: "Pinterest", width: 1080, height: 1920, aspect_label: "9:16" },
+        TIKTOK_PROFILE_PICTURE: { label: "Profile Picture Size", platform: "TikTok", width: 1080, height: 1080, aspect_label: "1:1" },
+        TIKTOK_IN_FEED_AD_IMAGE: { label: "In-feed Ad Image Size", platform: "TikTok", width: 1080, height: 1080, aspect_label: "1:1" },
+        TUMBLR_PROFILE_PICTURE: { label: "Profile Picture Size", platform: "Tumblr", width: 1080, height: 1080, aspect_label: "1:1" },
+        TUMBLR_HEADER_IMAGE: { label: "Header Image Size", platform: "Tumblr", width: 1920, height: 1080, aspect_label: "16:9" },
+        SNAPCHAT_IMAGE_SHARE: { label: "Image Share Size", platform: "Snapchat", width: 1080, height: 1920, aspect_label: "9:16" },
+        VINTED_PROFILE_PICTURE: { label: "Profile Picture Size", platform: "Vinted", width: 1080, height: 1080, aspect_label: "1:1" },
+        VINTED_ITEM_PHOTO: { label: "Item Photo Size", platform: "Vinted", width: 1000, height: 1500, aspect_label: "2:3" },
+        EMAIL_BLOG_FEATURED_3_1: { label: "Email Blog Featured Size", platform: "E-mail", width: 1200, height: 400, aspect_label: "3:1" },
+        EMAIL_BLOG_IMAGE: { label: "Email Blog Image Size", platform: "E-mail", width: 1080, height: 1080, aspect_label: "1:1" },
+        EMAIL_BLOG_FEATURED_2_1: { label: "Email Blog Featured Size", platform: "E-mail", width: 1200, height: 600, aspect_label: "2:1" }
       };
-      reader.readAsDataURL(file);
-    }
 
-    function updateLivePreview() {
-      if (!state.imageObj) return;
+      /* Quality fallback prototype.py ke QUALITY_EXPORT_TIERS labels ko mirror karta hai. */
+      const FALLBACK_TIERS = {
+        HD: { label: "HD Photo", description: "Standard platform size. Fast and smaller file." },
+        FULL_HD: { label: "Full HD", description: "1.5× size. Best balance of sharpness and file size." },
+        ULTRA_HD_4K: { label: "Ultra HD 4K", description: "3× size. Maximum detail and largest file." }
+      };
 
-      const mode = socialData[state.platform][state.modeIndex];
-      const targetW = mode.width;
-      const targetH = mode.height;
+      /*
+        ======================================================================
+        02 // APP STATE
+        KYA: Current file/selection/result ki single memory object.
+        KYUN: Alag global variables se values out-of-sync ho sakti hain.
+        CHANGE EFFECT: Defaults change karoge to page ki first selected mode/fit badlegi.
+        ======================================================================
+      */
+      const state = {
+        modes: FALLBACK_MODES,
+        tiers: FALLBACK_TIERS,
+        platform: "Instagram",
+        modeKey: "INSTAGRAM_POST",
+        fitStrategy: "cover",
+        qualityTier: "HD",
+        file: null,
+        sourceUrl: null,
+        sourceImage: null,
+        sourceInfo: null,
+        recommendedModes: [],
+        userPickedMode: false,
+        resultBlob: null,
+        resultUrl: null,
+        resultFilename: "photo_mode_result.png",
+        backendOnline: false,
+        previewView: "source"
+      };
 
-      // Update badge
-      targetBadge.textContent = `Target: ${targetW} × ${targetH} (${mode.ratio})`;
+      /*
+        DOM references ek jagah cache kiye hain. Agar HTML id rename karo to
+        yahan matching property bhi update karna zaroori hai; Python unaffected.
+      */
+      const dom = {
+        pageLoader: document.getElementById("pageLoader"),
+        engineChip: document.getElementById("engineChip"),
+        engineText: document.getElementById("engineText"),
+        themeToggle: document.getElementById("themeToggle"),
+        topbarState: document.getElementById("topbarState"),
+        sourceState: document.getElementById("sourceState"),
+        dropzone: document.getElementById("dropzone"),
+        fileInput: document.getElementById("fileInput"),
+        fileMeta: document.getElementById("fileMeta"),
+        fileThumb: document.getElementById("fileThumb"),
+        fileName: document.getElementById("fileName"),
+        fileSize: document.getElementById("fileSize"),
+        fileHint: document.getElementById("fileHint"),
+        removeFile: document.getElementById("removeFile"),
+        sourceFormat: document.getElementById("sourceFormat"),
+        sourceDimensions: document.getElementById("sourceDimensions"),
+        sourceOrientation: document.getElementById("sourceOrientation"),
+        sourceRatio: document.getElementById("sourceRatio"),
+        previewStage: document.getElementById("previewStage"),
+        previewEmpty: document.getElementById("previewEmpty"),
+        previewCanvas: document.getElementById("previewCanvas"),
+        resultImage: document.getElementById("resultImage"),
+        browserPreviewNote: document.getElementById("browserPreviewNote"),
+        previewBadge: document.getElementById("previewBadge"),
+        previewTabs: document.getElementById("previewTabs"),
+        showSource: document.getElementById("showSource"),
+        showResult: document.getElementById("showResult"),
+        platformList: document.getElementById("platformList"),
+        modeGrid: document.getElementById("modeGrid"),
+        fitChoices: document.getElementById("fitChoices"),
+        qualityGrid: document.getElementById("qualityGrid"),
+        outputFormat: document.getElementById("outputFormat"),
+        convertButton: document.getElementById("convertButton"),
+        statusBox: document.getElementById("statusBox"),
+        resultPanel: document.getElementById("resultPanel"),
+        resultMode: document.getElementById("resultMode"),
+        resultDimensions: document.getElementById("resultDimensions"),
+        resultSize: document.getElementById("resultSize"),
+        resultFormat: document.getElementById("resultFormat"),
+        resultFit: document.getElementById("resultFit"),
+        warningList: document.getElementById("warningList"),
+        downloadButton: document.getElementById("downloadButton")
+      };
 
-      // Set canvas internal resolution to target for accurate processing
-      liveCanvas.width = targetW;
-      liveCanvas.height = targetH;
-      
-      // Calculate responsive preview display size
-      const maxDisplaySize = 480; 
-      let displayW = targetW;
-      let displayH = targetH;
-      
-      if (displayW > maxDisplaySize || displayH > maxDisplaySize) {
-        const scale = Math.min(maxDisplaySize / displayW, maxDisplaySize / displayH);
-        displayW *= scale;
-        displayH *= scale;
+      /*
+        ======================================================================
+        03 // SMALL DISPLAY HELPERS
+        ======================================================================
+      */
+
+      /** Bytes ko readable KB/MB text me badalta hai; actual file bytes change nahi hote. */
+      function formatBytes(bytes) {
+        const safeBytes = Number(bytes) || 0;
+
+        /* 1 MB se kam ho to KB child-friendly/readable hai. */
+        if (safeBytes < 1024 * 1024) {
+          return Math.max(0.1, safeBytes / 1024).toFixed(1) + " KB";
+        }
+
+        /* 1 MB ya zyada ho to MB me two decimals. */
+        return (safeBytes / (1024 * 1024)).toFixed(2) + " MB";
       }
-      
-      liveCanvas.style.width = `${displayW}px`;
-      liveCanvas.style.height = `${displayH}px`;
 
-      // Clear Canvas
-      canvasCtx.clearRect(0, 0, targetW, targetH);
+      /** File extension ko UI format label me guess karta hai; backend later real bytes verify karega. */
+      function formatFromFilename(filename) {
+        const extension = String(filename || "").split(".").pop().toUpperCase();
 
-      // Rendering Logic based on Resize Type
-      const img = state.imageObj;
-      const srcW = img.width;
-      const srcH = img.height;
-      const ratioSrc = srcW / srcH;
-      const ratioTarget = targetW / targetH;
-
-      if (state.resizeType === 'stretch') {
-        canvasCtx.drawImage(img, 0, 0, targetW, targetH);
-      } 
-      else if (state.resizeType === 'fill') {
-        // Crop to fill
-        let renderW, renderH, offsetX = 0, offsetY = 0;
-        if (ratioSrc > ratioTarget) {
-          // Source is wider, crop sides
-          renderH = targetH;
-          renderW = srcW * (targetH / srcH);
-          offsetX = (targetW - renderW) / 2;
-        } else {
-          // Source is taller, crop top/bottom
-          renderW = targetW;
-          renderH = srcH * (targetW / srcW);
-          offsetY = (targetH - renderH) / 2;
-        }
-        canvasCtx.drawImage(img, offsetX, offsetY, renderW, renderH);
-      } 
-      else if (state.resizeType === 'fit') {
-        // Pad to fit
-        let renderW, renderH, offsetX = 0, offsetY = 0;
-        if (ratioSrc > ratioTarget) {
-          // Source is wider, pad top/bottom
-          renderW = targetW;
-          renderH = srcH * (targetW / srcW);
-          offsetY = (targetH - renderH) / 2;
-        } else {
-          // Source is taller, pad sides
-          renderH = targetH;
-          renderW = srcW * (targetH / srcH);
-          offsetX = (targetW - renderW) / 2;
+        /* Python UI TIF bolta hai, isliye TIFF extension ko TIF normalize karte hain. */
+        if (extension === "TIFF") {
+          return "TIF";
         }
 
-        // Draw Background
-        if (state.bgType === 'color') {
-          // Use a dark background matching the theme
-          canvasCtx.fillStyle = '#080814';
-          canvasCtx.fillRect(0, 0, targetW, targetH);
-        } else if (state.bgType === 'blur') {
-          canvasCtx.save();
-          canvasCtx.filter = 'blur(20px) brightness(0.6)';
-          // Stretch image behind for blurred background
-          canvasCtx.drawImage(img, -10, -10, targetW + 20, targetH + 20); 
-          canvasCtx.restore();
+        /* JPG/JPEG/WEBP/GIF/TIF/PNG/SVG match ho to same label; unknown par AUTO. */
+        if (["JPG","JPEG","WEBP","GIF","TIF","PNG","SVG"].includes(extension)) {
+          return extension;
         }
 
-        // Draw image on top
-        canvasCtx.drawImage(img, offsetX, offsetY, renderW, renderH);
+        return "AUTO";
       }
-    }
 
-    // --- Actions ---
-    function performResize() {
-      // Trigger a visual confirmation (simulate backend processing)
-      btnResize.textContent = "PROCESSING...";
-      btnResize.disabled = true;
-      
-      setTimeout(() => {
-        const mode = socialData[state.platform][state.modeIndex];
-        
-        document.getElementById('resultTitle').textContent = `${state.platform} ${mode.label}`;
-        document.getElementById('resultDetails').textContent = `${mode.width} × ${mode.height} px • ${state.resizeType.toUpperCase()} • ${state.resizeType === 'fit' ? state.bgType.toUpperCase() : ''}`;
-        
-        liveCanvas.toBlob((blob) => {
-          state.resultBlob = blob;
-          resultOverlay.classList.add('visible');
-          btnResize.textContent = "DONE";
-        }, 'image/jpeg', 0.95);
-      }, 600);
-    }
+      /** Status box ka text aur semantic visual state ek saath update karta hai. */
+      function setStatus(message, type) {
+        dom.statusBox.textContent = message;
+        dom.statusBox.className = "status-box";
 
-    function downloadResult() {
-      if (!state.resultBlob) return;
-      const url = URL.createObjectURL(state.resultBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      
-      const mode = socialData[state.platform][state.modeIndex];
-      link.download = `${state.fileName}_${state.platform}_${mode.ratio.replace(':','x')}.jpg`;
-      
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    }
+        /* Processing/error state diya ho to matching class add hoti hai. */
+        if (type === "processing" || type === "error") {
+          dom.statusBox.classList.add(type);
+        }
+      }
 
-    function resetApp() {
-      state.imageObj = null;
-      state.resultBlob = null;
-      fileInput.value = '';
-      
-      dropzone.style.display = 'flex';
-      previewContainer.classList.remove('has-image');
-      targetBadge.classList.remove('visible');
-      resultOverlay.classList.remove('visible');
-      btnResize.disabled = true;
-      updateExecuteButton();
-    }
+      /** Backend online/offline chip update karta hai; conversion ko fake online nahi dikhata. */
+      function setEngineOnline(isOnline) {
+        state.backendOnline = Boolean(isOnline);
+        dom.engineChip.classList.toggle("online", state.backendOnline);
+        dom.engineText.textContent = state.backendOnline ? "ENGINE ONLINE" : "ENGINE OFFLINE";
+      }
 
-    // Initialize App
-    init();
+      /** Selected mode object safely return karta hai; missing key par first catalog item fallback. */
+      function selectedMode() {
+        if (state.modes[state.modeKey]) {
+          return state.modes[state.modeKey];
+        }
+
+        const firstKey = Object.keys(state.modes)[0];
+        state.modeKey = firstKey;
+        return state.modes[firstKey];
+      }
+
+      /** Platform list dictionary insertion order se unique names banati hai. */
+      function platformNames() {
+        return Array.from(new Set(Object.values(state.modes).map(function (mode) {
+          return mode.platform;
+        })));
+      }
+
+      /*
+        ======================================================================
+        04 // CATALOG RENDERING
+        ======================================================================
+      */
+
+      /** Platform pills redraw karta hai whenever backend catalog/selection changes. */
+      function renderPlatforms() {
+        dom.platformList.innerHTML = "";
+
+        /* Har unique platform ke liye semantic button ban raha hai. */
+        platformNames().forEach(function (platform) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "platform-button";
+          button.textContent = platform;
+          button.classList.toggle("active", platform === state.platform);
+          button.setAttribute("aria-pressed", platform === state.platform ? "true" : "false");
+
+          button.addEventListener("click", function () {
+            state.platform = platform;
+            state.userPickedMode = true;
+
+            /* New platform ka first mode select hota hai so empty selection kabhi nahi. */
+            const firstEntry = Object.entries(state.modes).find(function (entry) {
+              return entry[1].platform === platform;
+            });
+
+            if (firstEntry) {
+              state.modeKey = firstEntry[0];
+            }
+
+            clearResult("Frame changed. Tap CREATE when the preview looks right.");
+            renderPlatforms();
+            renderModes();
+            renderPreview();
+            updateConvertButton();
+          });
+
+          dom.platformList.appendChild(button);
+        });
+      }
+
+      /** Mini shape ko target aspect ratio ke andar maximum 50x70 box me fit karta hai. */
+      function sizeModeShape(shapeNode, width, height) {
+        const ratio = width / Math.max(1, height);
+        let shapeWidth;
+        let shapeHeight;
+
+        /* Wide frame: width fixed, height ratio se calculated. */
+        if (ratio >= 1) {
+          shapeWidth = 50;
+          shapeHeight = Math.max(13, 50 / ratio);
+        } else {
+          /* Tall frame: height fixed, width ratio se calculated. */
+          shapeHeight = 70;
+          shapeWidth = Math.max(13, 70 * ratio);
+        }
+
+        shapeNode.style.width = shapeWidth + "px";
+        shapeNode.style.height = shapeHeight + "px";
+      }
+
+      /** Active platform ke exact backend modes ko visual cards me render karta hai. */
+      function renderModes() {
+        dom.modeGrid.innerHTML = "";
+
+        Object.entries(state.modes).forEach(function (entry) {
+          const modeKey = entry[0];
+          const mode = entry[1];
+
+          /* Dusre platform ke modes current grid me nahi dikhte; pills se switch hoga. */
+          if (mode.platform !== state.platform) {
+            return;
+          }
+
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "mode-button";
+          button.classList.toggle("active", modeKey === state.modeKey);
+          button.classList.toggle("recommended", state.recommendedModes.includes(modeKey));
+          button.setAttribute("aria-pressed", modeKey === state.modeKey ? "true" : "false");
+          button.setAttribute("aria-label", mode.label + ", " + mode.aspect_label + ", " + mode.width + " by " + mode.height + " pixels");
+
+          const shapeWrap = document.createElement("span");
+          shapeWrap.className = "mode-shape";
+          const shape = document.createElement("i");
+          shape.setAttribute("aria-hidden", "true");
+          sizeModeShape(shape, mode.width, mode.height);
+          shapeWrap.appendChild(shape);
+
+          const copy = document.createElement("span");
+          copy.className = "mode-copy";
+          const title = document.createElement("b");
+          title.textContent = mode.label.replace(/ Size$/i, "");
+          const details = document.createElement("small");
+          details.textContent = mode.aspect_label + " · " + mode.width + " × " + mode.height + " px";
+          copy.appendChild(title);
+          copy.appendChild(details);
+
+          const best = document.createElement("span");
+          best.className = "best-badge";
+          best.textContent = "GOOD MATCH";
+
+          button.appendChild(shapeWrap);
+          button.appendChild(copy);
+          button.appendChild(best);
+
+          button.addEventListener("click", function () {
+            state.modeKey = modeKey;
+            state.userPickedMode = true;
+            clearResult("Frame changed. Review the live preview, then create the new file.");
+            renderModes();
+            renderPreview();
+            updateConvertButton();
+          });
+
+          dom.modeGrid.appendChild(button);
+        });
+      }
+
+      /** HD/Full HD/4K cards backend-provided label/description se banata hai. */
+      function renderQualityTiers() {
+        dom.qualityGrid.innerHTML = "";
+
+        Object.entries(state.tiers).forEach(function (entry) {
+          const tierKey = entry[0];
+          const tier = entry[1];
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "quality-button";
+          button.classList.toggle("active", tierKey === state.qualityTier);
+          button.setAttribute("aria-pressed", tierKey === state.qualityTier ? "true" : "false");
+
+          const title = document.createElement("b");
+          title.textContent = tier.label;
+          const description = document.createElement("small");
+          description.textContent = tier.description;
+          button.appendChild(title);
+          button.appendChild(description);
+
+          button.addEventListener("click", function () {
+            state.qualityTier = tierKey;
+            clearResult("Quality changed. Python will use this level on the next conversion.");
+            renderQualityTiers();
+            updateConvertButton();
+          });
+
+          dom.qualityGrid.appendChild(button);
+        });
+      }
+
+      /*
+        ======================================================================
+        05 // LIVE CANVAS PREVIEW
+        IMPORTANT: Canvas only quick visual guide hai. Python result is source
+                   of truth and original full-resolution file use karta hai.
+        ======================================================================
+      */
+
+      /** Huge preset ko preview-safe canvas me proportional size deta hai. */
+      function previewCanvasSize(width, height) {
+        const scale = Math.min(1, PREVIEW_MAX_SIDE / Math.max(width, height));
+        return {
+          width: Math.max(1, Math.round(width * scale)),
+          height: Math.max(1, Math.round(height * scale))
+        };
+      }
+
+      /** Source image ko chosen cover/contain rule ke saath preview canvas par draw karta hai. */
+      function renderPreview() {
+        const mode = selectedMode();
+        dom.previewBadge.textContent = mode.platform.toUpperCase() + " · " + mode.aspect_label + " · " + mode.width + " × " + mode.height;
+
+        /*
+          Result view ko source-browser-support se pehle check karna zaroori hai.
+          EFFECT: TIF source ka PNG result bhi preview ho sakta hai, chahe browser
+          original TIF ko canvas me decode na kar paaye.
+        */
+        if (state.previewView === "result" && state.resultUrl) {
+          dom.previewEmpty.style.display = "none";
+          dom.previewCanvas.classList.remove("visible");
+          dom.browserPreviewNote.classList.remove("visible");
+          dom.resultImage.classList.add("visible");
+          return;
+        }
+
+        /* File/image absent ho to empty state rakho; canvas draw possible nahi. */
+        if (!state.file || !state.sourceImage) {
+          dom.previewCanvas.classList.remove("visible");
+          dom.resultImage.classList.remove("visible");
+          dom.browserPreviewNote.classList.toggle("visible", Boolean(state.file && !state.sourceImage));
+          dom.previewEmpty.style.display = state.file ? "none" : "block";
+          return;
+        }
+
+        const canvasSize = previewCanvasSize(mode.width, mode.height);
+        const canvas = dom.previewCanvas;
+        const context = canvas.getContext("2d");
+        canvas.width = canvasSize.width;
+        canvas.height = canvasSize.height;
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        const sourceWidth = state.sourceImage.naturalWidth;
+        const sourceHeight = state.sourceImage.naturalHeight;
+        const scaleX = canvas.width / sourceWidth;
+        const scaleY = canvas.height / sourceHeight;
+        let scale;
+
+        /* Cover uses larger scale so the complete frame fills and edges may crop. */
+        if (state.fitStrategy === "cover") {
+          scale = Math.max(scaleX, scaleY);
+        } else {
+          /* Contain uses smaller scale so entire source stays visible. */
+          scale = Math.min(scaleX, scaleY);
+          context.fillStyle = "#ffffff";
+          context.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        const drawWidth = sourceWidth * scale;
+        const drawHeight = sourceHeight * scale;
+        const drawX = (canvas.width - drawWidth) / 2;
+        const drawY = (canvas.height - drawHeight) / 2;
+        context.drawImage(state.sourceImage, drawX, drawY, drawWidth, drawHeight);
+
+        dom.previewEmpty.style.display = "none";
+        dom.browserPreviewNote.classList.remove("visible");
+
+        /* Is branch me source view hai; result view function ke start me handle ho chuka. */
+        dom.resultImage.classList.remove("visible");
+        dom.previewCanvas.classList.add("visible");
+      }
+
+      /** Preview source/result pill states update karta hai. */
+      function setPreviewView(view) {
+        state.previewView = view === "result" ? "result" : "source";
+        dom.showSource.classList.toggle("active", state.previewView === "source");
+        dom.showResult.classList.toggle("active", state.previewView === "result");
+        renderPreview();
+      }
+
+      /*
+        ======================================================================
+        06 // FILE HANDLING + ANALYSIS
+        ======================================================================
+      */
+
+      /** Current blob URLs release karta hai so repeated uploads browser memory leak na karein. */
+      function releaseObjectUrls() {
+        if (state.sourceUrl) {
+          URL.revokeObjectURL(state.sourceUrl);
+          state.sourceUrl = null;
+        }
+
+        if (state.resultUrl) {
+          URL.revokeObjectURL(state.resultUrl);
+          state.resultUrl = null;
+        }
+      }
+
+      /** Result-only data clear karta hai jab input/mode/quality change ho. */
+      function clearResult(message) {
+        if (state.resultUrl) {
+          URL.revokeObjectURL(state.resultUrl);
+        }
+
+        state.resultBlob = null;
+        state.resultUrl = null;
+        state.previewView = "source";
+        dom.resultImage.removeAttribute("src");
+        dom.resultImage.classList.remove("visible");
+        dom.previewTabs.classList.remove("visible");
+        dom.resultPanel.classList.remove("visible");
+        dom.warningList.classList.remove("visible");
+        dom.warningList.innerHTML = "";
+
+        if (message) {
+          setStatus(message);
+        }
+      }
+
+      /** Browser-decodable source ko Image object me load karta hai for instant preview. */
+      function loadBrowserPreview(url) {
+        return new Promise(function (resolve) {
+          const image = new Image();
+
+          image.onload = function () {
+            resolve(image);
+          };
+
+          /* TIF jaisi format browser na decode kare to null; backend conversion still allowed. */
+          image.onerror = function () {
+            resolve(null);
+          };
+
+          image.src = url;
+        });
+      }
+
+      /** Backend absent ho to browser dimensions se basic local analysis banata hai. */
+      function localAnalysis(file, image) {
+        const width = image ? image.naturalWidth : 0;
+        const height = image ? image.naturalHeight : 0;
+        let orientation = "UNKNOWN";
+
+        if (width && height) {
+          const ratio = width / height;
+
+          if (Math.abs(ratio - 1) <= .05) {
+            orientation = "SQUARE";
+          } else if (ratio > 1) {
+            orientation = "LANDSCAPE";
+          } else {
+            orientation = "PORTRAIT";
+          }
+        }
+
+        return {
+          format: formatFromFilename(file.name),
+          width: width,
+          height: height,
+          dimensions: width && height ? width + " × " + height + " px" : "Browser preview unavailable",
+          orientation: orientation,
+          aspect_ratio_label: width && height ? (width / height).toFixed(2) + ":1" : "—",
+          recommended_modes: []
+        };
+      }
+
+      /** Analysis data UI me likhta aur best backend suggestion highlight/select karta hai. */
+      function applyAnalysis(info) {
+        state.sourceInfo = info;
+        dom.sourceFormat.textContent = info.format || "—";
+        dom.sourceDimensions.textContent = info.dimensions || ((info.width || "—") + " × " + (info.height || "—"));
+        dom.sourceOrientation.textContent = info.orientation || "—";
+        dom.sourceRatio.textContent = info.aspect_ratio_label || "—";
+        dom.fileHint.textContent = (info.orientation || "PHOTO") + " · nearest " + (info.aspect_ratio_label || "ratio unknown");
+
+        state.recommendedModes = Array.isArray(info.recommended_modes) ? info.recommended_modes.map(function (item) {
+          return item.mode;
+        }) : [];
+
+        /* User ne abhi manually mode nahi choose kiya to first smart suggestion auto-select. */
+        if (!state.userPickedMode && state.recommendedModes.length && state.modes[state.recommendedModes[0]]) {
+          state.modeKey = state.recommendedModes[0];
+          state.platform = state.modes[state.modeKey].platform;
+        }
+
+        renderPlatforms();
+        renderModes();
+        renderPreview();
+        updateConvertButton();
+      }
+
+      /** Uploaded file ko /analyze-photo-mode par bhejta hai. */
+      async function analyzeWithBackend(file) {
+        const formData = new FormData();
+        formData.append("image", file, file.name);
+        const response = await fetch(API_BASE + "/analyze-photo-mode", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          let message = "Python could not analyze this photo.";
+
+          try {
+            const errorBody = await response.json();
+            message = errorBody.error || message;
+          } catch (error) {
+            /* Non-JSON error me safe generic message hi rakha jaata hai. */
+          }
+
+          throw new Error(message);
+        }
+
+        return response.json();
+      }
+
+      /** File validation, preview load, UI summary aur backend analysis ek sequence me karta hai. */
+      async function handleFile(file) {
+        if (!file) {
+          return;
+        }
+
+        /* 25 MB Python limit se pehle browser me clear message dete hain. */
+        if (file.size > MAX_FILE_BYTES) {
+          setStatus("FILE TOO LARGE // Choose an image of 25 MB or less.", "error");
+          dom.fileInput.value = "";
+          return;
+        }
+
+        const guessedFormat = formatFromFilename(file.name);
+
+        /* Unknown extension ko backend tak bhejne se pehle user-friendly reject. */
+        if (guessedFormat === "AUTO") {
+          setStatus("UNSUPPORTED FILE // Use JPG, JPEG, WEBP, GIF, TIF, PNG or SVG.", "error");
+          dom.fileInput.value = "";
+          return;
+        }
+
+        clearResult();
+
+        if (state.sourceUrl) {
+          URL.revokeObjectURL(state.sourceUrl);
+        }
+
+        state.file = file;
+        state.sourceUrl = URL.createObjectURL(file);
+        state.sourceImage = null;
+        state.sourceInfo = null;
+        state.recommendedModes = [];
+        state.userPickedMode = false;
+
+        dom.fileName.textContent = file.name;
+        dom.fileSize.textContent = formatBytes(file.size);
+        dom.fileHint.textContent = "Analyzing photo…";
+        dom.fileMeta.classList.add("visible");
+        dom.fileThumb.src = state.sourceUrl;
+        dom.sourceState.textContent = "PHOTO LOADED";
+        dom.topbarState.textContent = "ANALYZING SOURCE";
+        setStatus("ANALYZING // Python is checking size, format, orientation and best frame…", "processing");
+
+        state.sourceImage = await loadBrowserPreview(state.sourceUrl);
+        renderPreview();
+
+        try {
+          const info = await analyzeWithBackend(file);
+          setEngineOnline(true);
+          applyAnalysis(info);
+          dom.topbarState.textContent = "READY TO FRAME";
+          setStatus("PHOTO READY // A matching frame is highlighted. You can choose any other mode too.");
+        } catch (error) {
+          setEngineOnline(false);
+          applyAnalysis(localAnalysis(file, state.sourceImage));
+          dom.topbarState.textContent = "PREVIEW ONLY";
+          setStatus("PYTHON ENGINE OFFLINE // Preview works, but start prototype.py before creating the download. " + error.message, "error");
+        }
+      }
+
+      /** Remove button complete app ko clean file-waiting state me laata hai. */
+      function resetFile() {
+        releaseObjectUrls();
+        state.file = null;
+        state.sourceImage = null;
+        state.sourceInfo = null;
+        state.recommendedModes = [];
+        state.userPickedMode = false;
+        state.resultBlob = null;
+        state.previewView = "source";
+        dom.fileInput.value = "";
+        dom.fileMeta.classList.remove("visible");
+        dom.fileThumb.removeAttribute("src");
+        dom.sourceState.textContent = "NOT UPLOADED";
+        dom.topbarState.textContent = "WAITING FOR PHOTO";
+        dom.sourceFormat.textContent = "—";
+        dom.sourceDimensions.textContent = "—";
+        dom.sourceOrientation.textContent = "—";
+        dom.sourceRatio.textContent = "—";
+        dom.previewEmpty.style.display = "block";
+        dom.previewCanvas.classList.remove("visible");
+        dom.resultImage.classList.remove("visible");
+        dom.browserPreviewNote.classList.remove("visible");
+        clearResult();
+        renderModes();
+        updateConvertButton();
+        setStatus("READY // Start by choosing one photo.");
+      }
+
+      /*
+        ======================================================================
+        07 // REAL PYTHON CONVERSION
+        ======================================================================
+      */
+
+      /** Current selection ke hisaab se button label/disabled state update karta hai. */
+      function updateConvertButton() {
+        const mode = selectedMode();
+
+        if (!state.file) {
+          dom.convertButton.disabled = true;
+          dom.convertButton.textContent = "UPLOAD A PHOTO TO START";
+          return;
+        }
+
+        dom.convertButton.disabled = false;
+        dom.convertButton.textContent = "CREATE " + mode.platform.toUpperCase() + " " + mode.aspect_label + " PHOTO →";
+      }
+
+      /** Response JSON error ko readable message me convert karta hai. */
+      async function responseErrorMessage(response) {
+        try {
+          const errorBody = await response.json();
+          return errorBody.error || "Python rejected the conversion request.";
+        } catch (error) {
+          return "Python rejected the conversion request (HTTP " + response.status + ").";
+        }
+      }
+
+      /** Safe download filename front-end par banata hai because Content-Disposition CORS exposed nahi. */
+      function buildDownloadFilename(outputFormat) {
+        const sourceBase = String(state.file.name || "photo").replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]+/g, "_");
+        const extensionMap = { JPG: "jpg", JPEG: "jpeg", WEBP: "webp", GIF: "gif", TIF: "tif", PNG: "png", SVG: "svg" };
+        const extension = extensionMap[outputFormat] || "png";
+        return sourceBase + "_" + state.modeKey.toLowerCase() + "_" + state.qualityTier.toLowerCase() + "." + extension;
+      }
+
+      /** Successful blob + exposed headers ko result panel me render karta hai. */
+      function showConversionResult(blob, response) {
+        if (state.resultUrl) {
+          URL.revokeObjectURL(state.resultUrl);
+        }
+
+        state.resultBlob = blob;
+        state.resultUrl = URL.createObjectURL(blob);
+
+        const width = response.headers.get("X-Output-Width") || "—";
+        const height = response.headers.get("X-Output-Height") || "—";
+        const outputFormat = response.headers.get("X-Output-Format") || "FILE";
+        const outputBytes = response.headers.get("X-Output-Bytes") || blob.size;
+        const appliedMode = response.headers.get("X-Applied-Mode") || state.modeKey;
+        const fit = response.headers.get("X-Fit-Strategy") || state.fitStrategy;
+        const warningsHeader = response.headers.get("X-Quality-Warning") || "";
+        const warnings = warningsHeader ? warningsHeader.split(" || ").filter(Boolean) : [];
+
+        state.resultFilename = buildDownloadFilename(outputFormat);
+        dom.resultMode.textContent = appliedMode.replace(/_/g, " ");
+        dom.resultDimensions.textContent = width + " × " + height + " px";
+        dom.resultSize.textContent = formatBytes(outputBytes);
+        dom.resultFormat.textContent = outputFormat;
+        dom.resultFit.textContent = fit.toUpperCase();
+        dom.warningList.innerHTML = "";
+
+        /* Har backend warning apni list item me; warning absent ho to box hidden. */
+        warnings.forEach(function (warning) {
+          const item = document.createElement("li");
+          item.textContent = warning;
+          dom.warningList.appendChild(item);
+        });
+        dom.warningList.classList.toggle("visible", warnings.length > 0);
+
+        dom.resultImage.src = state.resultUrl;
+        dom.resultPanel.classList.add("visible");
+        dom.previewTabs.classList.add("visible");
+        setPreviewView("result");
+        dom.topbarState.textContent = "RESULT READY";
+        setStatus("COMPLETE // Python created and verified the new photo. Download it below.");
+      }
+
+      /** Current choices ko exact prototype.py form field names ke saath POST karta hai. */
+      async function convertPhoto() {
+        if (!state.file) {
+          setStatus("UPLOAD REQUIRED // Choose a photo first.", "error");
+          return;
+        }
+
+        const mode = selectedMode();
+        const formData = new FormData();
+        formData.append("image", state.file, state.file.name);
+        formData.append("mode", state.modeKey);
+        formData.append("quality_tier", state.qualityTier);
+        formData.append("fit_strategy", state.fitStrategy);
+        formData.append("dpi", "72");
+
+        /* AUTO selected ho to field omit: Python original detected format preserve karega. */
+        if (dom.outputFormat.value !== "AUTO") {
+          formData.append("output_format", dom.outputFormat.value);
+        }
+
+        dom.convertButton.disabled = true;
+        dom.convertButton.textContent = "PYTHON IS CREATING THE PHOTO…";
+        dom.topbarState.textContent = "PROCESSING " + mode.aspect_label;
+        setStatus("PROCESSING // Resizing, fitting, sharpening if needed, encoding and verifying…", "processing");
+
+        try {
+          const response = await fetch(API_BASE + "/convert-photo-mode", {
+            method: "POST",
+            body: formData
+          });
+
+          if (!response.ok) {
+            throw new Error(await responseErrorMessage(response));
+          }
+
+          const blob = await response.blob();
+          setEngineOnline(true);
+          showConversionResult(blob, response);
+        } catch (error) {
+          setEngineOnline(false);
+          dom.topbarState.textContent = "CONVERSION STOPPED";
+          setStatus("CONVERSION FAILED // " + error.message + " Start prototype.py and try again.", "error");
+        } finally {
+          /* Success/failure dono me button wapas usable label/state paata hai. */
+          updateConvertButton();
+        }
+      }
+
+      /** Result blob ko explicit user click par local download karta hai. */
+      function downloadResult() {
+        if (!state.resultBlob || !state.resultUrl) {
+          setStatus("NO RESULT // Create the new photo before downloading.", "error");
+          return;
+        }
+
+        const link = document.createElement("a");
+        link.href = state.resultUrl;
+        link.download = state.resultFilename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setStatus("DOWNLOADED // Your new photo file was sent to the browser downloads folder.");
+      }
+
+      /*
+        ======================================================================
+        08 // BACKEND CATALOG + THEME + EVENT BINDING
+        ======================================================================
+      */
+
+      /** /photo-modes se Python ka live catalog laata; fallback only connection fail par. */
+      async function loadBackendCatalog() {
+        try {
+          const response = await fetch(API_BASE + "/photo-modes", { cache: "no-store" });
+
+          if (!response.ok) {
+            throw new Error("Catalog request failed with HTTP " + response.status + ".");
+          }
+
+          const payload = await response.json();
+
+          if (!payload.modes || !Object.keys(payload.modes).length) {
+            throw new Error("Python returned an empty mode catalog.");
+          }
+
+          state.modes = payload.modes;
+          state.tiers = payload.quality_tiers || FALLBACK_TIERS;
+
+          /* Default key Python catalog me missing ho to first valid key select. */
+          if (!state.modes[state.modeKey]) {
+            state.modeKey = Object.keys(state.modes)[0];
+            state.platform = state.modes[state.modeKey].platform;
+          }
+
+          setEngineOnline(true);
+        } catch (error) {
+          state.modes = FALLBACK_MODES;
+          state.tiers = FALLBACK_TIERS;
+          setEngineOnline(false);
+          setStatus("PYTHON ENGINE OFFLINE // Mode preview is available. Run prototype.py before final conversion.", "error");
+        }
+
+        renderPlatforms();
+        renderModes();
+        renderQualityTiers();
+        renderPreview();
+        updateConvertButton();
+      }
+
+      /** Theme button icon/label/ARIA ko current data-theme ke saath sync karta hai. */
+      function syncThemeButton() {
+        const isLight = document.documentElement.dataset.theme === "light";
+        dom.themeToggle.setAttribute("aria-pressed", isLight ? "true" : "false");
+        dom.themeToggle.setAttribute("aria-label", isLight ? "Switch to dark theme" : "Switch to bright theme");
+        dom.themeToggle.querySelector(".theme-icon").textContent = isLight ? "☾" : "☀";
+        dom.themeToggle.querySelector(".theme-label").textContent = isLight ? "DARK" : "BRIGHT";
+      }
+
+      /** All static/dynamic event listeners ek baar bind karta hai. */
+      function bindEvents() {
+        dom.fileInput.addEventListener("change", function (event) {
+          handleFile(event.target.files && event.target.files[0]);
+        });
+
+        /* Drag enter/over default browser open behavior stop karke highlight dikhata hai. */
+        ["dragenter","dragover"].forEach(function (eventName) {
+          dom.dropzone.addEventListener(eventName, function (event) {
+            event.preventDefault();
+            dom.dropzone.classList.add("is-over");
+          });
+        });
+
+        /* Drag leave/drop highlight remove karta hai. */
+        ["dragleave","drop"].forEach(function (eventName) {
+          dom.dropzone.addEventListener(eventName, function (event) {
+            event.preventDefault();
+            dom.dropzone.classList.remove("is-over");
+          });
+        });
+
+        dom.dropzone.addEventListener("drop", function (event) {
+          const droppedFile = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+          handleFile(droppedFile);
+        });
+
+        dom.removeFile.addEventListener("click", resetFile);
+        dom.convertButton.addEventListener("click", convertPhoto);
+        dom.downloadButton.addEventListener("click", downloadResult);
+        dom.showSource.addEventListener("click", function () { setPreviewView("source"); });
+        dom.showResult.addEventListener("click", function () { setPreviewView("result"); });
+
+        /* TIF jaisa output browser display na kare to broken-image icon ki jagah clear note. */
+        dom.resultImage.addEventListener("error", function () {
+          if (state.previewView === "result") {
+            dom.resultImage.classList.remove("visible");
+            dom.browserPreviewNote.classList.add("visible");
+          }
+        });
+
+        /* Display-supported result load ho to unsupported-format note hide hota hai. */
+        dom.resultImage.addEventListener("load", function () {
+          if (state.previewView === "result") {
+            dom.browserPreviewNote.classList.remove("visible");
+          }
+        });
+
+        /* Fit buttons data-fit value directly Python cover/contain names use karti hain. */
+        dom.fitChoices.querySelectorAll("[data-fit]").forEach(function (button) {
+          button.addEventListener("click", function () {
+            state.fitStrategy = button.dataset.fit;
+
+            dom.fitChoices.querySelectorAll("[data-fit]").forEach(function (peer) {
+              const active = peer === button;
+              peer.classList.toggle("active", active);
+              peer.setAttribute("aria-pressed", active ? "true" : "false");
+            });
+
+            clearResult("Fit style changed. The live preview now shows " + (state.fitStrategy === "cover" ? "a filled frame." : "the whole photo."));
+            renderPreview();
+            updateConvertButton();
+          });
+        });
+
+        dom.outputFormat.addEventListener("change", function () {
+          clearResult("Output format changed. Create again to apply it.");
+          updateConvertButton();
+        });
+
+        dom.themeToggle.addEventListener("click", function () {
+          const nextTheme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+          document.documentElement.dataset.theme = nextTheme;
+
+          try {
+            localStorage.setItem("imageReducerTheme", nextTheme);
+          } catch (error) {
+            /* Storage fail ho to current session theme phir bhi visibly change hoti hai. */
+          }
+
+          syncThemeButton();
+        });
+
+        /* Page close/refresh par blob URLs free hote hain. */
+        window.addEventListener("beforeunload", releaseObjectUrls);
+      }
+
+      /** Initial page setup order: static render -> events -> backend catalog. */
+      function initialize() {
+        syncThemeButton();
+        renderPlatforms();
+        renderModes();
+        renderQualityTiers();
+        renderPreview();
+        updateConvertButton();
+        bindEvents();
+        loadBackendCatalog();
+      }
+
+      /* Window resources load hone par loader safely hide; converter already usable. */
+      window.addEventListener("load", function () {
+        window.setTimeout(function () {
+          dom.pageLoader.classList.add("is-hidden");
+        }, 220);
+      });
+
+      initialize();
+    }());
   </script>
 </body>
 </html>
