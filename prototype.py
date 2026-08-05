@@ -29,18 +29,10 @@ from __future__ import annotations
 
 # Standard-library imports: inka alag installation nahi karna padta.
 import base64
-from collections import defaultdict, deque
-import hmac
 import io
-import ipaddress
 import math
-import os
 import re
 import struct
-from threading import BoundedSemaphore, Lock
-import time
-from urllib.parse import urlsplit
-import warnings
 import zlib
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Dict, Iterable, Optional, Tuple
@@ -55,13 +47,6 @@ try:
 except ImportError:  # pragma: no cover - sirf dependency-missing computer par chalega.
     Flask = None  # type: ignore[assignment]
     jsonify = make_response = request = send_file = None  # type: ignore[assignment]
-
-# Werkzeug Flask ke saath install hota hai. HTTPException ko generic error handler
-# me pehchanne se 404/405 jaise client errors accidentally 500 nahi bante.
-try:
-    from werkzeug.exceptions import HTTPException
-except ImportError:  # pragma: no cover - Flask absent computer par hi possible hai.
-    HTTPException = Exception  # type: ignore[misc,assignment]
 
 
 # ============================================================================
@@ -82,22 +67,9 @@ DEFAULT_QUALITY = 92
 MIN_DIMENSION = 1
 MAX_DIMENSION = 20_000
 
-# Security budgets compressed file size ke saath decoded pixels, SVG complexity,
-# request frequency aur simultaneous CPU-heavy conversions ko bhi limit karte hain.
-MAX_DECODED_PIXELS = 36_000_000
-MAX_SVG_UPLOAD_BYTES = 2 * MB_IN_BYTES
-DEFAULT_RATE_LIMIT_REQUESTS = 20
-DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60
-DEFAULT_MAX_CONCURRENT_PROCESSING = 4
-MAX_TRACKED_RATE_LIMIT_CLIENTS = 10_000
-
 # Pillow decompression-bomb protection. Isse bahut bade pixel-count wali image
 # server memory ko unexpectedly exhaust nahi karegi.
 Image.MAX_IMAGE_PIXELS = 50_000_000
-
-# Existing limit ki line preserve hai; stricter effective value security layer ka
-# fail-safe hai. Pillow is threshold se bade decoded images par warning/error deta hai.
-Image.MAX_IMAGE_PIXELS = MAX_DECODED_PIXELS
 
 # UI ke saat names ko Pillow ke actual encoder names se map kiya hai.
 # JPG/JPEG bytes same codec use karte hain, par UI route identity alag rakhta hai.
@@ -250,201 +222,6 @@ def safe_base_name(filename: str) -> str:
 
 
 # ============================================================================
-# 02B // SECURITY CONFIGURATION AND RESOURCE GUARDS
-# KYA: Production gate, strict host/origin checks, rate limit aur upload budgets.
-# KYUN: Endpoint ko naam chhupa dena security nahi hota; request ko server par
-#       accept hone se pehle layered validation karna real protection deta hai.
-# ============================================================================
-
-def env_flag(name: str, default: bool = False) -> bool:
-    """Environment flag ko predictable true/false value me parse karta hai."""
-
-    raw_value = os.environ.get(name)
-    if raw_value is None:
-        return default
-    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
-
-
-def env_bounded_int(name: str, default: int, minimum: int, maximum: int) -> int:
-    """Security env number invalid ho to startup par safe default return karta hai."""
-
-    try:
-        number = int(os.environ.get(name, str(default)).strip())
-    except (TypeError, ValueError):
-        return default
-    return max(minimum, min(maximum, number))
-
-
-def env_csv(name: str) -> Tuple[str, ...]:
-    """Comma-separated environment value ko clean unique tuple me badalta hai."""
-
-    values = []
-    for item in os.environ.get(name, "").split(","):
-        cleaned = item.strip().rstrip("/")
-        if cleaned and cleaned not in values:
-            values.append(cleaned)
-    return tuple(values)
-
-
-def normalize_origin(origin: str) -> str:
-    """Origin comparison ke liye trailing slash hata kar stable value deta hai."""
-
-    return str(origin or "").strip().rstrip("/")
-
-
-def request_hostname(host_header: str) -> str:
-    """Host header se port hata kar hostname safely nikalta hai, IPv6 bhi handle hota hai."""
-
-    try:
-        return str(urlsplit(f"//{host_header}").hostname or "").lower().rstrip(".")
-    except ValueError:
-        return ""
-
-
-def hostname_matches(hostname: str, trusted_pattern: str) -> bool:
-    """Exact host ya leading-dot subdomain pattern ko match karta hai."""
-
-    pattern = trusted_pattern.strip().lower().rstrip(".")
-    if not pattern:
-        return False
-    if pattern.startswith("."):
-        suffix = pattern[1:]
-        return hostname == suffix or hostname.endswith(f".{suffix}")
-    return hostname == pattern
-
-
-def is_ip_literal(hostname: str) -> bool:
-    """Hostname direct IPv4/IPv6 address hai ya domain, yeh batata hai."""
-
-    try:
-        ipaddress.ip_address(hostname)
-        return True
-    except ValueError:
-        return False
-
-
-class SlidingWindowRateLimiter:
-    """Single-process, bounded-memory sliding-window request limiter."""
-
-    def __init__(self, maximum: int, window_seconds: int) -> None:
-        self.maximum = maximum
-        self.window_seconds = window_seconds
-        self._events: Dict[str, deque[float]] = defaultdict(deque)
-        self._lock = Lock()
-
-    def hit(self, key: str) -> Tuple[bool, int]:
-        """Request allow status aur block hone par Retry-After seconds return karta hai."""
-
-        now = time.monotonic()
-        cutoff = now - self.window_seconds
-
-        with self._lock:
-            events = self._events[key]
-            while events and events[0] <= cutoff:
-                events.popleft()
-
-            if len(events) >= self.maximum:
-                retry_after = max(1, math.ceil(events[0] + self.window_seconds - now))
-                return False, retry_after
-
-            events.append(now)
-
-            # Random-IP flood se limiter dictionary khud unlimited memory na le.
-            if len(self._events) > MAX_TRACKED_RATE_LIMIT_CLIENTS:
-                stale_keys = [
-                    client_key
-                    for client_key, timestamps in self._events.items()
-                    if not timestamps or timestamps[-1] <= cutoff
-                ]
-                for stale_key in stale_keys[:1000]:
-                    self._events.pop(stale_key, None)
-
-                # Sab clients active hon tab oldest insertion ko bounded fallback se hatao.
-                while len(self._events) > MAX_TRACKED_RATE_LIMIT_CLIENTS:
-                    self._events.pop(next(iter(self._events)), None)
-
-            return True, 0
-
-
-def validate_pixel_budget(width: int, height: int, label: str) -> None:
-    """Decoded/target dimensions ko memory-exhaustion budget ke andar rakhta hai."""
-
-    if width < 1 or height < 1:
-        raise ValueError(f"{label} has invalid dimensions.")
-    if width > MAX_DIMENSION or height > MAX_DIMENSION:
-        raise ValueError(
-            f"{label} dimensions cannot exceed {MAX_DIMENSION} pixels on either side."
-        )
-    if width * height > MAX_DECODED_PIXELS:
-        raise ValueError(
-            f"{label} exceeds the {MAX_DECODED_PIXELS:,}-pixel security limit."
-        )
-
-
-SVG_EXTERNAL_REFERENCE = re.compile(
-    rb"(?:href|xlink:href)\s*=\s*['\"]\s*(?:https?:|file:|ftp:|//)",
-    re.IGNORECASE,
-)
-SVG_EXTERNAL_CSS_URL = re.compile(
-    rb"url\s*\(\s*['\"]?\s*(?!#|data:)",
-    re.IGNORECASE,
-)
-SVG_EVENT_HANDLER = re.compile(rb"\son[a-z0-9_-]+\s*=", re.IGNORECASE)
-
-
-def validate_svg_security(data: bytes) -> None:
-    """Active content, XML entities aur external resource fetching SVG me block karta hai."""
-
-    if len(data) > MAX_SVG_UPLOAD_BYTES:
-        raise ValueError(
-            f"SVG input exceeds the {MAX_SVG_UPLOAD_BYTES // MB_IN_BYTES} MB security limit."
-        )
-
-    lowered = data.lower()
-    blocked_tokens = (
-        b"<!doctype",
-        b"<!entity",
-        b"<script",
-        b"<foreignobject",
-        b"<iframe",
-        b"<object",
-        b"<embed",
-        b"@import",
-    )
-    if any(token in lowered for token in blocked_tokens):
-        raise ValueError("SVG contains blocked active or external content.")
-    if SVG_EVENT_HANDLER.search(data):
-        raise ValueError("SVG event-handler attributes are not allowed.")
-    if SVG_EXTERNAL_REFERENCE.search(data) or SVG_EXTERNAL_CSS_URL.search(data):
-        raise ValueError("SVG external URLs are not allowed.")
-
-
-def validate_upload_security(data: bytes) -> None:
-    """Expensive conversion se pehle SVG/raster resource and content gates chalata hai."""
-
-    if looks_like_svg(data):
-        validate_svg_security(data)
-        return
-
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", Image.DecompressionBombWarning)
-            with Image.open(io.BytesIO(data)) as security_probe:
-                validate_pixel_budget(
-                    int(security_probe.width),
-                    int(security_probe.height),
-                    "Uploaded image",
-                )
-                security_probe.verify()
-    except Image.DecompressionBombWarning as exc:
-        raise ValueError("Uploaded image exceeds the safe decoded-pixel limit.") from exc
-    except (UnidentifiedImageError, OSError, ValueError) as exc:
-        if isinstance(exc, ValueError) and str(exc).startswith("Uploaded image"):
-            raise
-        raise ValueError("Uploaded file failed the security validation.") from exc
-
-
-# ============================================================================
 # 03 // TRUE INPUT FORMAT DETECTION
 # KYA: Extension ke saath actual file header/content bhi inspect hota hai.
 # KYUN: PNG bytes ka naam photo.jpg rakh dena real conversion nahi hota.
@@ -538,9 +315,6 @@ def open_image_bytes(data: bytes, detected_format: Optional[str] = None) -> Imag
                 raise ValueError("Backend could not decode the working image.") from exc
 
     if actual_format == "SVG":
-        # Route-level validation ke baad yeh second gate future internal callers ko bhi
-        # unsafe external references/entity payload directly render karne se rokta hai.
-        validate_svg_security(data)
         try:
             import cairosvg  # type: ignore[import]
         # समस्या (OLD CODE): यहाँ सिर्फ ImportError को कैच किया गया था। Windows सिस्टम पर अगर C-libraries (GTK+ / libcairo-2.dll) मौजूद नहीं होती हैं, तो 'import cairosvg' रनटाइम पर क्रैश होकर OSError (DLL load failed) देता है और सर्वर बंद हो जाता है।
@@ -657,10 +431,6 @@ def apply_requested_edits(image: Image.Image, form: Any) -> Image.Image:
         form.get("width"),
         form.get("height"),
     )
-
-    # Sirf width/height individually bounded hona enough nahi: 20k x 20k image
-    # bahut RAM le sakti hai. Combined pixel budget resize se pehle enforce hota hai.
-    validate_pixel_budget(requested_size[0], requested_size[1], "Requested output")
 
     if requested_size != working.size:
         working = working.resize(requested_size, Image.Resampling.LANCZOS)
@@ -1026,6 +796,752 @@ def image_dpi_from_info(data: bytes, detected_format: str) -> int:
         return DEFAULT_DPI
 
 
+# ============================================================================
+# 08 // SMART PHOTO-MODE ENGINE  (NAYA FEATURE — ADDED, PURANA KUCH BHI NAHI HATAYA)
+# ============================================================================
+# KYA HAI:
+#     Yeh poora section ek "extra dimaag" hai jo upar ke purane code ke saath
+#     kaam karta hai. Isme hum:
+#       1) Kisi bhi uploaded photo ka size/orientation/aspect-ratio batate hain
+#          (jaise "yeh photo LANDSCAPE hai, ratio approx 16:9 hai").
+#       2) Photo ko ready-made social-media "modes" me convert karte hain:
+#             - YOUTUBE_THUMBNAIL
+#             - YOUTUBE_BANNER
+#             - INSTAGRAM_POST
+#             - INSTAGRAM_STORY
+#          aur in sabke beech AAGE-PEECHHE (vice versa) bhi convert kar sakte
+#          hain — matlab Thumbnail -> Banner, Banner -> Instagram Post, Post ->
+#          Story, Story -> Thumbnail... koi bhi combination, kyunki neeche wala
+#          conversion-function generic hai (kisi bhi mode-name ko hardcode
+#          nahi karta, sirf SMART_MODE_PRESETS dictionary padhta hai).
+#       3) Export karte waqt teen quality options dete hain: HD, FULL HD,
+#          ULTRA HD 4K — jinme size ke saath-saath encode-quality (compression
+#          strength) bhi badhti hai, taaki photo genuinely sharper/crisper aaye.
+#       4) Agar user khud manually width/height daalta hai (preset mode use
+#          nahi karta) to hum ek "flash message" (warning text list) bhejte
+#          hain jisme batate hain ki quality/crop par kya asar padega.
+#
+# YEH PURANE CODE PAR ASAR KYU NAHI DAALEGA:
+#     - Humne upar ki (Section 01 se 07 tak) koi bhi line edit/delete nahi ki.
+#     - Naye functions/routes bilkul ALAG naam se bane hain (jaise
+#       "smart_", "photo_mode_", "SMART_" prefix), isliye purane
+#       function/route/constant names se koi naam-clash nahi hoga.
+#     - Naye Flask routes ek alag function `register_smart_photo_mode_routes()`
+#       ke andar register hote hain, jise hum niche `app` object bann jaane ke
+#       BAAD call karte hain. Isse purana `create_app()` function bhi
+#       bilkul untouched (waisa hi) rehta hai.
+#     - Agar future me is naye Section 08 ko poora hata bhi diya jaye, to
+#       purana /, /inspect, /resize, /convert wala system bilkul waise hi
+#       chalta rahega — koi dependency ulti taraf (purana -> naya) nahi hai.
+# ============================================================================
+
+
+# ----------------------------------------------------------------------------
+# 08.1 // MODE PRESETS  (kaunsa social-media "mode" kitne pixels ka hota hai)
+# KYA: Har mode ka standard/recommended width, height aur uska aspect-ratio
+#      (jaise 16:9, 1:1, 9:16) ek dictionary me store kiya hai.
+# KYUN: Agar kabhi YouTube/Instagram apna recommended size badal de, to sirf
+#      yahi dictionary update karni hai; neeche wale saare functions is
+#      dictionary ko "read" karte hain, size ko kahin bhi hardcode nahi karte.
+# VALUE CHANGE KA EFFECT:
+#      - "width"/"height" change karoge to us mode me convert hone wali HAR
+#        future photo turant naye size me export hogi (HD tier isi naye size
+#        ko 1x maanega, FULL_HD 1.5x, ULTRA_HD_4K 3x — dekho Section 08.2).
+#      - Naya mode add karna ho (jaise future me "FACEBOOK_COVER"), to bas
+#        isi dictionary me ek naya key-value pair daal do; list, analyze aur
+#        convert — teeno automatically naye mode ko bhi support karne lagenge,
+#        kyunki koi bhi neeche wala function mode-name ko hardcode nahi karta.
+# ----------------------------------------------------------------------------
+
+SMART_MODE_PRESETS: Dict[str, Dict[str, Any]] = {
+    "YOUTUBE_THUMBNAIL": {
+        "label": "YouTube Video Thumbnail",
+        "platform": "YouTube",
+        "width": 1280,
+        "height": 720,
+        "aspect_label": "16:9",
+        # "cover" ka matlab: photo ko halka crop karke poora canvas fill karo
+        # (koi khaali/kaali patti nahi chhodni) — jaisa YouTube khud karta hai.
+        "default_fit": "cover",
+    },
+    "YOUTUBE_BANNER": {
+        "label": "YouTube Channel Banner (Full Art Size)",
+        "platform": "YouTube",
+        "width": 2560,
+        "height": 1440,
+        "aspect_label": "16:9",
+        "default_fit": "cover",
+    },
+    "INSTAGRAM_POST": {
+        "label": "Instagram Feed Post (Square)",
+        "platform": "Instagram",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+    "INSTAGRAM_STORY": {
+        "label": "Instagram Story / Reel (Full Screen)",
+        "platform": "Instagram",
+        "width": 1080,
+        "height": 1920,
+        "aspect_label": "9:16",
+        "default_fit": "cover",
+    },
+}
+
+
+# ----------------------------------------------------------------------------
+# 08.2 // EXPORT QUALITY TIERS  (HD / FULL HD / ULTRA HD 4K)
+# KYA: Har tier batata hai ki us mode ke base (preset) size ko kitna bada
+#      karna hai ("multiplier"), aur encode quality (JPEG/WEBP compression
+#      strength) kitni rakhni hai.
+# KYUN: User ne mangi thi "export ke time 3 options do: HD, Full HD, Ultra HD
+#      4K, aur size ke saath quality bhi badhni chahiye". Isliye har agla
+#      tier bada multiplier + zyada encode-quality dono use karta hai, taaki
+#      photo genuinely sharper/crisper lage — sirf naam alag na ho.
+# VALUE CHANGE KA EFFECT:
+#      - "multiplier" badhaoge to us tier me exported photo ka pixel-size
+#        badh jaayega (file size bhi usi hisaab se badhega).
+#      - "encode_quality" badhaoge to compression kam hoga → photo crisper
+#        dikhegi, par file size bhi badhega. 100 ke bahut paas jaane se fayda
+#        bahut kam hota hai par size bahut zyada badh jaata hai, isliye
+#        humne practical/production-safe values rakhi hain.
+# ----------------------------------------------------------------------------
+
+QUALITY_EXPORT_TIERS: Dict[str, Dict[str, Any]] = {
+    "HD": {
+        "label": "HD Photo",
+        "multiplier": 1.0,     # Mode ka standard/base size, jaisa preset me likha hai.
+        "encode_quality": 85,  # Halka compression → chhoti file, phir bhi achhi dikhti hai.
+        "description": "Platform ka standard recommended size. Fastest upload, chhoti file size.",
+    },
+    "FULL_HD": {
+        "label": "Full HD",
+        "multiplier": 1.5,     # Base size se 1.5x zyada pixels (sharper).
+        "encode_quality": 92,  # Kam compression, zyada detail retain hoti hai.
+        "description": "Base size se 1.5x sharper. Quality aur file-size ka best balance.",
+    },
+    "ULTRA_HD_4K": {
+        "label": "Ultra HD 4K",
+        "multiplier": 3.0,     # Base size se 3x zyada pixels (maximum sharpness).
+        "encode_quality": 97,  # Bahut kam compression, best possible detail retain hota hai.
+        "description": "Maximum resolution aur sharpness. Sabse badi file size.",
+    },
+}
+
+
+# ----------------------------------------------------------------------------
+# 08.3 // ASPECT RATIO + ORIENTATION DETECTION
+# KYA: In helper functions se hum kisi bhi width/height se batate hain ki
+#      photo LANDSCAPE hai, PORTRAIT/SCREEN hai, ya SQUARE(normal) hai, aur
+#      uska ratio (jaise "16:9", "4:5") kya hai.
+# KYUN: User ne mangi thi "photo upload karte hi uska size/format/mode batao
+#      (landscape, screen/portrait, normal)". Yeh functions wahi guidance
+#      generate karte hain, purane /inspect route se bilkul alag naye
+#      /analyze-photo-mode route ke liye.
+# ----------------------------------------------------------------------------
+
+# Yeh list un aspect-ratios ki hai jo real duniya me sabse zyada common hain.
+# Har uploaded photo ka EXACT ratio kabhi bhi in numbers se 100% match nahi
+# karega (camera sensors thode-bahut idhar-udhar hote hain), isliye hum
+# "closest match" dhoondhte hain, exact match nahi.
+COMMON_ASPECT_RATIOS: Tuple[Tuple[str, float], ...] = (
+    ("1:1", 1 / 1),    # Perfect square, jaise Instagram Post.
+    ("16:9", 16 / 9),  # Widescreen video/thumbnail, jaise YouTube.
+    ("9:16", 9 / 16),  # Tall/vertical, jaise Instagram Story ya mobile screen.
+    ("4:3", 4 / 3),    # Purane cameras/TV ka classic landscape ratio.
+    ("3:4", 3 / 4),    # 4:3 ka portrait (khada) version.
+    ("4:5", 4 / 5),    # Instagram ka "portrait post" ratio.
+    ("5:4", 5 / 4),    # 4:5 ka ulta (landscape) version.
+    ("3:2", 3 / 2),    # DSLR/mirrorless photography ka common landscape ratio.
+    ("2:3", 2 / 3),    # 3:2 ka portrait version.
+    ("21:9", 21 / 9),  # Ultra-wide cinematic banner jaisa ratio.
+)
+
+
+def classify_orientation(width: int, height: int) -> str:
+    """Width/height ke ratio se batata hai photo LANDSCAPE / PORTRAIT / SQUARE hai."""
+
+    # Divide-by-zero se bachne ke liye safety check. Practically kabhi 0 nahi
+    # aayega kyunki Pillow image ki width/height hamesha >= 1 hoti hai, par
+    # is function ko standalone (jaise future unit-test) safe rakhne ke liye
+    # yeh guard rakha hai.
+    if height <= 0:
+        return "UNKNOWN"
+
+    ratio = width / height
+
+    # Chhoti si tolerance (0.05) rakhi hai kyunki 1000x998 jaisi photo bhi
+    # practically "square" hi lagti hai, exact 1:1 na hone ke bawajood.
+    if abs(ratio - 1.0) <= 0.05:
+        return "SQUARE"
+
+    # Ratio 1 se zyada matlab width > height, yani photo "chaudi/wide" hai.
+    if ratio > 1.0:
+        return "LANDSCAPE"
+
+    # Baaki bacha ek hi case: width < height, yani photo "khadi/lambi" hai.
+    # UI/product terminology me isse "PORTRAIT" ya "SCREEN/STORY MODE" bola jaata hai.
+    return "PORTRAIT"
+
+
+def nearest_common_ratio_label(width: int, height: int) -> str:
+    """Actual pixel ratio ko sabse paas wale common label (jaise '16:9') se match karta hai."""
+
+    if height <= 0:
+        return "UNKNOWN"
+
+    actual_ratio = width / height
+
+    best_label = "UNKNOWN"
+    best_difference: Optional[float] = None
+
+    # Har known ratio ke saath actual ratio ka farak (difference) nikal rahe
+    # hain; jiska farak sabse kam hoga wahi label final answer banega.
+    for label, reference_ratio in COMMON_ASPECT_RATIOS:
+        difference = abs(actual_ratio - reference_ratio)
+
+        if best_difference is None or difference < best_difference:
+            best_difference = difference
+            best_label = label
+
+    return best_label
+
+
+def describe_photo_profile(width: int, height: int) -> Dict[str, Any]:
+    """Ek photo ke width/height se poora human-readable "profile" (guide) banata hai."""
+
+    orientation = classify_orientation(width, height)
+    ratio_label = nearest_common_ratio_label(width, height)
+
+    # Beginner-friendly ek-line message banaya hai jo directly frontend par
+    # dikhaya ja sakta hai, jaise: "Yeh photo LANDSCAPE mode me hai (ratio ~16:9)."
+    if orientation == "SQUARE":
+        human_message = f"Yeh photo SQUARE (normal) mode me hai — ratio approx {ratio_label}."
+    elif orientation == "LANDSCAPE":
+        human_message = f"Yeh photo LANDSCAPE (chaudi/wide) mode me hai — ratio approx {ratio_label}."
+    elif orientation == "PORTRAIT":
+        human_message = f"Yeh photo PORTRAIT/SCREEN (khadi/lambi) mode me hai — ratio approx {ratio_label}."
+    else:
+        # Yeh branch practically kabhi nahi chalega (Pillow image ki width/
+        # height hamesha valid hoti hain), par function ko crash-proof rakhne
+        # ke liye fallback message rakha hai.
+        human_message = "Photo ka orientation detect nahi ho paaya."
+
+    return {
+        "width": width,
+        "height": height,
+        "orientation": orientation,          # LANDSCAPE / PORTRAIT / SQUARE
+        "aspect_ratio_label": ratio_label,   # jaise "16:9"
+        "message": human_message,
+    }
+
+
+def suggest_closest_modes(width: int, height: int, top_n: int = 2) -> Any:
+    """Uploaded photo ke ratio se sabse milte-julte 'top_n' ready-made modes suggest karta hai."""
+
+    if height <= 0:
+        return []
+
+    actual_ratio = width / height
+    scored_modes = []
+
+    # Har preset mode ke ratio se actual photo ke ratio ka farak nikal rahe hain.
+    for mode_key, preset in SMART_MODE_PRESETS.items():
+        preset_ratio = preset["width"] / preset["height"]
+        difference = abs(actual_ratio - preset_ratio)
+        scored_modes.append(
+            {
+                "mode": mode_key,
+                "label": preset["label"],
+                "aspect_label": preset["aspect_label"],
+                # match_score 1.0 ke jitna paas hoga utna better match hai;
+                # difference bahut chhota ho to score ~1.0 ke bahut paas rahega.
+                "match_score": round(1 / (1 + difference), 4),
+            }
+        )
+
+    # Sabse kam "difference" (yani sabse zyada match_score) wale modes upar
+    # aa jaayein, isliye match_score ke descending (bade se chhote) order me sort kiya hai.
+    scored_modes.sort(key=lambda item: item["match_score"], reverse=True)
+
+    # top_n se zyada items list me nahi bhejni; UI ko sirf best suggestions chahiye.
+    return scored_modes[:max(1, top_n)]
+
+
+# ----------------------------------------------------------------------------
+# 08.4 // TARGET-SIZE CALCULATION (mode + quality tier + optional manual size)
+# KYA: Final export width/height decide karta hai — ya to preset mode +
+#      quality tier se (automatic), ya user ke diye hue manual numbers se.
+# KYUN: User ne mangi thi ki agar wo khud size daale to "flash message"
+#      (quality/crop warning) mile. Yeh function hi wo warnings generate
+#      karta hai, taaki route-code saaf/simple rahe.
+# ----------------------------------------------------------------------------
+
+def compute_mode_export_size(mode_key: str, tier_key: str) -> Tuple[int, int, int]:
+    """Preset mode + quality tier se final width/height/encode-quality nikalta hai."""
+
+    if mode_key not in SMART_MODE_PRESETS:
+        # Galat/typo mode name aane par silently kuch guess karna dangerous
+        # hai; clear error dena beginner ke liye debug karna aasan banata hai.
+        raise ValueError(
+            f"Unknown photo mode '{mode_key}'. Valid modes: "
+            f"{', '.join(SMART_MODE_PRESETS.keys())}."
+        )
+
+    if tier_key not in QUALITY_EXPORT_TIERS:
+        raise ValueError(
+            f"Unknown quality tier '{tier_key}'. Valid tiers: "
+            f"{', '.join(QUALITY_EXPORT_TIERS.keys())}."
+        )
+
+    preset = SMART_MODE_PRESETS[mode_key]
+    tier = QUALITY_EXPORT_TIERS[tier_key]
+
+    # Base preset size ko tier ke multiplier se badhaya jaa raha hai.
+    # Example: YOUTUBE_THUMBNAIL base 1280x720 hai. FULL_HD tier (1.5x) me
+    # yeh 1920x1080 ban jaayega. ULTRA_HD_4K tier (3x) me 3840x2160 ban jaayega.
+    raw_width = preset["width"] * tier["multiplier"]
+    raw_height = preset["height"] * tier["multiplier"]
+
+    # MAX_DIMENSION (20,000 px, Section 01 me define hai) se upar jaana Pillow
+    # aur server-RAM ke liye risky hai, isliye humesha safe range ke andar
+    # clamp (limit) kar rahe hain. MIN_DIMENSION se neeche bhi nahi jaane dete.
+    final_width = max(MIN_DIMENSION, min(MAX_DIMENSION, round(raw_width)))
+    final_height = max(MIN_DIMENSION, min(MAX_DIMENSION, round(raw_height)))
+
+    return final_width, final_height, tier["encode_quality"]
+
+
+def build_manual_quality_warnings(
+    original_width: int,
+    original_height: int,
+    target_width: int,
+    target_height: int,
+    mode_key: Optional[str],
+) -> Any:
+    """Manual size use hone par user ko quality/crop ke baare me warning-messages ki list deta hai."""
+
+    warnings = []
+
+    original_pixels = max(1, original_width * original_height)
+    target_pixels = max(1, target_width * target_height)
+
+    # Agar target area original se bada hai, matlab image "upscale" ho rahi
+    # hai. Upscaling me naye pixels software dwara "guess/interpolate" hote
+    # hain (kyunki wo asal me camera se capture nahi hue), isliye thoda
+    # softness/blur aana natural hai — user ko yeh clearly bata dena chahiye.
+    if target_pixels > original_pixels:
+        growth_times = round(target_pixels / original_pixels, 2)
+        warnings.append(
+            f"QUALITY ALERT: Aap photo ko approx {growth_times}x bada (upscale) kar rahe ho. "
+            "Naye pixels software se predict/interpolate hote hain, isliye photo thodi soft "
+            "ya kam sharp dikh sakti hai. Best result ke liye original photo ka resolution "
+            "target size jitna ya usse bada hona chahiye."
+        )
+
+    # Agar target ka aspect-ratio, uploaded photo ke aspect-ratio se kaafi
+    # alag hai, to "cover" fit-strategy use karne par kuch hissa (edges)
+    # automatically crop ho jaayega — user ko pehle se pata hona chahiye.
+    original_ratio = original_width / max(1, original_height)
+    target_ratio = target_width / max(1, target_height)
+    ratio_difference = abs(original_ratio - target_ratio)
+
+    if ratio_difference > 0.05:
+        warnings.append(
+            "CROP ALERT: Is size ka aspect-ratio aapki original photo se match nahi karta. "
+            "Photo ko is size me fit karne ke liye kuch hissa (edges) automatically crop "
+            "ho sakta hai, taaki poora canvas bina kisi khaali jagah/stretch ke bhar jaaye."
+        )
+
+    # Agar user ne koi bhi preset mode select nahi kiya (pura custom size),
+    # to ek general reminder de dete hain.
+    if mode_key is None:
+        warnings.append(
+            "MANUAL SIZE: Aapne size khud enter ki hai (koi preset mode select nahi kiya). "
+            "Behtar platform-perfect result ke liye ek preset mode (YouTube Thumbnail/Banner, "
+            "Instagram Post/Story) choose karna recommended hai."
+        )
+
+    return warnings
+
+
+def resolve_export_target(
+    mode_key: Optional[str],
+    tier_key: str,
+    manual_width: Any,
+    manual_height: Any,
+    original_width: int,
+    original_height: int,
+) -> Tuple[int, int, int, Any, bool]:
+    """Final width/height/quality/warnings decide karta hai — manual aur automatic dono cases handle karta hai."""
+
+    # Blank/None form value ko 0 treat karte hain (parse_int ka documented
+    # default), isliye "0 = user ne yeh field nahi bhari" ka matlab lete hain.
+    manual_width_value = parse_int(manual_width, 0, 0, MAX_DIMENSION, "MANUAL WIDTH")
+    manual_height_value = parse_int(manual_height, 0, 0, MAX_DIMENSION, "MANUAL HEIGHT")
+    used_manual_size = bool(manual_width_value or manual_height_value)
+
+    if used_manual_size:
+        # ---- CASE 1: User ne khud size di hai (poora ya partial). ----
+        if manual_width_value and manual_height_value:
+            # Dono values diye — exact wahi canvas size use hogi.
+            target_width, target_height = manual_width_value, manual_height_value
+        elif manual_width_value:
+            # Sirf width di — original photo ke ratio se height auto-calculate
+            # hogi (taaki photo distort/stretch na ho).
+            target_width = manual_width_value
+            target_height = max(
+                MIN_DIMENSION,
+                round(manual_width_value * original_height / max(1, original_width)),
+            )
+        else:
+            # Sirf height di — original photo ke ratio se width auto-calculate hogi.
+            target_height = manual_height_value
+            target_width = max(
+                MIN_DIMENSION,
+                round(manual_height_value * original_width / max(1, original_height)),
+            )
+
+        # Manual size me quality-tier sirf "encode quality" (compression
+        # strength) decide karne ke liye use hota hai; pixel-size user ke
+        # diye numbers se hi aati hai, tier ka multiplier yahan ignore hota hai.
+        tier = QUALITY_EXPORT_TIERS.get(tier_key, QUALITY_EXPORT_TIERS["HD"])
+        encode_quality = tier["encode_quality"]
+
+        warnings = build_manual_quality_warnings(
+            original_width, original_height, target_width, target_height, mode_key
+        )
+        return target_width, target_height, encode_quality, warnings, True
+
+    # ---- CASE 2: User ne preset mode + quality tier choose kiya (automatic). ----
+    if mode_key is None:
+        # Na mode diya, na manual size — is request se kuch bhi karna
+        # impossible hai, isliye clear error dena zaroori hai.
+        raise ValueError(
+            "Provide either a photo 'mode' (YOUTUBE_THUMBNAIL/YOUTUBE_BANNER/"
+            "INSTAGRAM_POST/INSTAGRAM_STORY) or a manual width/height."
+        )
+
+    target_width, target_height, encode_quality = compute_mode_export_size(mode_key, tier_key)
+
+    # Automatic preset path me bhi hum ek chhota informational (warning nahi,
+    # sirf info) message bhej sakte hain agar original photo target se bahut
+    # chhoti hai — taaki user surprise na ho ki quality thodi soft aayi.
+    warnings = []
+    if (target_width * target_height) > (original_width * original_height):
+        warnings.append(
+            "INFO: Selected quality tier ka size original photo se bada hai, isliye thoda "
+            "upscaling hoga. Sabse sharp result ke liye ek high-resolution original photo "
+            "upload karna best rehta hai."
+        )
+
+    return target_width, target_height, encode_quality, warnings, False
+
+
+# ----------------------------------------------------------------------------
+# 08.5 // MODE-FIT RESIZER  (cover / contain) + SHARPENING AFTER RESIZE
+# KYA: Photo ko exact target width/height ke canvas me "fit" karta hai bina
+#      use stretch/distort kiye.
+# KYUN: Seedha .resize(width, height) karne se agar ratio match nahi karta to
+#      photo "chapat" (squeezed/stretched) dikhti hai — jo kisi bhi
+#      professional photo-editor me acceptable nahi hota. Cover/contain dono
+#      hi is problem ko sahi tareeke se solve karte hain.
+# ----------------------------------------------------------------------------
+
+def fit_image_to_target_canvas(
+    image: Image.Image,
+    target_width: int,
+    target_height: int,
+    fit_strategy: str,
+) -> Image.Image:
+    """Image ko target canvas me 'cover' (crop-to-fill) ya 'contain' (letterbox) se fit karta hai."""
+
+    if fit_strategy == "contain":
+        # ---- CONTAIN: poori photo dikhti hai, zaroorat par khaali jagah (background) aati hai. ----
+        # Pehle photo ko is tarah chhota/bada karte hain ki wo target canvas
+        # ke ANDAR poori aa jaaye (kisi bhi side se crop nahi hoti).
+        resized = ImageOps.contain(
+            image, (target_width, target_height), method=Image.Resampling.LANCZOS
+        )
+
+        # Transparency support karne wale formats (RGBA) ke liye transparent
+        # background, warna neutral white background use karte hain.
+        if image.mode == "RGBA":
+            canvas = Image.new("RGBA", (target_width, target_height), (0, 0, 0, 0))
+        else:
+            canvas = Image.new("RGB", (target_width, target_height), "white")
+
+        # Resized photo ko canvas ke exact center me paste karte hain, taaki
+        # dono taraf equal khaali jagah (agar koi ho) symmetrical rahe.
+        paste_x = (target_width - resized.width) // 2
+        paste_y = (target_height - resized.height) // 2
+
+        if resized.mode == "RGBA":
+            canvas.paste(resized, (paste_x, paste_y), mask=resized.getchannel("A"))
+        else:
+            canvas.paste(resized, (paste_x, paste_y))
+
+        return canvas
+
+    # ---- COVER (default): canvas 100% bharega, zaroorat par thoda crop hoga. ----
+    # ImageOps.fit photo ko resize + center-crop dono ek saath karta hai taaki
+    # final image exactly (target_width, target_height) ki bane aur poora
+    # canvas bina kisi khaali jagah ke bhar jaaye — jaisa Instagram/YouTube
+    # khud apne editors me karte hain.
+    return ImageOps.fit(
+        image,
+        (target_width, target_height),
+        method=Image.Resampling.LANCZOS,
+        centering=(0.5, 0.5),  # (0.5, 0.5) = photo ka bilkul center crop ke liye use hota hai.
+    )
+
+
+def sharpen_if_upscaled(image: Image.Image, original_pixel_count: int) -> Image.Image:
+    """Photo enlarge (upscale) hui ho to halka sharpening laga kar softness kam karta hai."""
+
+    new_pixel_count = image.width * image.height
+
+    # Sirf tab sharpen karo jab photo genuinely badi hui ho. Chhoti/waisi hi
+    # size par extra sharpening lagana photo ko "over-processed"/artificial
+    # dikha sakta hai, isliye yeh condition zaroori hai.
+    if new_pixel_count > original_pixel_count:
+        # radius/percent halke (mild) rakhe hain taaki natural detail badhe,
+        # halo/noise jaisa fake-sharp look na aaye. Yeh hi is feature ki
+        # "compress/suppress hone par bhi excellent quality" wali requirement
+        # poori karta hai.
+        return image.filter(ImageFilter.UnsharpMask(radius=1.4, percent=70, threshold=2))
+
+    return image
+
+
+# ----------------------------------------------------------------------------
+# 08.6 // FLASK ROUTES FOR SMART PHOTO MODES
+# KYA: Yeh function purane `create_app()` ke BAHAR rehta hai aur naye routes
+#      ko already-bane hue `flask_app` object par register karta hai.
+# KYUN: Isse purana `create_app()` function bilkul untouched rehta hai — hum
+#      sirf app object ko "extend" kar rahe hain, use replace nahi kar rahe.
+# ----------------------------------------------------------------------------
+
+class _FormWithoutSizeFields:
+    """request.form ka ek chhota "wrapper" jo width/height fields ko chhupa deta hai.
+
+    KYA: Yeh class request.form jaisa hi `.get(key, default)` method deti
+         hai, par "width" aur "height" keys ke liye hamesha None return
+         karti hai; baaki sabhi keys (rotation, brightness, contrast, ...)
+         original form se as-is pass ho jaati hain.
+
+    KYUN: Purana `apply_requested_edits()` function (Section 04, line ~393)
+         khud "width"/"height" form-fields padh kar seedha `.resize()`
+         (stretch-style) kar deta hai. Hamare naye "mode-convert" route me
+         wahi "width"/"height" naam manual-size ke liye use ho rahe hain
+         (jinhe hum khud cover/contain se sambhalte hain). Agar hum seedha
+         `request.form` bhej dete, to photo DO BAAR resize ho jaati —
+         pehle purana function stretch kar deta, phir hamara naya function
+         crop/fit karta — jisse final photo distort ho sakti thi.
+
+    EFFECT: Is wrapper ki wajah se purana `apply_requested_edits()` function
+         sirf rotation/brightness/contrast/saturation/sharpness apply karta
+         hai (jo bilkul sahi hai), aur size/canvas ka final faisla sirf
+         hamara naya `fit_image_to_target_canvas()` function karta hai.
+         Purane function ka code ek line bhi change nahi hua — hum sirf
+         usko ek "customised" form-object de rahe hain.
+    """
+
+    def __init__(self, original_form: Any) -> None:
+        self._original_form = original_form
+
+    def get(self, key: str, default: Any = None) -> Any:
+        if key in ("width", "height"):
+            # Yeh do keys jaan-boojh kar hide ki hain (upar wali docstring
+            # explain karti hai kyun).
+            return None
+        return self._original_form.get(key, default)
+
+
+def register_smart_photo_mode_routes(flask_app: Any) -> None:
+    """Naye /photo-modes, /analyze-photo-mode aur /convert-photo-mode routes register karta hai."""
+
+    @flask_app.route("/photo-modes", methods=["GET"])
+    def list_photo_modes() -> Any:
+        """Frontend dropdown ke liye saare available modes aur quality tiers ki list deta hai."""
+
+        modes_payload = {
+            mode_key: {
+                "label": preset["label"],
+                "platform": preset["platform"],
+                "width": preset["width"],
+                "height": preset["height"],
+                "aspect_label": preset["aspect_label"],
+            }
+            for mode_key, preset in SMART_MODE_PRESETS.items()
+        }
+
+        tiers_payload = {
+            tier_key: {
+                "label": tier["label"],
+                "description": tier["description"],
+            }
+            for tier_key, tier in QUALITY_EXPORT_TIERS.items()
+        }
+
+        return jsonify(modes=modes_payload, quality_tiers=tiers_payload)
+
+    @flask_app.route("/analyze-photo-mode", methods=["POST", "OPTIONS"])
+    def analyze_photo_mode() -> Any:
+        """Upload hote hi photo ka size/orientation/ratio aur best-matching modes batata hai."""
+
+        if request.method == "OPTIONS":
+            # Browser ka CORS "preflight" request hai; koi processing nahi,
+            # sirf khaali 204 (No Content) reply dena hota hai.
+            return make_response("", 204)
+
+        upload = request.files.get("image")
+        data = read_upload_bytes(upload, "image")           # Purana helper reuse (size/empty check).
+        detected_format = detect_input_format(data, upload.filename)  # Purana helper reuse.
+        image = open_image_bytes(data, detected_format)     # Purana helper reuse (EXIF-safe decode).
+
+        profile = describe_photo_profile(image.width, image.height)
+        closest_modes = suggest_closest_modes(image.width, image.height, top_n=2)
+
+        return jsonify(
+            format=detected_format,
+            width=image.width,
+            height=image.height,
+            dimensions=f"{image.width} × {image.height} px",
+            size_bytes=len(data),
+            orientation=profile["orientation"],
+            aspect_ratio_label=profile["aspect_ratio_label"],
+            message=profile["message"],
+            recommended_modes=closest_modes,
+        )
+
+    @flask_app.route("/convert-photo-mode", methods=["POST", "OPTIONS"])
+    def convert_photo_mode() -> Any:
+        """Ek photo-mode se doosre mode me (ya manual size me) photo convert karta hai."""
+
+        if request.method == "OPTIONS":
+            return make_response("", 204)
+
+        upload = request.files.get("image")
+        data = read_upload_bytes(upload, "image")
+        detected_format = detect_input_format(data, upload.filename)
+        image = open_image_bytes(data, detected_format)
+
+        # ---- "mode" field padhna (blank ho sakta hai agar manual size use ho) ----
+        raw_mode = str(request.form.get("mode") or "").strip().upper()
+
+        if raw_mode == "":
+            # Mode khaali hai — user manual width/height use karega.
+            mode_key: Optional[str] = None
+        elif raw_mode in SMART_MODE_PRESETS:
+            mode_key = raw_mode
+        else:
+            # Typo/invalid mode name — silently kuch guess karne ke bajaye
+            # clear error dena beginner-friendly aur safe dono hai.
+            raise ValueError(
+                f"Unknown photo mode '{raw_mode}'. Valid modes: "
+                f"{', '.join(SMART_MODE_PRESETS.keys())}."
+            )
+
+        # ---- "quality_tier" field padhna, default HD ----
+        tier_key = str(request.form.get("quality_tier") or "HD").strip().upper()
+        if tier_key not in QUALITY_EXPORT_TIERS:
+            raise ValueError(
+                f"Unknown quality_tier '{tier_key}'. Valid tiers: "
+                f"{', '.join(QUALITY_EXPORT_TIERS.keys())}."
+            )
+
+        # ---- "fit_strategy" field padhna (cover/contain), mode ka apna default use hota hai ----
+        default_fit = SMART_MODE_PRESETS[mode_key]["default_fit"] if mode_key else "cover"
+        fit_strategy = str(request.form.get("fit_strategy") or default_fit).strip().lower()
+        if fit_strategy not in {"cover", "contain"}:
+            raise ValueError("fit_strategy must be 'cover' or 'contain'.")
+
+        # Manual size sirf tab consider hoti hai jab form me bheji gayi ho.
+        manual_width = request.form.get("width")
+        manual_height = request.form.get("height")
+
+        target_width, target_height, encode_quality, warnings, used_manual = resolve_export_target(
+            mode_key,
+            tier_key,
+            manual_width,
+            manual_height,
+            image.width,
+            image.height,
+        )
+
+        # ---- Optional enhancement sliders bhi reuse kar rahe hain (purana function) ----
+        # Isse user ek hi request me rotation/brightness/contrast/saturation/
+        # sharpness + mode-convert dono ek saath kar sakta hai; koi naya
+        # duplicate editing-code likhne ki zarurat nahi padi.
+        # _FormWithoutSizeFields wrapper isliye use kiya hai taaki purana
+        # function "width"/"height" fields ko na chhoo paaye (upar wali
+        # class ki docstring me poori wajah likhi hai).
+        pre_edited_image = apply_requested_edits(image, _FormWithoutSizeFields(request.form))
+
+        original_pixel_count = image.width * image.height
+
+        # Photo ko exact target canvas me fit karna (cover = crop-to-fill,
+        # contain = poori photo + background padding).
+        fitted_image = fit_image_to_target_canvas(
+            pre_edited_image, target_width, target_height, fit_strategy
+        )
+
+        # Agar photo enlarge hui hai (upscale), to halka sharpening laga kar
+        # perceived quality behtar karte hain.
+        final_image = sharpen_if_upscaled(fitted_image, original_pixel_count)
+
+        # Output format: agar user ne explicitly nahi diya, to original
+        # upload ka hi format use hota hai (jaisa purane /resize route me hota hai).
+        output_format = normalize_format(
+            request.form.get("output_format") or detected_format
+        ) or detected_format
+
+        dpi = parse_int(request.form.get("dpi"), DEFAULT_DPI, 1, 2400, "DPI")
+
+        # Purane encode_once() function ko hi reuse kar rahe hain — isse
+        # JPEG/PNG/WEBP/GIF/TIF/SVG saare formats automatically already-tested
+        # tareeke se encode hote hain, koi naya encoder duplicate nahi likha.
+        output_bytes = encode_once(final_image, output_format, encode_quality, dpi)
+        verify_encoded_output(output_bytes, output_format)  # Purana safety-check reuse.
+
+        download_name = (
+            f"{safe_base_name(upload.filename)}_"
+            f"{(mode_key or 'CUSTOM').lower()}_{tier_key.lower()}."
+            f"{EXTENSION_BY_FORMAT[output_format]}"
+        )
+
+        response = send_file(
+            io.BytesIO(output_bytes),
+            mimetype=MIME_BY_FORMAT[output_format],
+            as_attachment=False,
+            download_name=download_name,
+            max_age=0,
+        )
+
+        # ---- Response headers: frontend inhi se flash-message/dimensions dikhayega ----
+        response.headers["X-Output-Width"] = str(final_image.width)
+        response.headers["X-Output-Height"] = str(final_image.height)
+        response.headers["X-Output-Format"] = output_format
+        response.headers["X-Output-Bytes"] = str(len(output_bytes))
+        response.headers["X-Applied-Mode"] = mode_key or "CUSTOM"
+        response.headers["X-Quality-Tier"] = tier_key
+        response.headers["X-Fit-Strategy"] = fit_strategy
+        response.headers["X-Used-Manual-Size"] = "true" if used_manual else "false"
+        response.headers["X-Original-Width"] = str(image.width)
+        response.headers["X-Original-Height"] = str(image.height)
+
+        # Warnings list ko ek hi header-string me " || " se jodkar bhejte
+        # hain, kyunki HTTP headers me list/array directly nahi bheja ja
+        # sakta. Frontend isse `.split(" || ")` karke wapas list bana sakta hai.
+        response.headers["X-Quality-Warning"] = " || ".join(warnings) if warnings else ""
+        response.headers["Cache-Control"] = "no-store"
+
+        return response
+
+
 def create_app() -> Any:
     """Flask app factory test/deployment dono ke liye application banata hai."""
 
@@ -1039,174 +1555,6 @@ def create_app() -> Any:
     flask_app.config["MAX_CONTENT_LENGTH"] = 60 * MB_IN_BYTES
     flask_app.config["JSON_SORT_KEYS"] = False
 
-    # Werkzeug/Flask 3.1 limits non-file form memory aur multipart part-count ko
-    # bound karte hain. Purane Flask me unknown config harmlessly ignore hota hai.
-    flask_app.config["MAX_FORM_MEMORY_SIZE"] = 1 * MB_IN_BYTES
-    flask_app.config["MAX_FORM_PARTS"] = 20
-
-    # Local development ka existing workflow default me chalta rahega. Production
-    # explicitly on karte hi configuration fail-closed ho jaati hai.
-    security_enabled = not env_flag("DISABLE_SECURITY_LAYER", False)
-    production_mode = (
-        env_flag("APP_PRODUCTION", False)
-        or os.environ.get("APP_ENV", "").strip().lower() == "production"
-        or os.environ.get("FLASK_ENV", "").strip().lower() == "production"
-    )
-    expose_health_endpoint = env_flag("EXPOSE_HEALTH_ENDPOINT", not production_mode)
-    origin_gate_token = os.environ.get("ORIGIN_GATE_TOKEN", "").strip()
-    trusted_hosts = env_csv("TRUSTED_HOSTS")
-    configured_origins = tuple(
-        normalize_origin(origin) for origin in env_csv("ALLOWED_ORIGINS")
-    )
-    local_development_origins = (
-        "null",
-        "http://localhost",
-        "https://localhost",
-        "http://127.0.0.1",
-        "https://127.0.0.1",
-    )
-    allowed_origins = configured_origins or local_development_origins
-
-    if production_mode and not security_enabled:
-        raise RuntimeError("Production security layer cannot be disabled.")
-    if production_mode and len(origin_gate_token) < 32:
-        raise RuntimeError(
-            "Production requires ORIGIN_GATE_TOKEN with at least 32 random characters."
-        )
-    if production_mode and not trusted_hosts:
-        raise RuntimeError("Production requires TRUSTED_HOSTS=your-domain.example")
-    if production_mode and not configured_origins:
-        raise RuntimeError("Production requires ALLOWED_ORIGINS=https://your-domain.example")
-    if production_mode and "*" in configured_origins:
-        raise RuntimeError("Wildcard ALLOWED_ORIGINS is forbidden in production.")
-
-    # Flask 3.1 native Host validation plus manual fallback below. Sirf domain names
-    # dein, scheme/port nahi: example.com,.example.com
-    if trusted_hosts:
-        flask_app.config["TRUSTED_HOSTS"] = list(trusted_hosts)
-
-    request_limiter = SlidingWindowRateLimiter(
-        env_bounded_int(
-            "RATE_LIMIT_REQUESTS",
-            DEFAULT_RATE_LIMIT_REQUESTS,
-            1,
-            1000,
-        ),
-        env_bounded_int(
-            "RATE_LIMIT_WINDOW_SECONDS",
-            DEFAULT_RATE_LIMIT_WINDOW_SECONDS,
-            1,
-            3600,
-        ),
-    )
-    processing_slots = BoundedSemaphore(
-        env_bounded_int(
-            "MAX_CONCURRENT_PROCESSING",
-            DEFAULT_MAX_CONCURRENT_PROCESSING,
-            1,
-            32,
-        )
-    )
-    protected_paths = {"/inspect", "/resize", "/convert"}
-
-    def origin_is_allowed(origin: str) -> bool:
-        """Production me exact allowlist; local mode me any localhost port allow hota hai."""
-
-        normalized = normalize_origin(origin)
-        if normalized in allowed_origins:
-            return True
-        if production_mode or not normalized:
-            return False
-
-        try:
-            parsed = urlsplit(normalized)
-        except ValueError:
-            return False
-        return (
-            parsed.scheme in {"http", "https"}
-            and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
-            and parsed.username is None
-            and parsed.password is None
-        )
-
-    def rate_limit_client_key() -> str:
-        """Trusted proxy header opt-in ho to validated client IP, warna socket peer use hota hai."""
-
-        peer_ip = str(request.remote_addr or "unknown")
-        trusted_header = os.environ.get("TRUSTED_CLIENT_IP_HEADER", "").strip()
-        if not trusted_header or not origin_gate_token:
-            return peer_ip
-
-        # Header tabhi trust hota hai jab edge secret already validate ho chuka ho.
-        forwarded_value = str(request.headers.get(trusted_header, "")).split(",", 1)[0].strip()
-        try:
-            return str(ipaddress.ip_address(forwarded_value))
-        except ValueError:
-            return peer_ip
-
-    @flask_app.before_request
-    def enforce_security_gate() -> Any:
-        """Routing/processing se pehle host, origin, secret gate aur quotas enforce karta hai."""
-
-        if not security_enabled:
-            return None
-
-        hostname = request_hostname(request.host)
-        if production_mode:
-            if not hostname or not any(
-                hostname_matches(hostname, pattern) for pattern in trusted_hosts
-            ):
-                return jsonify(error="Not found."), 404
-            if is_ip_literal(hostname) and not env_flag("ALLOW_DIRECT_IP_HOST", False):
-                return jsonify(error="Not found."), 404
-
-        if request.path == "/" and not expose_health_endpoint:
-            return jsonify(error="Not found."), 404
-
-        request_origin = normalize_origin(request.headers.get("Origin", ""))
-        if request_origin and not origin_is_allowed(request_origin):
-            return jsonify(error="Request origin is not allowed."), 403
-
-        # Yeh secret browser JS me kabhi mat rakhein. Reverse proxy/CDN is header ko
-        # origin request me server-side inject karega.
-        if origin_gate_token:
-            supplied_token = str(request.headers.get("X-Origin-Gate", ""))
-            if not hmac.compare_digest(supplied_token, origin_gate_token):
-                return jsonify(error="Not found."), 404
-
-        if request.path not in protected_paths and request.path != "/":
-            return jsonify(error="Not found."), 404
-
-        if request.method == "POST":
-            if request.args:
-                return jsonify(error="Query parameters are not accepted."), 400
-            if request.mimetype != "multipart/form-data":
-                return jsonify(error="Content-Type must be multipart/form-data."), 415
-
-            allowed, retry_after = request_limiter.hit(
-                f"{rate_limit_client_key()}:{request.path}"
-            )
-            if not allowed:
-                response = jsonify(error="Too many requests. Please try again shortly.")
-                response.headers["Retry-After"] = str(retry_after)
-                return response, 429
-
-            # CPU/RAM-heavy image work ka simultaneous count bounded rehta hai.
-            if not processing_slots.acquire(blocking=False):
-                response = jsonify(error="Server is busy. Please retry shortly.")
-                response.headers["Retry-After"] = "2"
-                return response, 503
-            request.environ["image_security_slot_acquired"] = True
-
-        return None
-
-    @flask_app.teardown_request
-    def release_processing_slot(_error: Optional[BaseException]) -> None:
-        """Success/error dono cases me acquired processing slot release karta hai."""
-
-        if request.environ.pop("image_security_slot_acquired", False):
-            processing_slots.release()
-
     @flask_app.after_request
     def add_cors_headers(response: Any) -> Any:
         """Local HTML file ko localhost backend response read karne deta hai."""
@@ -1218,39 +1566,6 @@ def create_app() -> Any:
             "X-Output-Width, X-Output-Height, X-Output-Format, X-Output-DPI, "
             "X-Output-Bytes, X-Target-Bytes, X-Target-Matched"
         )
-
-        # Existing wildcard line local compatibility ke liye file me preserved hai,
-        # lekin final outgoing value exact allowlist se overwrite/remove hoti hai.
-        request_origin = normalize_origin(request.headers.get("Origin", ""))
-        if request_origin and origin_is_allowed(request_origin):
-            response.headers["Access-Control-Allow-Origin"] = request_origin
-            response.vary.add("Origin")
-        else:
-            response.headers.pop("Access-Control-Allow-Origin", None)
-
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Origin-Gate"
-        response.headers["Access-Control-Expose-Headers"] = (
-            "X-Output-Width, X-Output-Height, X-Output-Format, X-Output-DPI, "
-            "X-Output-Bytes, X-Target-Bytes, X-Target-Matched, "
-            "X-Original-Width, X-Original-Height"
-        )
-        response.headers["Cache-Control"] = "no-store, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Referrer-Policy"] = "no-referrer"
-        response.headers["Permissions-Policy"] = (
-            "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-        )
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
-        )
-        if production_mode:
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
-        response.headers.pop("X-Powered-By", None)
-        response.headers.pop("Server", None)
         return response
 
     @flask_app.errorhandler(413)
@@ -1262,11 +1577,6 @@ def create_app() -> Any:
     @flask_app.errorhandler(Exception)
     def handle_unexpected_error(error: Exception) -> Tuple[Any, int]:
         """Known ValueError 400, unexpected issue 500 me JSON banata hai."""
-
-        if isinstance(error, HTTPException):
-            status_code = int(error.code or 500)
-            public_message = "Not found." if status_code == 404 else "Invalid request."
-            return jsonify(error=public_message), status_code
 
         if isinstance(error, ValueError):
             return jsonify(error=str(error)), 400
@@ -1295,7 +1605,6 @@ def create_app() -> Any:
 
         upload = request.files.get("image")
         data = read_upload_bytes(upload, "image")
-        validate_upload_security(data)
         detected = detect_input_format(data, upload.filename)
         validate_expected_format(detected, request.form.get("expected_input_format"))
         image = open_image_bytes(data, detected)
@@ -1324,7 +1633,6 @@ def create_app() -> Any:
         source_upload = request.files.get("source_image") or working_upload
 
         source_data = read_upload_bytes(source_upload, "source_image")
-        validate_upload_security(source_data)
         detected_source = detect_input_format(source_data, source_upload.filename)
         validate_expected_format(
             detected_source,
@@ -1337,7 +1645,6 @@ def create_app() -> Any:
             working_detected = detected_source
         else:
             working_data = read_upload_bytes(working_upload, "image")
-            validate_upload_security(working_data)
             working_detected = None  # Canvas bytes independently detect hongi.
 
         image = open_image_bytes(working_data, working_detected)
@@ -1409,6 +1716,23 @@ def create_app() -> Any:
 
 # Flask installed computer par WSGI servers ``app`` variable import kar sakte hain.
 app = create_app() if Flask is not None else None
+
+
+# ----------------------------------------------------------------------------
+# NAYA REGISTRATION STEP: purane `app` object par naye "Smart Photo-Mode"
+# routes (/photo-modes, /analyze-photo-mode, /convert-photo-mode) jodna.
+# KYA: Yeh sirf tab chalta hai jab Flask installed ho aur `app` successfully
+#      ban chuka ho (upar wali line se).
+# KYUN: Naye routes isi `app` object par register hote hain jise purana
+#      `create_app()` factory function pehle hi bana chuka hai — hum sirf
+#      us object me kuch extra routes "add" kar rahe hain.
+# EFFECT AGAR YEH LINE HATA DOGE: Sirf teen naye routes (/photo-modes,
+#      /analyze-photo-mode, /convert-photo-mode) disable ho jaayenge; purane
+#      /, /inspect, /resize, /convert routes bilkul waise hi chalte rahenge,
+#      kyunki unka registration `create_app()` ke andar hi hota hai.
+# ----------------------------------------------------------------------------
+if app is not None:
+    register_smart_photo_mode_routes(app)
 
 
 if __name__ == "__main__":

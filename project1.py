@@ -29,10 +29,18 @@ from __future__ import annotations
 
 # Standard-library imports: inka alag installation nahi karna padta.
 import base64
+from collections import defaultdict, deque
+import hmac
 import io
+import ipaddress
 import math
+import os
 import re
 import struct
+from threading import BoundedSemaphore, Lock
+import time
+from urllib.parse import urlsplit
+import warnings
 import zlib
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Dict, Iterable, Optional, Tuple
@@ -47,6 +55,13 @@ try:
 except ImportError:  # pragma: no cover - sirf dependency-missing computer par chalega.
     Flask = None  # type: ignore[assignment]
     jsonify = make_response = request = send_file = None  # type: ignore[assignment]
+
+# Werkzeug Flask ke saath install hota hai. HTTPException ko generic error handler
+# me pehchanne se 404/405 jaise client errors accidentally 500 nahi bante.
+try:
+    from werkzeug.exceptions import HTTPException
+except ImportError:  # pragma: no cover - Flask absent computer par hi possible hai.
+    HTTPException = Exception  # type: ignore[misc,assignment]
 
 
 # ============================================================================
@@ -67,9 +82,22 @@ DEFAULT_QUALITY = 92
 MIN_DIMENSION = 1
 MAX_DIMENSION = 20_000
 
+# Security budgets compressed file size ke saath decoded pixels, SVG complexity,
+# request frequency aur simultaneous CPU-heavy conversions ko bhi limit karte hain.
+MAX_DECODED_PIXELS = 36_000_000
+MAX_SVG_UPLOAD_BYTES = 2 * MB_IN_BYTES
+DEFAULT_RATE_LIMIT_REQUESTS = 20
+DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60
+DEFAULT_MAX_CONCURRENT_PROCESSING = 4
+MAX_TRACKED_RATE_LIMIT_CLIENTS = 10_000
+
 # Pillow decompression-bomb protection. Isse bahut bade pixel-count wali image
 # server memory ko unexpectedly exhaust nahi karegi.
 Image.MAX_IMAGE_PIXELS = 50_000_000
+
+# Existing limit ki line preserve hai; stricter effective value security layer ka
+# fail-safe hai. Pillow is threshold se bade decoded images par warning/error deta hai.
+Image.MAX_IMAGE_PIXELS = MAX_DECODED_PIXELS
 
 # UI ke saat names ko Pillow ke actual encoder names se map kiya hai.
 # JPG/JPEG bytes same codec use karte hain, par UI route identity alag rakhta hai.
@@ -222,6 +250,201 @@ def safe_base_name(filename: str) -> str:
 
 
 # ============================================================================
+# 02B // SECURITY CONFIGURATION AND RESOURCE GUARDS
+# KYA: Production gate, strict host/origin checks, rate limit aur upload budgets.
+# KYUN: Endpoint ko naam chhupa dena security nahi hota; request ko server par
+#       accept hone se pehle layered validation karna real protection deta hai.
+# ============================================================================
+
+def env_flag(name: str, default: bool = False) -> bool:
+    """Environment flag ko predictable true/false value me parse karta hai."""
+
+    raw_value = os.environ.get(name)
+    if raw_value is None:
+        return default
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_bounded_int(name: str, default: int, minimum: int, maximum: int) -> int:
+    """Security env number invalid ho to startup par safe default return karta hai."""
+
+    try:
+        number = int(os.environ.get(name, str(default)).strip())
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, number))
+
+
+def env_csv(name: str) -> Tuple[str, ...]:
+    """Comma-separated environment value ko clean unique tuple me badalta hai."""
+
+    values = []
+    for item in os.environ.get(name, "").split(","):
+        cleaned = item.strip().rstrip("/")
+        if cleaned and cleaned not in values:
+            values.append(cleaned)
+    return tuple(values)
+
+
+def normalize_origin(origin: str) -> str:
+    """Origin comparison ke liye trailing slash hata kar stable value deta hai."""
+
+    return str(origin or "").strip().rstrip("/")
+
+
+def request_hostname(host_header: str) -> str:
+    """Host header se port hata kar hostname safely nikalta hai, IPv6 bhi handle hota hai."""
+
+    try:
+        return str(urlsplit(f"//{host_header}").hostname or "").lower().rstrip(".")
+    except ValueError:
+        return ""
+
+
+def hostname_matches(hostname: str, trusted_pattern: str) -> bool:
+    """Exact host ya leading-dot subdomain pattern ko match karta hai."""
+
+    pattern = trusted_pattern.strip().lower().rstrip(".")
+    if not pattern:
+        return False
+    if pattern.startswith("."):
+        suffix = pattern[1:]
+        return hostname == suffix or hostname.endswith(f".{suffix}")
+    return hostname == pattern
+
+
+def is_ip_literal(hostname: str) -> bool:
+    """Hostname direct IPv4/IPv6 address hai ya domain, yeh batata hai."""
+
+    try:
+        ipaddress.ip_address(hostname)
+        return True
+    except ValueError:
+        return False
+
+
+class SlidingWindowRateLimiter:
+    """Single-process, bounded-memory sliding-window request limiter."""
+
+    def __init__(self, maximum: int, window_seconds: int) -> None:
+        self.maximum = maximum
+        self.window_seconds = window_seconds
+        self._events: Dict[str, deque[float]] = defaultdict(deque)
+        self._lock = Lock()
+
+    def hit(self, key: str) -> Tuple[bool, int]:
+        """Request allow status aur block hone par Retry-After seconds return karta hai."""
+
+        now = time.monotonic()
+        cutoff = now - self.window_seconds
+
+        with self._lock:
+            events = self._events[key]
+            while events and events[0] <= cutoff:
+                events.popleft()
+
+            if len(events) >= self.maximum:
+                retry_after = max(1, math.ceil(events[0] + self.window_seconds - now))
+                return False, retry_after
+
+            events.append(now)
+
+            # Random-IP flood se limiter dictionary khud unlimited memory na le.
+            if len(self._events) > MAX_TRACKED_RATE_LIMIT_CLIENTS:
+                stale_keys = [
+                    client_key
+                    for client_key, timestamps in self._events.items()
+                    if not timestamps or timestamps[-1] <= cutoff
+                ]
+                for stale_key in stale_keys[:1000]:
+                    self._events.pop(stale_key, None)
+
+                # Sab clients active hon tab oldest insertion ko bounded fallback se hatao.
+                while len(self._events) > MAX_TRACKED_RATE_LIMIT_CLIENTS:
+                    self._events.pop(next(iter(self._events)), None)
+
+            return True, 0
+
+
+def validate_pixel_budget(width: int, height: int, label: str) -> None:
+    """Decoded/target dimensions ko memory-exhaustion budget ke andar rakhta hai."""
+
+    if width < 1 or height < 1:
+        raise ValueError(f"{label} has invalid dimensions.")
+    if width > MAX_DIMENSION or height > MAX_DIMENSION:
+        raise ValueError(
+            f"{label} dimensions cannot exceed {MAX_DIMENSION} pixels on either side."
+        )
+    if width * height > MAX_DECODED_PIXELS:
+        raise ValueError(
+            f"{label} exceeds the {MAX_DECODED_PIXELS:,}-pixel security limit."
+        )
+
+
+SVG_EXTERNAL_REFERENCE = re.compile(
+    rb"(?:href|xlink:href)\s*=\s*['\"]\s*(?:https?:|file:|ftp:|//)",
+    re.IGNORECASE,
+)
+SVG_EXTERNAL_CSS_URL = re.compile(
+    rb"url\s*\(\s*['\"]?\s*(?!#|data:)",
+    re.IGNORECASE,
+)
+SVG_EVENT_HANDLER = re.compile(rb"\son[a-z0-9_-]+\s*=", re.IGNORECASE)
+
+
+def validate_svg_security(data: bytes) -> None:
+    """Active content, XML entities aur external resource fetching SVG me block karta hai."""
+
+    if len(data) > MAX_SVG_UPLOAD_BYTES:
+        raise ValueError(
+            f"SVG input exceeds the {MAX_SVG_UPLOAD_BYTES // MB_IN_BYTES} MB security limit."
+        )
+
+    lowered = data.lower()
+    blocked_tokens = (
+        b"<!doctype",
+        b"<!entity",
+        b"<script",
+        b"<foreignobject",
+        b"<iframe",
+        b"<object",
+        b"<embed",
+        b"@import",
+    )
+    if any(token in lowered for token in blocked_tokens):
+        raise ValueError("SVG contains blocked active or external content.")
+    if SVG_EVENT_HANDLER.search(data):
+        raise ValueError("SVG event-handler attributes are not allowed.")
+    if SVG_EXTERNAL_REFERENCE.search(data) or SVG_EXTERNAL_CSS_URL.search(data):
+        raise ValueError("SVG external URLs are not allowed.")
+
+
+def validate_upload_security(data: bytes) -> None:
+    """Expensive conversion se pehle SVG/raster resource and content gates chalata hai."""
+
+    if looks_like_svg(data):
+        validate_svg_security(data)
+        return
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(io.BytesIO(data)) as security_probe:
+                validate_pixel_budget(
+                    int(security_probe.width),
+                    int(security_probe.height),
+                    "Uploaded image",
+                )
+                security_probe.verify()
+    except Image.DecompressionBombWarning as exc:
+        raise ValueError("Uploaded image exceeds the safe decoded-pixel limit.") from exc
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        if isinstance(exc, ValueError) and str(exc).startswith("Uploaded image"):
+            raise
+        raise ValueError("Uploaded file failed the security validation.") from exc
+
+
+# ============================================================================
 # 03 // TRUE INPUT FORMAT DETECTION
 # KYA: Extension ke saath actual file header/content bhi inspect hota hai.
 # KYUN: PNG bytes ka naam photo.jpg rakh dena real conversion nahi hota.
@@ -315,6 +538,9 @@ def open_image_bytes(data: bytes, detected_format: Optional[str] = None) -> Imag
                 raise ValueError("Backend could not decode the working image.") from exc
 
     if actual_format == "SVG":
+        # Route-level validation ke baad yeh second gate future internal callers ko bhi
+        # unsafe external references/entity payload directly render karne se rokta hai.
+        validate_svg_security(data)
         try:
             import cairosvg  # type: ignore[import]
         # समस्या (OLD CODE): यहाँ सिर्फ ImportError को कैच किया गया था। Windows सिस्टम पर अगर C-libraries (GTK+ / libcairo-2.dll) मौजूद नहीं होती हैं, तो 'import cairosvg' रनटाइम पर क्रैश होकर OSError (DLL load failed) देता है और सर्वर बंद हो जाता है।
@@ -431,6 +657,10 @@ def apply_requested_edits(image: Image.Image, form: Any) -> Image.Image:
         form.get("width"),
         form.get("height"),
     )
+
+    # Sirf width/height individually bounded hona enough nahi: 20k x 20k image
+    # bahut RAM le sakti hai. Combined pixel budget resize se pehle enforce hota hai.
+    validate_pixel_budget(requested_size[0], requested_size[1], "Requested output")
 
     if requested_size != working.size:
         working = working.resize(requested_size, Image.Resampling.LANCZOS)
@@ -809,6 +1039,174 @@ def create_app() -> Any:
     flask_app.config["MAX_CONTENT_LENGTH"] = 60 * MB_IN_BYTES
     flask_app.config["JSON_SORT_KEYS"] = False
 
+    # Werkzeug/Flask 3.1 limits non-file form memory aur multipart part-count ko
+    # bound karte hain. Purane Flask me unknown config harmlessly ignore hota hai.
+    flask_app.config["MAX_FORM_MEMORY_SIZE"] = 1 * MB_IN_BYTES
+    flask_app.config["MAX_FORM_PARTS"] = 20
+
+    # Local development ka existing workflow default me chalta rahega. Production
+    # explicitly on karte hi configuration fail-closed ho jaati hai.
+    security_enabled = not env_flag("DISABLE_SECURITY_LAYER", False)
+    production_mode = (
+        env_flag("APP_PRODUCTION", False)
+        or os.environ.get("APP_ENV", "").strip().lower() == "production"
+        or os.environ.get("FLASK_ENV", "").strip().lower() == "production"
+    )
+    expose_health_endpoint = env_flag("EXPOSE_HEALTH_ENDPOINT", not production_mode)
+    origin_gate_token = os.environ.get("ORIGIN_GATE_TOKEN", "").strip()
+    trusted_hosts = env_csv("TRUSTED_HOSTS")
+    configured_origins = tuple(
+        normalize_origin(origin) for origin in env_csv("ALLOWED_ORIGINS")
+    )
+    local_development_origins = (
+        "null",
+        "http://localhost",
+        "https://localhost",
+        "http://127.0.0.1",
+        "https://127.0.0.1",
+    )
+    allowed_origins = configured_origins or local_development_origins
+
+    if production_mode and not security_enabled:
+        raise RuntimeError("Production security layer cannot be disabled.")
+    if production_mode and len(origin_gate_token) < 32:
+        raise RuntimeError(
+            "Production requires ORIGIN_GATE_TOKEN with at least 32 random characters."
+        )
+    if production_mode and not trusted_hosts:
+        raise RuntimeError("Production requires TRUSTED_HOSTS=your-domain.example")
+    if production_mode and not configured_origins:
+        raise RuntimeError("Production requires ALLOWED_ORIGINS=https://your-domain.example")
+    if production_mode and "*" in configured_origins:
+        raise RuntimeError("Wildcard ALLOWED_ORIGINS is forbidden in production.")
+
+    # Flask 3.1 native Host validation plus manual fallback below. Sirf domain names
+    # dein, scheme/port nahi: example.com,.example.com
+    if trusted_hosts:
+        flask_app.config["TRUSTED_HOSTS"] = list(trusted_hosts)
+
+    request_limiter = SlidingWindowRateLimiter(
+        env_bounded_int(
+            "RATE_LIMIT_REQUESTS",
+            DEFAULT_RATE_LIMIT_REQUESTS,
+            1,
+            1000,
+        ),
+        env_bounded_int(
+            "RATE_LIMIT_WINDOW_SECONDS",
+            DEFAULT_RATE_LIMIT_WINDOW_SECONDS,
+            1,
+            3600,
+        ),
+    )
+    processing_slots = BoundedSemaphore(
+        env_bounded_int(
+            "MAX_CONCURRENT_PROCESSING",
+            DEFAULT_MAX_CONCURRENT_PROCESSING,
+            1,
+            32,
+        )
+    )
+    protected_paths = {"/inspect", "/resize", "/convert"}
+
+    def origin_is_allowed(origin: str) -> bool:
+        """Production me exact allowlist; local mode me any localhost port allow hota hai."""
+
+        normalized = normalize_origin(origin)
+        if normalized in allowed_origins:
+            return True
+        if production_mode or not normalized:
+            return False
+
+        try:
+            parsed = urlsplit(normalized)
+        except ValueError:
+            return False
+        return (
+            parsed.scheme in {"http", "https"}
+            and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+            and parsed.username is None
+            and parsed.password is None
+        )
+
+    def rate_limit_client_key() -> str:
+        """Trusted proxy header opt-in ho to validated client IP, warna socket peer use hota hai."""
+
+        peer_ip = str(request.remote_addr or "unknown")
+        trusted_header = os.environ.get("TRUSTED_CLIENT_IP_HEADER", "").strip()
+        if not trusted_header or not origin_gate_token:
+            return peer_ip
+
+        # Header tabhi trust hota hai jab edge secret already validate ho chuka ho.
+        forwarded_value = str(request.headers.get(trusted_header, "")).split(",", 1)[0].strip()
+        try:
+            return str(ipaddress.ip_address(forwarded_value))
+        except ValueError:
+            return peer_ip
+
+    @flask_app.before_request
+    def enforce_security_gate() -> Any:
+        """Routing/processing se pehle host, origin, secret gate aur quotas enforce karta hai."""
+
+        if not security_enabled:
+            return None
+
+        hostname = request_hostname(request.host)
+        if production_mode:
+            if not hostname or not any(
+                hostname_matches(hostname, pattern) for pattern in trusted_hosts
+            ):
+                return jsonify(error="Not found."), 404
+            if is_ip_literal(hostname) and not env_flag("ALLOW_DIRECT_IP_HOST", False):
+                return jsonify(error="Not found."), 404
+
+        if request.path == "/" and not expose_health_endpoint:
+            return jsonify(error="Not found."), 404
+
+        request_origin = normalize_origin(request.headers.get("Origin", ""))
+        if request_origin and not origin_is_allowed(request_origin):
+            return jsonify(error="Request origin is not allowed."), 403
+
+        # Yeh secret browser JS me kabhi mat rakhein. Reverse proxy/CDN is header ko
+        # origin request me server-side inject karega.
+        if origin_gate_token:
+            supplied_token = str(request.headers.get("X-Origin-Gate", ""))
+            if not hmac.compare_digest(supplied_token, origin_gate_token):
+                return jsonify(error="Not found."), 404
+
+        if request.path not in protected_paths and request.path != "/":
+            return jsonify(error="Not found."), 404
+
+        if request.method == "POST":
+            if request.args:
+                return jsonify(error="Query parameters are not accepted."), 400
+            if request.mimetype != "multipart/form-data":
+                return jsonify(error="Content-Type must be multipart/form-data."), 415
+
+            allowed, retry_after = request_limiter.hit(
+                f"{rate_limit_client_key()}:{request.path}"
+            )
+            if not allowed:
+                response = jsonify(error="Too many requests. Please try again shortly.")
+                response.headers["Retry-After"] = str(retry_after)
+                return response, 429
+
+            # CPU/RAM-heavy image work ka simultaneous count bounded rehta hai.
+            if not processing_slots.acquire(blocking=False):
+                response = jsonify(error="Server is busy. Please retry shortly.")
+                response.headers["Retry-After"] = "2"
+                return response, 503
+            request.environ["image_security_slot_acquired"] = True
+
+        return None
+
+    @flask_app.teardown_request
+    def release_processing_slot(_error: Optional[BaseException]) -> None:
+        """Success/error dono cases me acquired processing slot release karta hai."""
+
+        if request.environ.pop("image_security_slot_acquired", False):
+            processing_slots.release()
+
     @flask_app.after_request
     def add_cors_headers(response: Any) -> Any:
         """Local HTML file ko localhost backend response read karne deta hai."""
@@ -820,6 +1218,39 @@ def create_app() -> Any:
             "X-Output-Width, X-Output-Height, X-Output-Format, X-Output-DPI, "
             "X-Output-Bytes, X-Target-Bytes, X-Target-Matched"
         )
+
+        # Existing wildcard line local compatibility ke liye file me preserved hai,
+        # lekin final outgoing value exact allowlist se overwrite/remove hoti hai.
+        request_origin = normalize_origin(request.headers.get("Origin", ""))
+        if request_origin and origin_is_allowed(request_origin):
+            response.headers["Access-Control-Allow-Origin"] = request_origin
+            response.vary.add("Origin")
+        else:
+            response.headers.pop("Access-Control-Allow-Origin", None)
+
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-Origin-Gate"
+        response.headers["Access-Control-Expose-Headers"] = (
+            "X-Output-Width, X-Output-Height, X-Output-Format, X-Output-DPI, "
+            "X-Output-Bytes, X-Target-Bytes, X-Target-Matched, "
+            "X-Original-Width, X-Original-Height"
+        )
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+        )
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+        )
+        if production_mode:
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+        response.headers.pop("X-Powered-By", None)
+        response.headers.pop("Server", None)
         return response
 
     @flask_app.errorhandler(413)
@@ -831,6 +1262,11 @@ def create_app() -> Any:
     @flask_app.errorhandler(Exception)
     def handle_unexpected_error(error: Exception) -> Tuple[Any, int]:
         """Known ValueError 400, unexpected issue 500 me JSON banata hai."""
+
+        if isinstance(error, HTTPException):
+            status_code = int(error.code or 500)
+            public_message = "Not found." if status_code == 404 else "Invalid request."
+            return jsonify(error=public_message), status_code
 
         if isinstance(error, ValueError):
             return jsonify(error=str(error)), 400
@@ -859,6 +1295,7 @@ def create_app() -> Any:
 
         upload = request.files.get("image")
         data = read_upload_bytes(upload, "image")
+        validate_upload_security(data)
         detected = detect_input_format(data, upload.filename)
         validate_expected_format(detected, request.form.get("expected_input_format"))
         image = open_image_bytes(data, detected)
@@ -887,6 +1324,7 @@ def create_app() -> Any:
         source_upload = request.files.get("source_image") or working_upload
 
         source_data = read_upload_bytes(source_upload, "source_image")
+        validate_upload_security(source_data)
         detected_source = detect_input_format(source_data, source_upload.filename)
         validate_expected_format(
             detected_source,
@@ -899,6 +1337,7 @@ def create_app() -> Any:
             working_detected = detected_source
         else:
             working_data = read_upload_bytes(working_upload, "image")
+            validate_upload_security(working_data)
             working_detected = None  # Canvas bytes independently detect hongi.
 
         image = open_image_bytes(working_data, working_detected)
