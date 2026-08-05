@@ -5,6 +5,8 @@ ImageReducer backend engine
 KYA HAI:
     Yeh Flask + Pillow backend ``index_02`` resizer aur ``All_converter`` ke
     saare 42 cross-format routes ko ek hi ``/resize`` API se handle karta hai.
+    Isme 35 social-media/e-mail aspect-ratio presets bhi hain, jinhe
+    ``/convert-photo-mode`` API se ek doosre me convert kiya ja sakta hai.
 
 RUN KARNE KA TARIKA (VS Code terminal):
     py -m pip install flask pillow cairosvg
@@ -805,10 +807,8 @@ def image_dpi_from_info(data: bytes, detected_format: str) -> int:
 #       1) Kisi bhi uploaded photo ka size/orientation/aspect-ratio batate hain
 #          (jaise "yeh photo LANDSCAPE hai, ratio approx 16:9 hai").
 #       2) Photo ko ready-made social-media "modes" me convert karte hain:
-#             - YOUTUBE_THUMBNAIL
-#             - YOUTUBE_BANNER
-#             - INSTAGRAM_POST
-#             - INSTAGRAM_STORY
+#          Facebook, Instagram, YouTube, X, LinkedIn, Pinterest, TikTok,
+#          Tumblr, Snapchat, Vinted aur E-mail ke saare requested presets;
 #          aur in sabke beech AAGE-PEECHHE (vice versa) bhi convert kar sakte
 #          hain — matlab Thumbnail -> Banner, Banner -> Instagram Post, Post ->
 #          Story, Story -> Thumbnail... koi bhi combination, kyunki neeche wala
@@ -840,52 +840,331 @@ def image_dpi_from_info(data: bytes, detected_format: str) -> int:
 # 08.1 // MODE PRESETS  (kaunsa social-media "mode" kitne pixels ka hota hai)
 # KYA: Har mode ka standard/recommended width, height aur uska aspect-ratio
 #      (jaise 16:9, 1:1, 9:16) ek dictionary me store kiya hai.
-# KYUN: Agar kabhi YouTube/Instagram apna recommended size badal de, to sirf
+# KYUN: Agar kabhi kisi platform ka recommended size badal de, to sirf
 #      yahi dictionary update karni hai; neeche wale saare functions is
 #      dictionary ko "read" karte hain, size ko kahin bhi hardcode nahi karte.
 # VALUE CHANGE KA EFFECT:
 #      - "width"/"height" change karoge to us mode me convert hone wali HAR
 #        future photo turant naye size me export hogi (HD tier isi naye size
 #        ko 1x maanega, FULL_HD 1.5x, ULTRA_HD_4K 3x — dekho Section 08.2).
-#      - Naya mode add karna ho (jaise future me "FACEBOOK_COVER"), to bas
+#      - Naya mode add karna ho, to bas
 #        isi dictionary me ek naya key-value pair daal do; list, analyze aur
 #        convert — teeno automatically naye mode ko bhi support karne lagenge,
 #        kyunki koi bhi neeche wala function mode-name ko hardcode nahi karta.
+#
+# IMPORTANT PIXEL-SIZE RULE:
+#      User ki list me aspect ratios diye gaye the, exact pixel dimensions
+#      nahi. Neeche practical base canvases choose kiye gaye hain jo requested
+#      ratio ko EXACTLY preserve karte hain. HD base size use karta hai;
+#      FULL_HD aur ULTRA_HD_4K Section 08.2 ke multiplier se scale hote hain.
 # ----------------------------------------------------------------------------
 
 SMART_MODE_PRESETS: Dict[str, Dict[str, Any]] = {
-    "YOUTUBE_THUMBNAIL": {
-        "label": "YouTube Video Thumbnail",
-        "platform": "YouTube",
-        "width": 1280,
-        "height": 720,
-        "aspect_label": "16:9",
-        # "cover" ka matlab: photo ko halka crop karke poora canvas fill karo
-        # (koi khaali/kaali patti nahi chhodni) — jaisa YouTube khud karta hai.
+    # ------------------------------ Facebook ------------------------------
+    "FACEBOOK_PROFILE_PHOTO": {
+        "label": "Profile Photo Size",
+        "platform": "Facebook",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
         "default_fit": "cover",
     },
-    "YOUTUBE_BANNER": {
-        "label": "YouTube Channel Banner (Full Art Size)",
-        "platform": "YouTube",
-        "width": 2560,
-        "height": 1440,
+    "FACEBOOK_POST_SQUARE": {
+        "label": "Post Square Size",
+        "platform": "Facebook",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+    "FACEBOOK_STORIES": {
+        "label": "Stories Size",
+        "platform": "Facebook",
+        "width": 1080,
+        "height": 1920,
+        "aspect_label": "9:16",
+        "default_fit": "cover",
+    },
+    "FACEBOOK_REELS": {
+        "label": "Reels Size",
+        "platform": "Facebook",
+        "width": 1080,
+        "height": 1920,
+        "aspect_label": "9:16",
+        "default_fit": "cover",
+    },
+    "FACEBOOK_GROUP_COVER_IMAGE": {
+        "label": "Group Cover Image Size",
+        "platform": "Facebook",
+        "width": 1920,
+        "height": 1080,
         "aspect_label": "16:9",
         "default_fit": "cover",
     },
-    "INSTAGRAM_POST": {
-        "label": "Instagram Feed Post (Square)",
+    "FACEBOOK_COVER_EVENT_IMAGE": {
+        "label": "Cover Event Image Size",
+        "platform": "Facebook",
+        "width": 1920,
+        "height": 1000,
+        "aspect_label": "1.92:1",
+        "default_fit": "cover",
+    },
+
+    # ------------------------------ Instagram -----------------------------
+    "INSTAGRAM_PROFILE_PICTURE": {
+        "label": "Profile Picture Size",
         "platform": "Instagram",
         "width": 1080,
         "height": 1080,
         "aspect_label": "1:1",
         "default_fit": "cover",
     },
+    "INSTAGRAM_POST": {
+        # Existing API key preserved: purana frontend INSTAGRAM_POST bhej sakta hai.
+        "label": "Post (square) Size",
+        "platform": "Instagram",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+    "INSTAGRAM_POST_PORTRAIT": {
+        "label": "Post (portrait) Size",
+        "platform": "Instagram",
+        "width": 1080,
+        "height": 1350,
+        "aspect_label": "4:5",
+        "default_fit": "cover",
+    },
+    "INSTAGRAM_POST_LANDSCAPE": {
+        "label": "Post (landscape) Size",
+        "platform": "Instagram",
+        "width": 1910,
+        "height": 1000,
+        "aspect_label": "1.91:1",
+        "default_fit": "cover",
+    },
     "INSTAGRAM_STORY": {
-        "label": "Instagram Story / Reel (Full Screen)",
+        # Existing API key preserved: purana frontend INSTAGRAM_STORY bhej sakta hai.
+        "label": "Story Size",
         "platform": "Instagram",
         "width": 1080,
         "height": 1920,
         "aspect_label": "9:16",
+        "default_fit": "cover",
+    },
+    "INSTAGRAM_REELS": {
+        "label": "Reels Size",
+        "platform": "Instagram",
+        "width": 1080,
+        "height": 1920,
+        "aspect_label": "9:16",
+        "default_fit": "cover",
+    },
+    "INSTAGRAM_REELS_COVER": {
+        "label": "Reels Cover Size",
+        "platform": "Instagram",
+        "width": 1080,
+        "height": 1920,
+        "aspect_label": "9:16",
+        "default_fit": "cover",
+    },
+
+    # ------------------------------- YouTube -------------------------------
+    "YOUTUBE_PROFILE_PHOTO": {
+        "label": "Profile Photo Size",
+        "platform": "YouTube",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+    "YOUTUBE_THUMBNAIL": {
+        # Existing API key preserved.
+        "label": "Thumbnail Size",
+        "platform": "YouTube",
+        "width": 1280,
+        "height": 720,
+        "aspect_label": "16:9",
+        "default_fit": "cover",
+    },
+    "YOUTUBE_BANNER": {
+        # Existing API key preserved.
+        "label": "Banner Size",
+        "platform": "YouTube",
+        "width": 2560,
+        "height": 1440,
+        "aspect_label": "16:9",
+        "default_fit": "cover",
+    },
+
+    # ---------------------------------- X ----------------------------------
+    "X_PROFILE_PICTURE": {
+        "label": "Profile Picture Size",
+        "platform": "X",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+    "X_HEADER_PICTURE": {
+        "label": "Header Picture Size",
+        "platform": "X",
+        "width": 1920,
+        "height": 1080,
+        "aspect_label": "16:9",
+        "default_fit": "cover",
+    },
+
+    # -------------------------- LinkedIn Personal --------------------------
+    "LINKEDIN_PERSONAL_PROFILE_PHOTO": {
+        "label": "Profile Photo Size",
+        "platform": "LinkedIn Personal",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+    "LINKEDIN_PERSONAL_BACKGROUND_PHOTO": {
+        "label": "Background Photo Size",
+        "platform": "LinkedIn Personal",
+        "width": 1584,
+        "height": 396,
+        "aspect_label": "4:1",
+        "default_fit": "cover",
+    },
+
+    # -------------------------- LinkedIn Company ---------------------------
+    "LINKEDIN_COMPANY_LOGO": {
+        "label": "Company Logo Size",
+        "platform": "LinkedIn Company",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+    "LINKEDIN_COMPANY_COVER_PHOTO": {
+        "label": "Cover Photo Size",
+        "platform": "LinkedIn Company",
+        "width": 1182,
+        "height": 200,
+        "aspect_label": "5.91:1",
+        "default_fit": "cover",
+    },
+
+    # ------------------------------ Pinterest ------------------------------
+    "PINTEREST_SQUARE_IMAGES_PIN": {
+        "label": "Square Images Pin Size",
+        "platform": "Pinterest",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+    "PINTEREST_STANDARD_IMAGE_PIN": {
+        "label": "Standard Image Pin Size",
+        "platform": "Pinterest",
+        "width": 1000,
+        "height": 1500,
+        "aspect_label": "2:3",
+        "default_fit": "cover",
+    },
+    "PINTEREST_VERTICAL_IMAGE_PIN": {
+        "label": "Vertical Image Pin Size",
+        "platform": "Pinterest",
+        "width": 1080,
+        "height": 1920,
+        "aspect_label": "9:16",
+        "default_fit": "cover",
+    },
+
+    # -------------------------------- TikTok -------------------------------
+    "TIKTOK_PROFILE_PICTURE": {
+        "label": "Profile Picture Size",
+        "platform": "TikTok",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+    "TIKTOK_IN_FEED_AD_IMAGE": {
+        "label": "In-feed Ad Image Size",
+        "platform": "TikTok",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+
+    # -------------------------------- Tumblr -------------------------------
+    "TUMBLR_PROFILE_PICTURE": {
+        "label": "Profile Picture Size",
+        "platform": "Tumblr",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+    "TUMBLR_HEADER_IMAGE": {
+        "label": "Header Image Size",
+        "platform": "Tumblr",
+        "width": 1920,
+        "height": 1080,
+        "aspect_label": "16:9",
+        "default_fit": "cover",
+    },
+
+    # ------------------------------- Snapchat ------------------------------
+    "SNAPCHAT_IMAGE_SHARE": {
+        "label": "Image Share Size",
+        "platform": "Snapchat",
+        "width": 1080,
+        "height": 1920,
+        "aspect_label": "9:16",
+        "default_fit": "cover",
+    },
+
+    # -------------------------------- Vinted -------------------------------
+    "VINTED_PROFILE_PICTURE": {
+        "label": "Profile Picture Size",
+        "platform": "Vinted",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+    "VINTED_ITEM_PHOTO": {
+        "label": "Item Photo Size",
+        "platform": "Vinted",
+        "width": 1000,
+        "height": 1500,
+        "aspect_label": "2:3",
+        "default_fit": "cover",
+    },
+
+    # -------------------------------- E-mail -------------------------------
+    "EMAIL_BLOG_FEATURED_3_1": {
+        "label": "Email Blog Featured Size",
+        "platform": "E-mail",
+        "width": 1200,
+        "height": 400,
+        "aspect_label": "3:1",
+        "default_fit": "cover",
+    },
+    "EMAIL_BLOG_IMAGE": {
+        "label": "Email Blog Image Size",
+        "platform": "E-mail",
+        "width": 1080,
+        "height": 1080,
+        "aspect_label": "1:1",
+        "default_fit": "cover",
+    },
+    "EMAIL_BLOG_FEATURED_2_1": {
+        "label": "Email Blog Featured Size",
+        "platform": "E-mail",
+        "width": 1200,
+        "height": 600,
+        "aspect_label": "2:1",
         "default_fit": "cover",
     },
 }
@@ -950,6 +1229,12 @@ COMMON_ASPECT_RATIOS: Tuple[Tuple[str, float], ...] = (
     ("1:1", 1 / 1),    # Perfect square, jaise Instagram Post.
     ("16:9", 16 / 9),  # Widescreen video/thumbnail, jaise YouTube.
     ("9:16", 9 / 16),  # Tall/vertical, jaise Instagram Story ya mobile screen.
+    ("1.92:1", 1.92 / 1),  # Facebook event cover.
+    ("1.91:1", 1.91 / 1),  # Instagram landscape post.
+    ("4:1", 4 / 1),    # LinkedIn personal background.
+    ("5.91:1", 5.91 / 1),  # LinkedIn company cover.
+    ("3:1", 3 / 1),    # E-mail featured image.
+    ("2:1", 2 / 1),    # E-mail featured image alternative.
     ("4:3", 4 / 3),    # Purane cameras/TV ka classic landscape ratio.
     ("3:4", 3 / 4),    # 4:3 ka portrait (khada) version.
     ("4:5", 4 / 5),    # Instagram ka "portrait post" ratio.
@@ -1160,8 +1445,8 @@ def build_manual_quality_warnings(
     if mode_key is None:
         warnings.append(
             "MANUAL SIZE: Aapne size khud enter ki hai (koi preset mode select nahi kiya). "
-            "Behtar platform-perfect result ke liye ek preset mode (YouTube Thumbnail/Banner, "
-            "Instagram Post/Story) choose karna recommended hai."
+            "Behtar platform-perfect result ke liye Facebook, Instagram, YouTube, X, LinkedIn, "
+            "Pinterest, TikTok, Tumblr, Snapchat, Vinted ya E-mail ka preset choose karna recommended hai."
         )
 
     return warnings
@@ -1220,8 +1505,7 @@ def resolve_export_target(
         # Na mode diya, na manual size — is request se kuch bhi karna
         # impossible hai, isliye clear error dena zaroori hai.
         raise ValueError(
-            "Provide either a photo 'mode' (YOUTUBE_THUMBNAIL/YOUTUBE_BANNER/"
-            "INSTAGRAM_POST/INSTAGRAM_STORY) or a manual width/height."
+            "Provide either a valid photo 'mode' from /photo-modes or a manual width/height."
         )
 
     target_width, target_height, encode_quality = compute_mode_export_size(mode_key, tier_key)
@@ -1564,7 +1848,9 @@ def create_app() -> Any:
         response.headers["Access-Control-Allow-Headers"] = "Content-Type"
         response.headers["Access-Control-Expose-Headers"] = (
             "X-Output-Width, X-Output-Height, X-Output-Format, X-Output-DPI, "
-            "X-Output-Bytes, X-Target-Bytes, X-Target-Matched"
+            "X-Output-Bytes, X-Target-Bytes, X-Target-Matched, X-Applied-Mode, "
+            "X-Quality-Tier, X-Fit-Strategy, X-Used-Manual-Size, "
+            "X-Original-Width, X-Original-Height, X-Quality-Warning"
         )
         return response
 
@@ -1593,6 +1879,10 @@ def create_app() -> Any:
             status="ENGINE ONLINE",
             formats=list(PIL_FORMAT_BY_UI.keys()),
             routes=42,
+            social_photo_modes=len(SMART_MODE_PRESETS),
+            social_platforms=list(
+                dict.fromkeys(preset["platform"] for preset in SMART_MODE_PRESETS.values())
+            ),
             target_size="EXACT BYTES",
         )
 
