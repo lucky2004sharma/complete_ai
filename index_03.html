@@ -1,959 +1,1831 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<!--
+  ============================================================================
+  AURORA PHOTO-MODE PAVILION // BEGINNER GUIDE
+  ============================================================================
+  KYA: Yeh page sirf social-media / e-mail photo modes badalne ke liye hai.
+  KYUN: Purane index_03.html me controls kaafi technical the; yahan workflow
+        ko "Upload -> Platform -> Shape -> Quality -> Download" rakha gaya hai.
+  PYTHON PAR ASAR: Is HTML ko edit karne se prototype.py ka code change nahi
+        hota. JavaScript sirf Python ke existing HTTP routes ko call karta hai.
+  BACKEND ROUTES: /photo-modes, /analyze-photo-mode, /convert-photo-mode.
+  ============================================================================
+-->
+<html lang="en" data-theme="dark">
 <head>
+  <!-- Browser ko Unicode/Hinglish characters sahi tarah dikhane ke liye UTF-8. -->
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A dedicated photo mode, pixel size, and image format changer for the ImageReducer Python engine.">
-  <title>Photo Mode &amp; Format Changer — ImageReducer</title>
+
+  <!-- Mobile par page ko device width ke hisaab se responsive banata hai. -->
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <!-- Browser tab ka naam. Is text ka Python processing par koi asar nahi. -->
+  <title>Aurora Photo-Mode Pavilion — ImageReducer</title>
+
+  <!-- Search/share description; converter logic par zero effect. -->
+  <meta name="description" content="Turn one photo into platform-ready Facebook, Instagram, YouTube, LinkedIn, Pinterest, TikTok and e-mail frames.">
+
+  <script id="theme-bootstrap">
+    /*
+      KYA: Paint hone se pehle saved bright/dark theme read hoti hai.
+      KYUN: Isse page load par ek second ke liye galat theme flash nahi karti.
+      CHANGE EFFECT: Storage key badloge to purane pages ka saved theme share nahi hoga.
+      PYTHON EFFECT: Zero; localStorage sirf browser me rehta hai.
+    */
+    try {
+      document.documentElement.dataset.theme = localStorage.getItem("imageReducerTheme") || "dark";
+    } catch (error) {
+      /* Private/restricted browser storage fail ho to safe dark fallback use hota hai. */
+      document.documentElement.dataset.theme = "dark";
+    }
+  </script>
+
   <style>
+    /*
+      ========================================================================
+      01 // FONT + THEME CONSTANTS
+      KYA: All_converter.html ke Aurora Pavilion fonts/colors yahan reuse hain.
+      CHANGE EFFECT: Neeche variables badalne se poore page ka palette ek saath
+                     badlega; Python output image par koi effect nahi padega.
+      ========================================================================
+    */
+    @import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap");
+
     :root {
-      --ink: #111827;
-      --muted: #64748b;
-      --line: #d9dee8;
-      --line-dark: #9ba5b6;
-      --paper: #ffffff;
-      --soft: #f4f6f8;
-      --soft-blue: #eef5ff;
-      --orange: #ff6b00;
-      --orange-dark: #c94f00;
-      --blue: #2458d3;
-      --green: #128447;
-      --red: #c72929;
-      --yellow: #f5b700;
-      --shadow: 0 18px 55px rgba(17, 24, 39, .12);
-      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: dark;
+      --night: #080814;
+      --surface: #17172d;
+      --surface-deep: #101126;
+      --surface-soft: rgba(27,29,63,.76);
+      --text: #f8f6f2;
+      --muted: #b7bdd6;
+      --line: rgba(255,255,255,.16);
+      --line-strong: rgba(255,255,255,.28);
+      --cyan: #64e4f4;
+      --violet: #9f83ff;
+      --copper: #d47d54;
+      --paper: #f5eee3;
+      --danger: #ff8d95;
+      --success: #6de1ba;
+      --shadow-cyan: rgba(100,228,244,.15);
+      --shadow-violet: rgba(159,131,255,.16);
+      --shadow-copper: rgba(212,125,84,.17);
+      --page-width: 1380px;
     }
 
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
+    /* Bright theme: same layout, lighter surfaces. Processing values unchanged. */
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --night: #f5f2ea;
+      --surface: #ffffff;
+      --surface-deep: #f2f0f8;
+      --surface-soft: rgba(255,255,255,.88);
+      --text: #17192b;
+      --muted: #586178;
+      --line: rgba(28,34,57,.18);
+      --line-strong: rgba(28,34,57,.31);
+      --cyan: #007d8f;
+      --violet: #684cc0;
+      --copper: #ad4827;
+      --paper: #ffffff;
+      --danger: #b4232d;
+      --success: #087a5d;
+      --shadow-cyan: #d5e8ea;
+      --shadow-violet: #ddd6ef;
+      --shadow-copper: #ecd7ce;
+    }
+
+    /*
+      ========================================================================
+      02 // RESET + ACCESSIBILITY
+      KYA: Browser defaults ko predictable banata aur keyboard focus dikhata hai.
+      CHANGE EFFECT: box-sizing hatane se widths/padding unexpectedly overflow karenge.
+      ========================================================================
+    */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 128px; }
     body {
       margin: 0;
-      min-width: 320px;
-      color: var(--ink);
-      background-color: #f7f8fa;
-      background-image:
-        linear-gradient(rgba(17, 24, 39, .045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(17, 24, 39, .045) 1px, transparent 1px);
-      background-size: 34px 34px;
-      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 16% 7%,rgba(100,228,244,.14),transparent 28%),
+        radial-gradient(circle at 86% 19%,rgba(159,131,255,.20),transparent 30%),
+        var(--night);
+      font-family: Manrope,Arial,sans-serif;
       -webkit-font-smoothing: antialiased;
     }
-    button, input, select { font: inherit; }
-    button, a, label, select { -webkit-tap-highlight-color: transparent; }
-    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
-      outline: 3px solid rgba(36, 88, 211, .34);
-      outline-offset: 3px;
+    :root[data-theme="light"] body {
+      background:
+        radial-gradient(circle at 16% 7%,rgba(0,125,143,.10),transparent 28%),
+        radial-gradient(circle at 86% 19%,rgba(104,76,192,.10),transparent 30%),
+        var(--night);
     }
+    button, input, select { font: inherit; }
+    button, label, a { -webkit-tap-highlight-color: transparent; }
+    button { cursor: pointer; }
     a { color: inherit; }
-    img { max-width: 100%; }
-    [hidden] { display: none !important; }
-    .wrap { width: min(1440px, calc(100% - 36px)); margin-inline: auto; }
-    .mono { font-family: var(--mono); }
-    .kicker { margin: 0 0 9px; color: var(--orange-dark); font: 800 11px/1.2 var(--mono); letter-spacing: .13em; }
-    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible, label:focus-within {
+      outline: 3px solid var(--cyan);
+      outline-offset: 4px;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .wrap { width: min(var(--page-width),calc(100% - 34px)); margin-inline: auto; }
 
+    /*
+      ========================================================================
+      03 // SMALL PAGE LOADER
+      KYA: Fonts/layout settle hote waqt Aurora pavilion identity dikhata hai.
+      CHANGE EFFECT: .is-hidden class na lage to loader page ko cover karta rahega.
+      ========================================================================
+    */
+    .page-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      background: var(--night);
+      transition: opacity .45s ease,visibility .45s ease;
+    }
+    .page-loader.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-arch {
+      width: min(320px,calc(100vw - 44px));
+      min-height: 198px;
+      position: relative;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 160px 160px 22px 22px;
+      background: linear-gradient(180deg,rgba(159,131,255,.14),transparent);
+    }
+    .loader-arch::before {
+      content: "";
+      position: absolute;
+      width: 142px;
+      height: 142px;
+      border: 1px solid var(--cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 70px rgba(100,228,244,.20);
+      animation: loaderPulse 1.3s ease-in-out infinite alternate;
+    }
+    .loader-arch b { z-index: 1; font: 600 56px/1 Fraunces,Georgia,serif; }
+    .loader-arch small { position: absolute; top: 220px; font-size: 8px; font-weight: 700; letter-spacing: .18em; white-space: nowrap; }
+    @keyframes loaderPulse { to { transform: scale(.74); border-color: var(--copper); } }
+
+    /*
+      ========================================================================
+      04 // HEADER
+      KYA: All_converter ke Aurora glass header ko same visual family me rakhta hai.
+      CHANGE EFFECT: sticky hatane par scroll ke baad navigation visible nahi rahega.
+      ========================================================================
+    */
     .site-header {
       position: sticky;
-      inset: 0 0 auto;
-      z-index: 50;
-      background: rgba(255, 255, 255, .94);
-      border-bottom: 1px solid var(--line);
-      backdrop-filter: blur(14px);
+      top: 18px;
+      z-index: 80;
+      width: min(var(--page-width),calc(100% - 34px));
+      margin: 0 auto 18px;
+      border: 1px solid var(--line);
+      border-radius: 22px 22px 65px 65px;
+      background: rgba(10,10,25,.84);
+      box-shadow: 0 22px 70px rgba(0,0,0,.42);
+      backdrop-filter: blur(28px);
     }
-    .header-inner { min-height: 72px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 28px; }
-    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    :root[data-theme="light"] .site-header { background: rgba(255,255,255,.90); box-shadow: 0 22px 70px rgba(36,42,67,.14); }
+    .header-inner {
+      min-height: 90px;
+      padding: 14px 25px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 28px;
+    }
+    .brand { display: flex; align-items: center; gap: 13px; text-decoration: none; }
     .brand-mark {
-      width: 42px; height: 42px; display: grid; place-items: center;
-      background: var(--orange); color: white; border: 2px solid var(--ink);
-      box-shadow: 4px 4px 0 var(--ink); font: 900 14px var(--mono);
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      color: #111326;
+      background: linear-gradient(145deg,var(--cyan),var(--violet) 58%,var(--copper));
+      border-radius: 50% 50% 12px 12px;
+      box-shadow: 0 0 30px rgba(100,228,244,.30);
+      font: italic 400 21px/1 "Instrument Serif",Georgia,serif;
+      transform: rotate(-3deg);
     }
-    .brand-copy b, .brand-copy small { display: block; }
-    .brand-copy b { font-size: 15px; letter-spacing: .02em; }
-    .brand-copy small { margin-top: 3px; color: var(--muted); font: 700 8px var(--mono); letter-spacing: .1em; }
-    .site-nav { justify-self: center; display: flex; align-items: center; gap: 5px; }
-    .site-nav a { padding: 11px 13px; color: #4b5563; border: 1px solid transparent; text-decoration: none; font: 800 9px var(--mono); letter-spacing: .07em; }
-    .site-nav a:hover, .site-nav a.active { color: var(--orange-dark); border-color: #fed7aa; background: #fff7ed; }
-    .engine-chip { display: flex; align-items: center; gap: 9px; padding: 10px 12px; background: var(--soft); border: 1px solid var(--line); font: 800 9px var(--mono); }
-    .engine-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 4px rgba(245, 183, 0, .13); }
-    .engine-chip.online { color: var(--green); background: #effcf4; border-color: #bbefcd; }
-    .engine-chip.online .engine-dot { background: var(--green); box-shadow: 0 0 0 4px rgba(18, 132, 71, .12); }
-    .engine-chip.offline { color: var(--red); background: #fff3f3; border-color: #ffd0d0; }
-    .engine-chip.offline .engine-dot { background: var(--red); box-shadow: 0 0 0 4px rgba(199, 41, 41, .11); }
-
-    .hero { padding: 34px 0 18px; }
-    .hero-box { overflow: hidden; display: grid; grid-template-columns: 1.05fr .95fr; background: var(--paper); border: 2px solid var(--ink); box-shadow: var(--shadow); }
-    .hero-copy { padding: clamp(34px, 5vw, 72px); }
-    .eyebrow { display: inline-flex; gap: 8px; align-items: center; padding: 8px 10px; color: var(--green); background: #effcf4; border: 1px solid #bbefcd; font: 800 9px var(--mono); letter-spacing: .12em; }
-    .eyebrow::before { content: ""; width: 8px; height: 8px; background: var(--green); }
-    h1 { margin: 20px 0 16px; max-width: 790px; font-size: clamp(43px, 5.3vw, 78px); line-height: .94; letter-spacing: -.06em; text-transform: uppercase; }
-    h1 span { color: var(--orange); }
-    .hero-copy > p { max-width: 680px; margin: 0; color: #4b5563; font-size: 15px; line-height: 1.75; }
-    .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 27px; }
-    .btn { min-height: 47px; padding: 0 17px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; border: 2px solid var(--ink); background: white; color: var(--ink); font: 900 10px var(--mono); letter-spacing: .05em; cursor: pointer; text-decoration: none; }
-    .btn:hover { border-color: var(--orange); color: var(--orange-dark); }
-    .btn.primary { background: var(--orange); color: white; border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
-    .btn.primary:hover { background: #ed6200; color: white; }
-    .btn.dark { background: var(--ink); color: white; }
-    .btn:disabled { cursor: not-allowed; opacity: .48; box-shadow: none; }
-    .hero-visual { min-height: 470px; padding: 34px; position: relative; display: grid; place-items: center; overflow: hidden; background: var(--ink); color: white; }
-    .hero-visual::before, .hero-visual::after { content: ""; position: absolute; border: 1px solid rgba(255,255,255,.13); border-radius: 50%; }
-    .hero-visual::before { width: 430px; height: 430px; }
-    .hero-visual::after { width: 300px; height: 300px; }
-    .mode-orbit { position: relative; z-index: 2; width: min(410px, 92%); aspect-ratio: 1; }
-    .mode-core { position: absolute; inset: 31%; display: grid; place-items: center; text-align: center; background: var(--orange); border: 3px solid white; box-shadow: 0 0 0 9px rgba(255, 107, 0, .14); }
-    .mode-core b { font: 900 31px/1 var(--mono); }
-    .mode-core small { display: block; margin-top: 7px; font: 800 7px var(--mono); letter-spacing: .14em; }
-    .orbit-card { position: absolute; width: 150px; min-height: 83px; padding: 12px; background: white; color: var(--ink); border: 2px solid var(--line-dark); box-shadow: 7px 7px 0 rgba(0,0,0,.28); }
-    .orbit-card b, .orbit-card small { display: block; }
-    .orbit-card b { font: 900 9px var(--mono); }
-    .orbit-card small { margin-top: 7px; color: var(--muted); font: 700 8px var(--mono); }
-    .orbit-card em { display: inline-block; margin-top: 8px; padding: 4px 6px; background: var(--ink); color: white; font: normal 800 7px var(--mono); }
-    .orbit-card:nth-child(2) { left: 0; top: 7%; transform: rotate(-4deg); }
-    .orbit-card:nth-child(3) { right: 0; top: 7%; transform: rotate(4deg); }
-    .orbit-card:nth-child(4) { left: 0; bottom: 7%; transform: rotate(3deg); }
-    .orbit-card:nth-child(5) { right: 0; bottom: 7%; transform: rotate(-3deg); }
-
-    .fact-strip { display: grid; grid-template-columns: repeat(5, 1fr); margin-top: 14px; background: var(--paper); border: 1px solid var(--line); }
-    .fact-strip div { min-height: 77px; padding: 15px; border-right: 1px solid var(--line); }
-    .fact-strip div:last-child { border: 0; }
-    .fact-strip small, .fact-strip b { display: block; }
-    .fact-strip small { color: var(--orange-dark); font: 800 8px var(--mono); letter-spacing: .11em; }
-    .fact-strip b { margin-top: 7px; font: 850 10px/1.35 var(--mono); }
-
-    .section { padding: 54px 0; }
-    .section-head { display: flex; justify-content: space-between; align-items: end; gap: 28px; margin-bottom: 20px; }
-    .section-head h2 { margin: 0; font-size: clamp(30px, 3.2vw, 48px); line-height: 1; letter-spacing: -.045em; text-transform: uppercase; }
-    .section-head > p { max-width: 560px; margin: 0; color: var(--muted); line-height: 1.65; font-size: 13px; }
-
-    .studio-shell { padding: 10px; background: #e9edf2; border: 2px solid var(--ink); box-shadow: var(--shadow); }
-    .studio { background: var(--paper); border: 1px solid var(--line-dark); }
-    .studio-top { min-height: 54px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 20px; background: var(--soft); border-bottom: 1px solid var(--line); }
-    .studio-top b { display: flex; align-items: center; gap: 9px; font: 900 9px var(--mono); letter-spacing: .07em; }
-    .studio-top b::before { content: ""; width: 8px; height: 8px; background: var(--green); }
-    .studio-top span { color: var(--muted); font: 800 8px var(--mono); }
-    .studio-grid { display: grid; grid-template-columns: 285px minmax(380px, 1fr) 385px; }
-    .panel { min-width: 0; padding: 19px; border-right: 1px solid var(--line); }
-    .panel:last-child { border-right: 0; }
-    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
-    .panel-head b { font: 900 9px var(--mono); letter-spacing: .09em; }
-    .panel-head span { color: var(--orange-dark); font: 900 8px var(--mono); }
-
-    .dropzone { min-height: 240px; margin-top: 14px; padding: 18px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; background: var(--soft); border: 2px dashed var(--line-dark); cursor: pointer; transition: .18s ease; }
-    .dropzone:hover, .dropzone.drag { background: #fff7ed; border-color: var(--orange); }
-    .drop-icon { width: 58px; height: 58px; display: grid; place-items: center; background: white; border: 2px solid var(--ink); box-shadow: 5px 5px 0 var(--line-dark); color: var(--orange); font: 900 25px var(--mono); }
-    .dropzone strong { margin-top: 16px; font: 900 10px var(--mono); }
-    .dropzone small { margin-top: 8px; color: var(--muted); font: 700 8px/1.65 var(--mono); }
-    .file-meta { margin-top: 10px; padding: 10px; display: grid; grid-template-columns: 46px minmax(0, 1fr) 32px; gap: 9px; align-items: center; border: 1px solid var(--line); }
-    .file-meta img { width: 46px; height: 46px; object-fit: cover; background: var(--soft); border: 1px solid var(--line); }
-    .file-meta b, .file-meta small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .file-meta b { font: 800 8px var(--mono); }
-    .file-meta small { margin-top: 5px; color: var(--muted); font: 700 7px var(--mono); }
-    .icon-button { width: 32px; height: 32px; border: 1px solid var(--line); background: white; cursor: pointer; }
-    .icon-button:hover { color: var(--red); border-color: var(--red); }
-    .upload-rules { margin-top: 12px; display: grid; gap: 6px; }
-    .rule { display: flex; align-items: center; gap: 8px; color: #4b5563; font: 700 7px/1.4 var(--mono); }
-    .rule::before { content: "✓"; width: 17px; height: 17px; display: grid; place-items: center; flex: 0 0 auto; color: var(--green); background: #effcf4; border: 1px solid #bbefcd; font-size: 8px; }
-
-    .preview-stage { height: 335px; margin-top: 14px; position: relative; display: grid; place-items: center; overflow: hidden; background-color: #f0f2f5; background-image: linear-gradient(45deg, #e2e6eb 25%, transparent 25%), linear-gradient(-45deg, #e2e6eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e2e6eb 75%), linear-gradient(-45deg, transparent 75%, #e2e6eb 75%); background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-size: 16px 16px; border: 1px solid var(--line-dark); }
-    .preview-stage img { display: none; max-width: 92%; max-height: 92%; object-fit: contain; box-shadow: 0 14px 35px rgba(17,24,39,.2); transition: filter .15s ease, transform .15s ease; }
-    .preview-stage.ready img { display: block; }
-    .preview-stage.ready .empty-preview { display: none; }
-    .empty-preview { text-align: center; color: var(--muted); }
-    .empty-file { width: 86px; height: 104px; margin: 0 auto 14px; display: grid; place-items: center; background: white; border: 3px solid var(--line-dark); box-shadow: 7px 7px 0 var(--line); font: 900 16px var(--mono); }
-    .empty-preview b, .empty-preview small { display: block; }
-    .empty-preview b { color: #4b5563; font: 900 8px var(--mono); }
-    .empty-preview small { margin-top: 7px; font: 700 7px var(--mono); }
-    .analysis-grid { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 10px; border: 1px solid var(--line); }
-    .analysis-cell { min-width: 0; padding: 10px; border-right: 1px solid var(--line); }
-    .analysis-cell:last-child { border: 0; }
-    .analysis-cell small, .analysis-cell b { display: block; }
-    .analysis-cell small { color: var(--muted); font: 800 7px var(--mono); letter-spacing: .06em; }
-    .analysis-cell b { margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 900 8px var(--mono); }
-    .profile-message { min-height: 42px; margin-top: 10px; padding: 10px; background: var(--soft-blue); color: #25467f; border-left: 4px solid var(--blue); font: 700 8px/1.6 var(--mono); }
-
-    .field { margin-top: 12px; }
-    .field > label, .field-label { margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font: 800 7px var(--mono); letter-spacing: .07em; }
-    .control { width: 100%; min-height: 43px; padding: 0 10px; color: var(--ink); background: white; border: 1px solid var(--line-dark); font: 800 9px var(--mono); }
-    .control:focus { border-color: var(--blue); }
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 8px; }
-    .mode-card { min-height: 82px; padding: 10px; text-align: left; border: 1px solid var(--line); background: white; cursor: pointer; }
-    .mode-card:hover { border-color: var(--orange); }
-    .mode-card.active { color: white; background: var(--ink); border-color: var(--ink); box-shadow: inset 0 -4px 0 var(--orange); }
-    .mode-card b, .mode-card small, .mode-card em { display: block; }
-    .mode-card b { font: 900 8px/1.3 var(--mono); }
-    .mode-card small { margin-top: 6px; color: var(--muted); font: 700 7px var(--mono); }
-    .mode-card.active small { color: #cbd5e1; }
-    .mode-card em { margin-top: 6px; color: var(--orange); font: normal 900 7px var(--mono); }
-    .recommend-tag { display: inline-flex; margin-top: 7px; padding: 4px 6px; color: var(--green); background: #effcf4; border: 1px solid #bbefcd; font: 900 6px var(--mono); }
-    .quality-pills { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-    .quality-pill { min-height: 54px; padding: 8px 5px; border: 1px solid var(--line); background: white; cursor: pointer; font: 900 7px var(--mono); }
-    .quality-pill span { display: block; margin-top: 5px; color: var(--muted); font-size: 6px; }
-    .quality-pill.active { background: #fff7ed; border-color: var(--orange); color: var(--orange-dark); box-shadow: inset 0 -3px 0 var(--orange); }
-    .switch-line { min-height: 42px; padding: 9px 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--soft); border: 1px solid var(--line); }
-    .switch-line label { cursor: pointer; font: 800 8px var(--mono); }
-    .switch { width: 42px; height: 23px; position: relative; appearance: none; background: #cbd2dc; border-radius: 20px; cursor: pointer; transition: .18s; }
-    .switch::after { content: ""; position: absolute; width: 17px; height: 17px; left: 3px; top: 3px; border-radius: 50%; background: white; transition: .18s; box-shadow: 0 1px 4px rgba(0,0,0,.23); }
-    .switch:checked { background: var(--blue); }
-    .switch:checked::after { transform: translateX(19px); }
-    .range-row { display: grid; grid-template-columns: 78px 1fr 39px; align-items: center; gap: 8px; margin-top: 8px; }
-    .range-row label { color: var(--muted); font: 800 7px var(--mono); }
-    .range-row input[type="range"] { width: 100%; accent-color: var(--orange); }
-    .range-row output { padding: 5px 3px; text-align: center; color: var(--orange-dark); background: #fff7ed; font: 900 7px var(--mono); }
-    .target-readout { margin-top: 12px; padding: 12px; background: var(--ink); color: white; }
-    .target-readout small, .target-readout b, .target-readout span { display: block; }
-    .target-readout small { color: #94a3b8; font: 800 7px var(--mono); letter-spacing: .08em; }
-    .target-readout b { margin-top: 6px; color: white; font: 900 18px var(--mono); }
-    .target-readout span { margin-top: 5px; color: #fdba74; font: 800 7px var(--mono); }
-    .convert-button { width: 100%; min-height: 54px; margin-top: 11px; }
-    .status { min-height: 51px; margin-top: 10px; padding: 11px; color: #185c36; background: #effcf4; border-left: 4px solid var(--green); font: 700 7px/1.6 var(--mono); }
-    .status.working { color: #8a4305; background: #fff7ed; border-color: var(--orange); }
-    .status.error { color: #871e1e; background: #fff2f2; border-color: var(--red); }
-
-    .result-panel { margin-top: 12px; border: 2px solid var(--ink); background: white; box-shadow: var(--shadow); }
-    .result-head { min-height: 56px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--ink); color: white; }
-    .result-head b { font: 900 10px var(--mono); }
-    .result-head span { color: #86efac; font: 800 8px var(--mono); }
-    .result-body { display: grid; grid-template-columns: minmax(320px, 1.2fr) .8fr; }
-    .result-preview { min-height: 385px; padding: 22px; display: grid; place-items: center; background-color: #eef1f4; background-image: linear-gradient(45deg, #dfe4e9 25%, transparent 25%), linear-gradient(-45deg, #dfe4e9 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #dfe4e9 75%), linear-gradient(-45deg, transparent 75%, #dfe4e9 75%); background-position: 0 0, 0 10px, 10px -10px, -10px 0; background-size: 20px 20px; border-right: 1px solid var(--line); }
-    .result-preview img { max-width: 100%; max-height: 350px; object-fit: contain; box-shadow: 0 15px 40px rgba(17,24,39,.18); }
-    .result-preview .no-preview { display: none; text-align: center; color: var(--muted); font: 800 9px/1.7 var(--mono); }
-    .result-preview.unavailable img { display: none; }
-    .result-preview.unavailable .no-preview { display: block; }
-    .result-data { padding: 20px; }
-    .data-table { border: 1px solid var(--line); }
-    .data-row { min-height: 45px; padding: 9px 11px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); }
-    .data-row:last-child { border: 0; }
-    .data-row small { color: var(--muted); font: 800 7px var(--mono); }
-    .data-row b { text-align: right; font: 900 8px var(--mono); }
-    .warning-list { margin: 12px 0 0; padding: 0; display: grid; gap: 7px; list-style: none; }
-    .warning-list li { padding: 9px; color: #7c4a03; background: #fffbeb; border-left: 3px solid var(--yellow); font: 700 7px/1.55 var(--mono); }
-    .download-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 12px; }
-
-    .preset-table-wrap { overflow: auto; padding: 9px; background: #e9edf2; border: 2px solid var(--ink); }
-    .preset-table { min-width: 850px; width: 100%; border-collapse: collapse; background: white; font-family: var(--mono); }
-    .preset-table th, .preset-table td { padding: 15px; border: 1px solid var(--line); text-align: left; }
-    .preset-table th { color: white; background: var(--ink); font-size: 8px; letter-spacing: .08em; }
-    .preset-table td { font-size: 8px; }
-    .preset-table td:first-child { font-weight: 900; }
-    .ratio-chip { padding: 5px 7px; display: inline-flex; color: var(--orange-dark); background: #fff7ed; border: 1px solid #fed7aa; font-weight: 900; }
-
-    .format-grid { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid var(--line); background: white; }
-    .format-card { min-height: 150px; padding: 15px; border-right: 1px solid var(--line); }
-    .format-card:last-child { border: 0; }
-    .format-badge { width: 42px; height: 42px; display: grid; place-items: center; color: white; background: var(--ink); box-shadow: 4px 4px 0 var(--orange); font: 900 9px var(--mono); }
-    .format-card b { display: block; margin-top: 16px; font: 900 9px var(--mono); }
-    .format-card p { margin: 7px 0 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
-
-    .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
-    .info-card { padding: 20px; background: white; border: 1px solid var(--line); }
-    .info-card span { width: 31px; height: 31px; display: grid; place-items: center; color: var(--green); background: #effcf4; border: 1px solid #bbefcd; font: 900 8px var(--mono); }
-    .info-card h3 { margin: 15px 0 7px; font-size: 14px; }
-    .info-card p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
-    .setup-note { margin-top: 12px; padding: 17px; display: flex; align-items: center; justify-content: space-between; gap: 20px; color: white; background: var(--ink); }
-    .setup-note b, .setup-note small { display: block; }
-    .setup-note b { font: 900 10px var(--mono); }
-    .setup-note small { margin-top: 7px; color: #cbd5e1; font: 700 8px/1.6 var(--mono); }
-    .api-address { padding: 9px 11px; white-space: nowrap; color: #fdba74; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.2); font: 800 8px var(--mono); }
-    footer { padding: 30px 0; border-top: 1px solid var(--line); background: white; }
-    .footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; color: var(--muted); font: 700 8px var(--mono); }
-
-    @media (max-width: 1180px) {
-      .studio-grid { grid-template-columns: 265px 1fr; }
-      .settings-panel { grid-column: 1 / -1; border-top: 1px solid var(--line); }
-      .settings-panel .settings-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-      .format-grid { grid-template-columns: repeat(4, 1fr); }
-      .format-card:nth-child(4) { border-right: 0; }
-      .format-card:nth-child(-n+4) { border-bottom: 1px solid var(--line); }
+    .brand-copy b { display: block; color: var(--text); font: italic 400 31px/1 "Instrument Serif",Georgia,serif; letter-spacing: -.025em; }
+    .brand-copy small { display: block; margin-top: 4px; color: var(--muted); font-size: 7px; font-weight: 700; letter-spacing: .14em; }
+    .site-nav { justify-self: center; display: flex; align-self: stretch; }
+    .site-nav a {
+      min-width: 88px;
+      padding: 0 13px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      color: var(--muted);
+      border-inline-start: 1px solid var(--line);
+      text-align: center;
+      text-decoration: none;
     }
-    @media (max-width: 900px) {
+    .site-nav a:last-child { border-inline-end: 1px solid var(--line); }
+    .site-nav a span { font-size: 9px; font-weight: 700; letter-spacing: .08em; }
+    .site-nav a small { color: var(--muted); font-size: 6px; font-weight: 700; letter-spacing: .11em; }
+    .site-nav a:hover { color: var(--cyan); background: rgba(100,228,244,.07); }
+    .site-nav a.active { color: var(--text); background: rgba(159,131,255,.12); box-shadow: inset 0 -4px 0 var(--cyan); }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .engine-chip { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 7px; font-weight: 700; letter-spacing: .09em; white-space: nowrap; }
+    .engine-chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--copper); box-shadow: 0 0 0 4px rgba(212,125,84,.10); }
+    .engine-chip.online { color: var(--cyan); }
+    .engine-chip.online i { background: var(--cyan); box-shadow: 0 0 0 4px rgba(100,228,244,.10),0 0 17px var(--cyan); }
+    .theme-button {
+      min-width: 44px;
+      min-height: 42px;
+      padding: 9px 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--text);
+      background: rgba(255,255,255,.045);
+      box-shadow: 5px 6px 0 var(--shadow-violet);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .1em;
+    }
+    .theme-button:hover { border-color: var(--violet); transform: translateY(-2px); }
+    .theme-icon { color: var(--cyan); font-size: 15px; }
+
+    /*
+      ========================================================================
+      05 // HERO
+      KYA: Page ka concept bina technical language ke turant samjhata hai.
+      CHANGE EFFECT: Hero copy/design badalne se converter request fields nahi badlenge.
+      ========================================================================
+    */
+    .hero { padding: 86px 0 46px; }
+    .hero-panel {
+      padding: clamp(34px,5vw,72px);
+      display: grid;
+      grid-template-columns: .84fr 1.16fr;
+      align-items: center;
+      gap: clamp(32px,5vw,76px);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 54px 54px 170px 54px;
+      background: linear-gradient(145deg,rgba(25,28,62,.78),rgba(10,11,28,.88));
+      box-shadow: 0 40px 110px rgba(0,0,0,.40);
+      backdrop-filter: blur(24px);
+    }
+    :root[data-theme="light"] .hero-panel { background: linear-gradient(145deg,rgba(255,255,255,.96),rgba(239,238,249,.94)); box-shadow: 0 40px 90px rgba(36,42,67,.16); }
+    .eyebrow {
+      width: fit-content;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 11px;
+      color: var(--cyan);
+      border: 1px solid rgba(100,228,244,.30);
+      border-radius: 999px;
+      background: rgba(100,228,244,.06);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: .13em;
+    }
+    .eyebrow i { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 16px var(--cyan); }
+    .hero h1 { margin: 23px 0 18px; font: 600 clamp(54px,6.3vw,94px)/.88 Fraunces,Georgia,serif; letter-spacing: -.058em; }
+    .hero h1 span { color: transparent; background: linear-gradient(110deg,var(--cyan),var(--violet),var(--copper)); background-clip: text; }
+    .hero p { max-width: 650px; margin: 0; color: var(--muted); font-size: 14px; line-height: 1.75; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 26px; }
+    .primary-link, .secondary-link {
+      min-height: 50px;
+      padding: 0 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      text-decoration: none;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .05em;
+    }
+    .primary-link { color: #fff; background: var(--copper); box-shadow: 6px 7px 0 var(--shadow-cyan); }
+    .secondary-link { color: var(--text); border: 1px solid var(--line-strong); background: rgba(255,255,255,.04); }
+
+    /* Hero ka CSS-only shape theater: image file/network ki zarurat nahi. */
+    .shape-theater {
+      min-height: 470px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 150px 150px 28px 28px;
+      background:
+        linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px),
+        linear-gradient(180deg,#15172f,#090a18);
+      background-size: 28px 28px,28px 28px,auto;
+      box-shadow: 16px 18px 0 var(--shadow-violet),0 34px 75px rgba(0,0,0,.30);
+    }
+    :root[data-theme="light"] .shape-theater { background: linear-gradient(rgba(28,34,57,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(28,34,57,.055) 1px,transparent 1px),linear-gradient(155deg,#fff,#f0eef8 62%,#eef6f7); background-size: 28px 28px,28px 28px,auto; }
+    .theater-lamp { position: absolute; left: 50%; top: 0; width: 126px; height: 72px; transform: translateX(-50%); border-radius: 0 0 75px 75px; background: linear-gradient(180deg,var(--copper),#7f3f2e); box-shadow: 0 0 50px rgba(212,125,84,.34); }
+    .shape-orbit { position: absolute; inset: 82px 9% 58px; display: grid; place-items: center; }
+    .shape-orbit::before, .shape-orbit::after { content: ""; position: absolute; border: 1px solid rgba(159,131,255,.28); border-radius: 50%; }
+    .shape-orbit::before { width: 340px; height: 340px; max-width: 90%; }
+    .shape-orbit::after { width: 230px; height: 230px; max-width: 68%; border-color: rgba(100,228,244,.32); }
+    .shape-card { position: absolute; z-index: 2; display: grid; place-items: center; color: #111326; background: linear-gradient(145deg,rgba(245,238,227,.98),rgba(211,215,235,.96)); border: 1px solid rgba(255,255,255,.7); box-shadow: 8px 9px 0 var(--card-shadow); font: 600 13px/1 Fraunces,Georgia,serif; }
+    .shape-square { width: 150px; aspect-ratio: 1; --card-shadow: rgba(100,228,244,.42); transform: rotate(-3deg); }
+    .shape-story { right: 3%; width: 96px; aspect-ratio: 9/16; --card-shadow: rgba(159,131,255,.42); transform: rotate(3deg); }
+    .shape-banner { left: 0; bottom: 8%; width: 215px; aspect-ratio: 16/5; --card-shadow: rgba(212,125,84,.42); transform: rotate(2deg); }
+    .theater-caption { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); color: var(--cyan); font-size: 8px; font-weight: 700; letter-spacing: .15em; white-space: nowrap; }
+
+    /*
+      ========================================================================
+      06 // STUDIO SHELL
+      KYA: Saari working controls ko ek hi understandable workspace me rakhta hai.
+      CHANGE EFFECT: Grid columns sirf layout badlenge, backend FormData nahi.
+      ========================================================================
+    */
+    .studio-section { padding: 42px 0 120px; }
+    .section-heading { max-width: 760px; margin-bottom: 34px; }
+    .section-heading small { color: var(--cyan); font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+    .section-heading h2 { margin: 11px 0 12px; font: 600 clamp(42px,5vw,72px)/.92 Fraunces,Georgia,serif; letter-spacing: -.05em; }
+    .section-heading p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .studio-shell { padding: 18px; border: 1px solid var(--line); border-radius: 34px; background: linear-gradient(145deg,rgba(18,20,43,.95),rgba(9,10,24,.97)); box-shadow: 16px 19px 0 var(--shadow-cyan),0 34px 78px rgba(0,0,0,.28); }
+    :root[data-theme="light"] .studio-shell { background: linear-gradient(145deg,#fff,#f0f4f5); box-shadow: 16px 19px 0 var(--shadow-cyan),0 28px 55px rgba(36,42,67,.11); }
+    .studio-topbar { min-height: 58px; padding: 0 17px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid var(--line); border-radius: 17px 17px 7px 7px; background: rgba(255,255,255,.035); }
+    .studio-topbar b { display: flex; align-items: center; gap: 9px; font-size: 9px; letter-spacing: .09em; }
+    .studio-topbar b i { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 16px var(--cyan); }
+    .step-line { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 7px; font-weight: 700; letter-spacing: .06em; }
+    .step-line span { display: grid; place-items: center; width: 24px; height: 24px; color: var(--text); border: 1px solid var(--line); border-radius: 50%; }
+    .studio-grid { display: grid; grid-template-columns: minmax(390px,.82fr) minmax(0,1.18fr); gap: 18px; margin-top: 18px; }
+
+    /*
+      ========================================================================
+      07 // LEFT PREVIEW DECK
+      KYA: Upload, automatic analysis, live frame preview aur result ek jagah.
+      CHANGE EFFECT: Preview canvas low-size copy hai; final pixels Python banata hai.
+      ========================================================================
+    */
+    .preview-deck { min-width: 0; align-self: start; position: sticky; top: 126px; padding: 20px; border: 1px solid var(--line); border-radius: 26px; background: rgba(255,255,255,.025); }
+    .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+    .panel-title b { font-size: 9px; letter-spacing: .10em; }
+    .panel-title span { color: var(--cyan); font-size: 7px; font-weight: 700; letter-spacing: .09em; }
+    .dropzone { min-height: 150px; margin-top: 14px; padding: 18px; display: flex; align-items: center; justify-content: center; gap: 16px; border: 1px dashed var(--line-strong); border-radius: 20px; background: linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px),var(--surface-deep); background-size: 24px 24px; text-align: left; transition: .18s ease; }
+    .dropzone:hover, .dropzone.is-over { color: var(--cyan); border-color: var(--cyan); background-color: rgba(100,228,244,.06); }
+    .drop-icon { width: 58px; height: 58px; flex: 0 0 auto; display: grid; place-items: center; color: var(--copper); background: var(--paper); border-radius: 50% 50% 12px 12px; box-shadow: 7px 8px 0 var(--shadow-cyan); font-size: 25px; font-weight: 700; }
+    .drop-copy strong { display: block; font: 600 20px/1.1 Fraunces,Georgia,serif; }
+    .drop-copy small { display: block; margin-top: 7px; color: var(--muted); font-size: 8px; line-height: 1.55; }
+    .file-input { position: absolute; opacity: 0; pointer-events: none; }
+    .file-meta { display: none; grid-template-columns: 46px minmax(0,1fr) auto; align-items: center; gap: 10px; margin-top: 11px; padding: 10px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.035); }
+    .file-meta.visible { display: grid; }
+    .file-thumb { width: 46px; height: 46px; object-fit: cover; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-deep); }
+    .file-copy { min-width: 0; }
+    .file-copy b, .file-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-copy b { font-size: 9px; }
+    .file-copy small { margin-top: 4px; color: var(--muted); font-size: 7px; }
+    .remove-file { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: rgba(255,255,255,.04); }
+    .remove-file:hover { color: var(--danger); border-color: var(--danger); }
+
+    /* Analysis tiles backend ke real source metadata dikhate hain. */
+    .analysis-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; margin-top: 12px; }
+    .analysis-item { min-width: 0; min-height: 61px; padding: 9px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.03); }
+    .analysis-item small { display: block; color: var(--muted); font-size: 6px; font-weight: 700; letter-spacing: .08em; }
+    .analysis-item b { display: block; margin-top: 6px; overflow: hidden; color: var(--text); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+    .preview-stage { min-height: 430px; margin-top: 12px; padding: 18px; position: relative; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px),#0c0e20; background-size: 24px 24px; }
+    :root[data-theme="light"] .preview-stage { background: linear-gradient(rgba(28,34,57,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(28,34,57,.055) 1px,transparent 1px),#faf9fd; background-size: 24px 24px; }
+    .preview-empty { text-align: center; color: var(--muted); }
+    .preview-empty strong { display: block; color: var(--text); font: 600 21px/1 Fraunces,Georgia,serif; }
+    .preview-empty small { display: block; max-width: 270px; margin-top: 9px; font-size: 8px; line-height: 1.6; }
+    #previewCanvas, #resultImage { display: none; max-width: 96%; max-height: 390px; object-fit: contain; box-shadow: 0 24px 52px rgba(0,0,0,.36); }
+    #previewCanvas.visible, #resultImage.visible { display: block; }
+    .preview-badge { position: absolute; left: 14px; bottom: 14px; padding: 9px 11px; color: var(--text); border: 1px solid var(--line); border-radius: 999px; background: rgba(10,10,25,.82); backdrop-filter: blur(12px); font-size: 7px; font-weight: 700; }
+    :root[data-theme="light"] .preview-badge { background: rgba(255,255,255,.88); }
+    .preview-tabs { display: none; position: absolute; top: 14px; right: 14px; z-index: 2; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: rgba(10,10,25,.82); }
+    :root[data-theme="light"] .preview-tabs { background: rgba(255,255,255,.90); }
+    .preview-tabs.visible { display: flex; }
+    .preview-tab { min-height: 30px; padding: 0 11px; border: 0; border-radius: 999px; color: var(--muted); background: transparent; font-size: 7px; font-weight: 700; }
+    .preview-tab.active { color: #fff; background: var(--violet); }
+    .browser-preview-note { display: none; max-width: 300px; color: var(--muted); text-align: center; font-size: 9px; line-height: 1.65; }
+    .browser-preview-note.visible { display: block; }
+
+    /*
+      ========================================================================
+      08 // RIGHT CONTROL PATH
+      KYA: Platform, exact mode, fit aur quality ko child-friendly cards me rakhta hai.
+      CHANGE EFFECT: Button data values Python dictionary keys se exact match chahiye.
+      ========================================================================
+    */
+    .control-path { min-width: 0; display: grid; gap: 14px; }
+    .control-card { padding: 20px; border: 1px solid var(--line); border-radius: 26px; background: rgba(255,255,255,.025); }
+    .control-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+    .control-heading span { color: var(--cyan); font-size: 8px; font-weight: 700; letter-spacing: .12em; }
+    .control-heading h3 { margin: 7px 0 0; font: 600 25px/1 Fraunces,Georgia,serif; }
+    .control-heading small { max-width: 270px; color: var(--muted); font-size: 8px; line-height: 1.55; text-align: right; }
+    .platform-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 17px; }
+    .platform-button { min-height: 39px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: rgba(255,255,255,.035); font-size: 8px; font-weight: 700; }
+    .platform-button:hover { color: var(--cyan); border-color: var(--cyan); }
+    .platform-button.active { color: #fff; border-color: var(--violet); background: linear-gradient(110deg,rgba(159,131,255,.82),rgba(212,125,84,.72)); box-shadow: 4px 5px 0 var(--shadow-cyan); }
+    .mode-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin-top: 19px; }
+    .mode-button { min-width: 0; min-height: 124px; padding: 13px; position: relative; display: grid; grid-template-columns: 56px minmax(0,1fr); align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 18px; color: var(--text); background: radial-gradient(circle at 82% 12%,rgba(100,228,244,.13),transparent 32%),rgba(255,255,255,.025); text-align: left; box-shadow: 6px 7px 0 var(--shadow-cyan); transition: transform .16s ease,border-color .16s ease; }
+    .mode-button:nth-child(3n+2) { background: radial-gradient(circle at 82% 12%,rgba(159,131,255,.16),transparent 32%),rgba(255,255,255,.025); box-shadow: 6px 7px 0 var(--shadow-violet); }
+    .mode-button:nth-child(3n) { background: radial-gradient(circle at 82% 12%,rgba(212,125,84,.16),transparent 32%),rgba(255,255,255,.025); box-shadow: 6px 7px 0 var(--shadow-copper); }
+    .mode-button:hover { transform: translateY(-3px); border-color: var(--cyan); }
+    .mode-button.active { border-color: var(--cyan); background-color: rgba(100,228,244,.08); box-shadow: 0 0 0 2px var(--cyan),6px 7px 0 var(--shadow-violet); }
+    .mode-shape { width: 50px; height: 72px; display: grid; place-items: center; }
+    .mode-shape i { display: block; max-width: 50px; max-height: 70px; min-width: 13px; min-height: 13px; border: 1px solid var(--line-strong); border-radius: 5px; background: linear-gradient(145deg,var(--paper),#cfd4e6); box-shadow: 4px 5px 0 var(--shadow-violet); }
+    .mode-copy { min-width: 0; }
+    .mode-copy b { display: block; font-size: 9px; line-height: 1.4; }
+    .mode-copy small { display: block; margin-top: 6px; color: var(--muted); font-size: 7px; line-height: 1.45; }
+    .best-badge { position: absolute; top: -7px; right: 8px; display: none; padding: 5px 7px; border-radius: 999px; color: #111326; background: var(--cyan); font-size: 6px; font-weight: 700; letter-spacing: .07em; }
+    .mode-button.recommended .best-badge { display: block; }
+
+    /* Fit and quality use equal, large click targets. */
+    .choice-row { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-top: 17px; }
+    .choice-button { min-height: 104px; padding: 15px; border: 1px solid var(--line); border-radius: 18px; color: var(--text); background: rgba(255,255,255,.03); text-align: left; }
+    .choice-button:hover { border-color: var(--violet); }
+    .choice-button.active { border-color: var(--violet); background: rgba(159,131,255,.13); box-shadow: inset 0 -4px 0 var(--violet); }
+    .choice-button b { display: block; font: 600 18px/1 Fraunces,Georgia,serif; }
+    .choice-button small { display: block; margin-top: 8px; color: var(--muted); font-size: 8px; line-height: 1.55; }
+    .quality-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin-top: 17px; }
+    .quality-button { min-height: 98px; padding: 14px; border: 1px solid var(--line); border-radius: 18px; color: var(--text); background: rgba(255,255,255,.03); text-align: left; }
+    .quality-button:hover { border-color: var(--copper); }
+    .quality-button.active { border-color: var(--copper); background: rgba(212,125,84,.12); box-shadow: inset 0 -4px 0 var(--copper); }
+    .quality-button b { display: block; font-size: 9px; }
+    .quality-button small { display: block; margin-top: 7px; color: var(--muted); font-size: 7px; line-height: 1.5; }
+
+    /* Output line sirf format aur final action rakhti hai; unnecessary settings nahi. */
+    .finish-grid { display: grid; grid-template-columns: minmax(170px,.42fr) minmax(0,.58fr); gap: 12px; margin-top: 17px; align-items: end; }
+    .field label { display: flex; justify-content: space-between; gap: 9px; margin-bottom: 7px; color: var(--muted); font-size: 7px; font-weight: 700; letter-spacing: .08em; }
+    .field select { width: 100%; min-height: 52px; padding: 0 12px; border: 1px solid var(--line); border-radius: 14px; color: var(--text); background: var(--surface-deep); font-size: 9px; font-weight: 700; }
+    .convert-button { width: 100%; min-height: 54px; padding: 0 18px; border: 0; border-radius: 999px; color: #fff; background: linear-gradient(110deg,var(--violet),var(--copper)); box-shadow: 7px 8px 0 var(--shadow-cyan); font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+    .convert-button:active { transform: translateY(2px); }
+    .convert-button:disabled { opacity: .46; cursor: not-allowed; filter: grayscale(.45); }
+    .status-box { min-height: 56px; margin-top: 13px; padding: 12px 13px; border: 1px solid rgba(100,228,244,.28); border-left: 4px solid var(--cyan); border-radius: 13px; color: var(--cyan); background: rgba(100,228,244,.07); font-size: 8px; line-height: 1.55; }
+    .status-box.processing { color: #f09b72; border-color: rgba(212,125,84,.34); background: rgba(212,125,84,.09); }
+    .status-box.error { color: var(--danger); border-color: rgba(255,125,133,.38); background: rgba(255,125,133,.08); }
+
+    /*
+      ========================================================================
+      09 // RESULT PANEL
+      KYA: Python response headers ki real dimensions/size aur warnings dikhata hai.
+      CHANGE EFFECT: Header names badloge to prototype.py me bhi same names chahiye.
+      ========================================================================
+    */
+    .result-panel { display: none; margin-top: 14px; padding-top: 15px; border-top: 1px solid var(--line); }
+    .result-panel.visible { display: block; }
+    .result-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .result-head b { color: var(--success); font-size: 9px; letter-spacing: .08em; }
+    .result-head span { color: var(--muted); font-size: 7px; }
+    .result-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 7px; margin-top: 10px; }
+    .result-stat { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.03); }
+    .result-stat small { display: block; color: var(--muted); font-size: 6px; font-weight: 700; letter-spacing: .08em; }
+    .result-stat b { display: block; margin-top: 6px; overflow: hidden; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+    .warning-list { display: none; margin: 11px 0 0; padding: 11px 11px 11px 28px; border: 1px solid rgba(212,125,84,.30); border-radius: 12px; color: #f0a585; background: rgba(212,125,84,.08); font-size: 7px; line-height: 1.6; }
+    .warning-list.visible { display: block; }
+    .download-button { width: 100%; min-height: 52px; margin-top: 11px; border: 1px solid rgba(100,228,244,.34); border-radius: 14px; color: #111326; background: var(--cyan); box-shadow: 6px 7px 0 var(--shadow-violet); font-size: 9px; font-weight: 700; letter-spacing: .06em; }
+
+    /*
+      ========================================================================
+      10 // FOOTER
+      KYA: Related existing tools ki navigation aur page scope explain karta hai.
+      ========================================================================
+    */
+    .trust-strip { border-block: 1px solid var(--line); background: var(--surface-soft); }
+    .trust-grid { display: grid; grid-template-columns: repeat(4,1fr); }
+    .trust-grid article { min-height: 116px; padding: 21px; border-right: 1px solid var(--line); }
+    .trust-grid article:last-child { border-right: 0; }
+    .trust-mark { width: 28px; height: 28px; display: grid; place-items: center; color: var(--cyan); border: 1px solid rgba(100,228,244,.30); border-radius: 50%; background: rgba(100,228,244,.07); font-size: 8px; font-weight: 700; }
+    .trust-grid b { display: block; margin-top: 11px; font-size: 8px; }
+    .trust-grid p { margin: 6px 0 0; color: var(--muted); font-size: 7px; line-height: 1.5; }
+    footer { padding: 28px 0; color: var(--muted); background: rgba(4,5,13,.72); }
+    :root[data-theme="light"] footer { background: #e9ece9; }
+    .footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 18px; font-size: 7px; }
+    .footer-links { display: flex; flex-wrap: wrap; gap: 16px; }
+    .footer-links a:hover { color: var(--cyan); }
+
+    /*
+      ========================================================================
+      11 // RESPONSIVE RULES
+      KYA: Desktop grid ko tablet/mobile par single column me badalta hai.
+      CHANGE EFFECT: Breakpoint value badalne se sirf layout switch timing badlegi.
+      ========================================================================
+    */
+    @media (max-width: 1120px) {
       .site-nav { display: none; }
-      .header-inner { grid-template-columns: 1fr auto; }
-      .hero-box { grid-template-columns: 1fr; }
-      .hero-visual { min-height: 430px; }
-      .fact-strip { grid-template-columns: repeat(2, 1fr); }
-      .fact-strip div { border-bottom: 1px solid var(--line); }
-      .fact-strip div:nth-child(2n) { border-right: 0; }
-      .fact-strip div:last-child { grid-column: 1 / -1; }
-      .section-head { align-items: start; flex-direction: column; }
+      .hero-panel { grid-template-columns: 1fr; }
+      .shape-theater { min-height: 430px; }
       .studio-grid { grid-template-columns: 1fr; }
-      .panel { border-right: 0; border-bottom: 1px solid var(--line); }
-      .settings-panel { grid-column: auto; }
-      .result-body { grid-template-columns: 1fr; }
-      .result-preview { border-right: 0; border-bottom: 1px solid var(--line); }
-      .format-grid { grid-template-columns: repeat(2, 1fr); }
-      .format-card { border-right: 1px solid var(--line) !important; border-bottom: 1px solid var(--line); }
-      .format-card:nth-child(2n) { border-right: 0 !important; }
-      .format-card:last-child { grid-column: 1 / -1; border-bottom: 0; }
-      .info-grid { grid-template-columns: 1fr; }
+      .preview-deck { position: static; }
+      .mode-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
     }
-    @media (max-width: 620px) {
-      .wrap { width: min(100% - 20px, 1440px); }
-      .engine-chip span:last-child { display: none; }
-      .hero-copy { padding: 30px 22px; }
-      .hero-visual { min-height: 390px; padding: 18px; }
-      .orbit-card { width: 128px; min-height: 76px; }
-      .mode-core b { font-size: 24px; }
-      .fact-strip { grid-template-columns: 1fr; }
-      .fact-strip div, .fact-strip div:nth-child(2n) { border-right: 0; }
-      .fact-strip div:last-child { grid-column: auto; }
-      .studio-shell { padding: 5px; }
-      .panel { padding: 14px; }
-      .settings-panel .settings-layout { grid-template-columns: 1fr; }
-      .result-preview { min-height: 300px; }
-      .download-row { grid-template-columns: 1fr; }
-      .format-grid { grid-template-columns: 1fr; }
-      .format-card, .format-card:nth-child(2n) { border-right: 0 !important; }
-      .format-card:last-child { grid-column: auto; }
-      .setup-note, .footer-inner { align-items: flex-start; flex-direction: column; }
-      .api-address { white-space: normal; }
+    @media (max-width: 760px) {
+      .wrap { width: min(100% - 20px,var(--page-width)); }
+      .site-header { top: 8px; width: calc(100% - 14px); border-radius: 18px 18px 44px 44px; }
+      .header-inner { min-height: 78px; padding-inline: 14px; grid-template-columns: 1fr auto; }
+      .engine-chip, .theme-label { display: none; }
+      .brand-mark { width: 46px; height: 46px; }
+      .brand-copy b { font-size: 27px; }
+      .hero { padding-top: 58px; }
+      .hero-panel { padding: 31px 21px 48px; border-radius: 36px 36px 90px 36px; }
+      .hero h1 { font-size: 52px; }
+      .shape-theater { min-height: 390px; border-radius: 100px 100px 22px 22px; }
+      .studio-shell { padding: 9px; border-radius: 25px; }
+      .studio-topbar { align-items: flex-start; flex-direction: column; padding: 13px; }
+      .step-line { flex-wrap: wrap; }
+      .mode-grid { grid-template-columns: 1fr 1fr; }
+      .quality-grid { grid-template-columns: 1fr; }
+      .finish-grid { grid-template-columns: 1fr; }
+      .trust-grid { grid-template-columns: 1fr 1fr; }
+      .trust-grid article:nth-child(2) { border-right: 0; }
+      .trust-grid article { border-bottom: 1px solid var(--line); }
+    }
+    @media (max-width: 480px) {
+      .brand-copy small { display: none; }
+      .hero h1 { font-size: 44px; }
+      .shape-theater { min-height: 350px; }
+      .shape-square { width: 125px; }
+      .shape-story { width: 78px; }
+      .shape-banner { width: 170px; }
+      .preview-deck, .control-card { padding: 14px; }
+      .dropzone { align-items: center; flex-direction: column; text-align: center; }
+      .analysis-grid, .result-stats { grid-template-columns: 1fr 1fr; }
+      .preview-stage { min-height: 340px; }
+      .mode-grid, .choice-row { grid-template-columns: 1fr; }
+      .mode-button { min-height: 106px; }
+      .control-heading { flex-direction: column; }
+      .control-heading small { text-align: left; }
+      .trust-grid { grid-template-columns: 1fr; }
+      .trust-grid article { border-right: 0; }
+      .footer-inner { align-items: flex-start; flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
     }
   </style>
 </head>
+
 <body>
+  <!-- Loader wrapper: JS window.load event par isme .is-hidden class lagata hai. -->
+  <div class="page-loader" id="pageLoader" role="status" aria-label="Opening Aurora Photo-Mode Pavilion">
+    <!-- Loader ka visible arch; purely decorative, Python se connected nahi. -->
+    <div class="loader-arch">
+      <b>15</b>
+      <small>PREPARING THE PHOTO FRAMES</small>
+    </div>
+  </div>
+
+  <!-- Main header: existing project pages ke saath same brand family maintain karta hai. -->
   <header class="site-header">
-    <div class="wrap header-inner">
-      <a class="brand" href="#top" aria-label="ImageReducer home">
-        <span class="brand-mark">/&gt;</span>
-        <span class="brand-copy"><b>ImageReducer</b><small>PHOTO MODE LAB</small></span>
+    <!-- Header inner grid: brand, navigation aur live controls ko align karta hai. -->
+    <div class="header-inner">
+      <a class="brand" href="home_01.html" aria-label="ImageReducer home">
+        <span class="brand-mark" aria-hidden="true">15</span>
+        <span class="brand-copy"><b>ImageReducer</b><small>AURORA PRECISION SYSTEMS</small></span>
       </a>
-      <nav class="site-nav" aria-label="Page sections">
-        <a class="active" href="#studio">MODE CHANGER</a>
-        <a href="#sizes">PIXEL SIZES</a>
-        <a href="#formats">FORMATS</a>
-        <a href="#guide">HOW IT WORKS</a>
+
+      <nav class="site-nav" aria-label="Primary navigation">
+        <a href="home_01.html"><span>HOME</span><small>PAVILION</small></a>
+        <a href="index_02.html"><span>RESIZE</span><small>PRECISION</small></a>
+        <a href="All_converter.html"><span>CONVERT</span><small>42 ROUTES</small></a>
+        <a class="active" href="#studio"><span>MODES</span><small>35 FRAMES</small></a>
       </nav>
-      <div class="engine-chip" id="engineChip" title="Python backend connection status">
-        <i class="engine-dot"></i><span id="engineText">CHECKING ENGINE</span>
+
+      <!-- Header action group: backend status + appearance theme. -->
+      <div class="header-actions">
+        <span class="engine-chip" id="engineChip"><i aria-hidden="true"></i><span id="engineText">ENGINE CHECKING</span></span>
+        <button class="theme-button" id="themeToggle" type="button" aria-label="Switch to bright theme" aria-pressed="false">
+          <span class="theme-icon" aria-hidden="true">☀</span>
+          <span class="theme-label">BRIGHT</span>
+        </button>
       </div>
     </div>
   </header>
 
-  <main id="top">
-    <section class="hero">
-      <div class="wrap hero-box">
-        <div class="hero-copy">
-          <span class="eyebrow">SMART PHOTO MODE ENGINE</span>
-          <h1>Change the mode. <span>Keep every pixel intentional.</span></h1>
-          <p>Turn one photo into a YouTube thumbnail, channel banner, Instagram post, or full-screen story. Choose HD, Full HD, or Ultra HD 4K, switch the file format, and see the exact output dimensions before export.</p>
-          <div class="hero-actions">
-            <a class="btn primary" href="#studio">UPLOAD &amp; CHANGE MODE →</a>
-            <a class="btn" href="#sizes">VIEW PIXEL GUIDE</a>
+  <!-- Page main: hero concept aur actual working studio dono rakhta hai. -->
+  <main>
+    <!-- Hero section: user ko page ka single purpose samjhata hai. -->
+    <section class="hero" aria-labelledby="pageTitle">
+      <!-- Shared width wrapper. -->
+      <div class="wrap">
+        <!-- Hero glass panel: text aur CSS shape theater ka two-column layout. -->
+        <div class="hero-panel">
+          <!-- Hero copy group. -->
+          <div class="hero-copy">
+            <span class="eyebrow"><i aria-hidden="true"></i> ONE PHOTO · EVERY PLATFORM</span>
+            <h1 id="pageTitle">Change the frame.<br><span>Keep the moment.</span></h1>
+            <p>Upload once, choose where the photo is going, and pick the shape you need. The pavilion handles square posts, tall stories, wide banners, profile pictures, pins and e-mail covers.</p>
+            <!-- Hero links only scroll/navigate; they never start conversion automatically. -->
+            <div class="hero-actions">
+              <a class="primary-link" href="#studio">CHOOSE A PHOTO MODE →</a>
+              <a class="secondary-link" href="#howItWorks">SEE THE 3 EASY STEPS</a>
+            </div>
+          </div>
+
+          <!-- CSS-only hero visual: square, story and banner shapes. -->
+          <div class="shape-theater" aria-label="Square, story and banner photo frame examples">
+            <span class="theater-lamp" aria-hidden="true"></span>
+            <!-- Shape orbit groups the three sample frames. -->
+            <div class="shape-orbit">
+              <span class="shape-card shape-square">1:1</span>
+              <span class="shape-card shape-story">9:16</span>
+              <span class="shape-card shape-banner">WIDE</span>
+            </div>
+            <span class="theater-caption">SQUARE · TALL · WIDE · READY</span>
           </div>
         </div>
-        <div class="hero-visual" role="img" aria-label="Four photo modes routed through one format engine">
-          <div class="mode-orbit">
-            <div class="mode-core"><div><b>MODE</b><small>PIXELS → FORMAT</small></div></div>
-            <div class="orbit-card"><b>YOUTUBE THUMBNAIL</b><small>1280 × 720 px</small><em>16:9</em></div>
-            <div class="orbit-card"><b>YOUTUBE BANNER</b><small>2560 × 1440 px</small><em>16:9</em></div>
-            <div class="orbit-card"><b>INSTAGRAM POST</b><small>1080 × 1080 px</small><em>1:1</em></div>
-            <div class="orbit-card"><b>INSTAGRAM STORY</b><small>1080 × 1920 px</small><em>9:16</em></div>
-          </div>
-        </div>
-      </div>
-      <div class="wrap fact-strip">
-        <div><small>PHOTO MODES</small><b>4 PLATFORM PRESETS</b></div>
-        <div><small>QUALITY</small><b>HD · FULL HD · ULTRA HD 4K</b></div>
-        <div><small>FORMATS</small><b>JPG · JPEG · WEBP · GIF · TIF · PNG · SVG</b></div>
-        <div><small>FIT CONTROL</small><b>COVER CROP OR CONTAIN</b></div>
-        <div><small>LIMIT</small><b>25 MB INPUT · 20,000 PX MAX</b></div>
       </div>
     </section>
 
-    <section class="section" id="studio">
+    <!-- Actual converter studio begins here. -->
+    <section class="studio-section" id="studio" aria-labelledby="studioTitle">
+      <!-- Studio shared width wrapper. -->
       <div class="wrap">
-        <div class="section-head">
-          <div><p class="kicker">01 // UPLOAD · ANALYZE · CHANGE</p><h2>Photo mode workbench</h2></div>
-          <p>Your source stays untouched. The Python engine reads the real file, detects its orientation and aspect ratio, then creates a separate export.</p>
+        <!-- Studio intro. -->
+        <div class="section-heading">
+          <small>PHOTO-MODE STUDIO // 35 READY FRAMES</small>
+          <h2 id="studioTitle">Three choices. One ready photo.</h2>
+          <p>Choose a platform, tap the picture shape, then export. Your original file stays untouched; Python creates a new result.</p>
         </div>
 
+        <!-- Working studio outer shell. -->
         <div class="studio-shell">
-          <div class="studio">
-            <div class="studio-top">
-              <b>MODE_CONVERSION_WORKSPACE // <span id="workspaceState">WAITING FOR IMAGE</span></b>
-              <span id="routeSummary">AUTO INPUT → JPG · YOUTUBE THUMBNAIL</span>
-            </div>
-            <div class="studio-grid">
-              <section class="panel upload-panel">
-                <div class="panel-head"><b>01 // SOURCE PHOTO</b><span>AUTO-DETECT</span></div>
-                <label class="dropzone" id="dropzone" for="fileInput">
-                  <span class="drop-icon">↑</span>
-                  <strong>DROP YOUR PHOTO HERE</strong>
-                  <small>or click to browse<br>JPG, JPEG, WebP, GIF, TIF, PNG, SVG</small>
-                </label>
-                <input class="sr-only" id="fileInput" type="file" accept=".jpg,.jpeg,.webp,.gif,.tif,.tiff,.png,.svg,image/*">
-                <div class="file-meta" id="fileMeta" hidden>
-                  <img id="fileThumb" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Selected file thumbnail">
-                  <span><b id="fileName">NO FILE</b><small id="fileLine">—</small></span>
-                  <button class="icon-button" id="removeFile" type="button" aria-label="Remove selected image">×</button>
+          <!-- Studio top bar: status identity and short workflow reminder. -->
+          <div class="studio-topbar">
+            <b><i aria-hidden="true"></i> AURORA_MODE_ENGINE // <span id="topbarState">WAITING FOR PHOTO</span></b>
+            <span class="step-line"><span>1</span> UPLOAD <span>2</span> PICK A FRAME <span>3</span> DOWNLOAD</span>
+          </div>
+
+          <!-- Main two-column working area. -->
+          <div class="studio-grid">
+            <!-- LEFT: upload, analysis and live preview stay together. -->
+            <aside class="preview-deck" aria-label="Photo upload and preview">
+              <!-- Preview deck title. -->
+              <div class="panel-title">
+                <b>01 // YOUR PHOTO</b>
+                <span id="sourceState">NOT UPLOADED</span>
+              </div>
+
+              <label class="dropzone" id="dropzone" for="fileInput">
+                <span class="drop-icon" aria-hidden="true">↑</span>
+                <span class="drop-copy"><strong>Drop or choose a photo</strong><small>JPG, JPEG, WEBP, GIF, TIF, PNG or SVG · max 25 MB</small></span>
+              </label>
+              <input class="file-input" id="fileInput" type="file" accept=".jpg,.jpeg,.webp,.gif,.tif,.tiff,.png,.svg,image/jpeg,image/webp,image/gif,image/tiff,image/png,image/svg+xml">
+
+              <!-- Selected file summary appears after upload. -->
+              <div class="file-meta" id="fileMeta">
+                <img class="file-thumb" id="fileThumb" alt="Selected photo thumbnail">
+                <span class="file-copy"><b id="fileName">NO FILE</b><small id="fileSize">—</small><small id="fileHint">Waiting for analysis</small></span>
+                <button class="remove-file" id="removeFile" type="button" aria-label="Remove selected photo">×</button>
+              </div>
+
+              <!-- Backend analysis: these four values come from the uploaded source. -->
+              <div class="analysis-grid" aria-label="Uploaded photo information">
+                <div class="analysis-item"><small>FORMAT</small><b id="sourceFormat">—</b></div>
+                <div class="analysis-item"><small>DIMENSIONS</small><b id="sourceDimensions">—</b></div>
+                <div class="analysis-item"><small>ORIENTATION</small><b id="sourceOrientation">—</b></div>
+                <div class="analysis-item"><small>NEAREST RATIO</small><b id="sourceRatio">—</b></div>
+              </div>
+
+              <!-- Live preview stage: small browser rendering; final file always comes from Python. -->
+              <div class="preview-stage" id="previewStage">
+                <!-- Source/result switch only appears after a backend result exists. -->
+                <div class="preview-tabs" id="previewTabs" role="group" aria-label="Preview source or result">
+                  <button class="preview-tab active" id="showSource" type="button">LIVE FRAME</button>
+                  <button class="preview-tab" id="showResult" type="button">PYTHON RESULT</button>
                 </div>
-                <div class="upload-rules">
-                  <div class="rule">Maximum source file size: 25 MB</div>
-                  <div class="rule">Real format checked from file bytes</div>
-                  <div class="rule">Phone EXIF rotation is corrected</div>
-                  <div class="rule">Original photo is never overwritten</div>
+
+                <!-- Empty state is visible until browser can decode an uploaded image. -->
+                <div class="preview-empty" id="previewEmpty"><strong>Your frame will appear here</strong><small>Upload a photo, then tap any platform mode to see its new shape.</small></div>
+                <canvas id="previewCanvas" aria-label="Live target frame preview"></canvas>
+                <img id="resultImage" alt="Converted Python result preview">
+                <p class="browser-preview-note" id="browserPreviewNote">This browser cannot display this format, but Python can still convert and download it.</p>
+                <span class="preview-badge" id="previewBadge">NO FRAME SELECTED</span>
+              </div>
+            </aside>
+
+            <!-- RIGHT: guided selection path. -->
+            <div class="control-path">
+              <!-- Step 2A: platform + exact target mode. -->
+              <section class="control-card" aria-labelledby="modeHeading">
+                <!-- Heading includes one-line child-friendly instruction. -->
+                <div class="control-heading">
+                  <!-- Heading copy wrapper keeps the small step label with its title. -->
+                  <div><span>02 // WHERE WILL YOU USE IT?</span><h3 id="modeHeading">Pick a platform and shape</h3></div>
+                  <small>Choose the app first. Then choose profile, post, story, banner or another picture shape.</small>
+                </div>
+                <div class="platform-list" id="platformList" role="group" aria-label="Photo platforms"></div>
+                <div class="mode-grid" id="modeGrid" role="group" aria-label="Available photo modes"></div>
+              </section>
+
+              <!-- Step 2B: how the source fits inside a different ratio. -->
+              <section class="control-card" aria-labelledby="fitHeading">
+                <!-- Fit heading. -->
+                <div class="control-heading">
+                  <!-- Heading copy wrapper keeps the small step label with its title. -->
+                  <div><span>03 // HOW SHOULD IT FIT?</span><h3 id="fitHeading">Fill it or show it all</h3></div>
+                  <small>The live preview shows the difference before Python makes the file.</small>
+                </div>
+                <div class="choice-row" id="fitChoices" role="group" aria-label="Photo fit style">
+                  <button class="choice-button active" type="button" data-fit="cover" aria-pressed="true"><b>Fill the frame</b><small>No empty space. A little from the edges may be cropped.</small></button>
+                  <button class="choice-button" type="button" data-fit="contain" aria-pressed="false"><b>Show the whole photo</b><small>Nothing is cropped. Empty space may appear around the photo.</small></button>
                 </div>
               </section>
 
-              <section class="panel preview-panel">
-                <div class="panel-head"><b>02 // SOURCE ANALYSIS</b><span id="analysisState">NO DATA</span></div>
-                <div class="preview-stage" id="previewStage">
-                  <img id="previewImage" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Uploaded image preview">
-                  <div class="empty-preview"><div class="empty-file">IMG</div><b>PREVIEW + PIXEL PROFILE</b><small>Upload one supported photo to begin</small></div>
+              <!-- Step 2C: backend quality multiplier. -->
+              <section class="control-card" aria-labelledby="qualityHeading">
+                <!-- Quality heading. -->
+                <div class="control-heading">
+                  <!-- Heading copy wrapper keeps the small step label with its title. -->
+                  <div><span>04 // HOW SHARP?</span><h3 id="qualityHeading">Choose export quality</h3></div>
+                  <small>Higher quality makes more pixels and usually a larger file.</small>
                 </div>
-                <div class="analysis-grid">
-                  <div class="analysis-cell"><small>FORMAT</small><b id="sourceFormat">—</b></div>
-                  <div class="analysis-cell"><small>PIXELS</small><b id="sourcePixels">—</b></div>
-                  <div class="analysis-cell"><small>FILE SIZE</small><b id="sourceSize">—</b></div>
-                  <div class="analysis-cell"><small>ORIENTATION</small><b id="sourceOrientation">—</b></div>
-                  <div class="analysis-cell"><small>ASPECT</small><b id="sourceAspect">—</b></div>
-                  <div class="analysis-cell"><small>MEGAPIXELS</small><b id="sourceMegapixels">—</b></div>
-                </div>
-                <div class="profile-message" id="profileMessage">Upload a photo and the page will identify landscape, portrait/screen, or square mode and suggest the closest platform preset.</div>
+                <div class="quality-grid" id="qualityGrid" role="group" aria-label="Export quality"></div>
               </section>
 
-              <section class="panel settings-panel">
-                <div class="panel-head"><b>03 // OUTPUT SETTINGS</b><span>LIVE TARGET</span></div>
-                <div class="settings-layout">
-                  <div>
-                    <div class="field">
-                      <span class="field-label">PHOTO MODE <span id="recommendationLabel">SELECT ONE</span></span>
-                      <div class="mode-cards" id="modeCards"></div>
-                    </div>
-                    <div class="field">
-                      <span class="field-label">EXPORT QUALITY <span id="tierDescription">STANDARD PLATFORM SIZE</span></span>
-                      <div class="quality-pills" id="qualityPills"></div>
-                    </div>
-                    <div class="field switch-line">
-                      <label for="manualToggle">USE MANUAL PIXEL SIZE</label>
-                      <input class="switch" id="manualToggle" type="checkbox">
-                    </div>
-                    <div class="field two-col" id="manualFields" hidden>
-                      <div><label for="manualWidth">WIDTH (PX)</label><input class="control" id="manualWidth" type="number" min="1" max="20000" placeholder="e.g. 1200"></div>
-                      <div><label for="manualHeight">HEIGHT (PX)</label><input class="control" id="manualHeight" type="number" min="1" max="20000" placeholder="e.g. 628"></div>
-                    </div>
+              <!-- Final action card: output format + convert + real result. -->
+              <section class="control-card" aria-labelledby="finishHeading">
+                <!-- Finish heading. -->
+                <div class="control-heading">
+                  <!-- Heading copy wrapper keeps the small step label with its title. -->
+                  <div><span>05 // MAKE THE PHOTO</span><h3 id="finishHeading">Create the new file</h3></div>
+                  <small>Your uploaded original is never overwritten.</small>
+                </div>
+
+                <!-- Output format and main conversion button. -->
+                <div class="finish-grid">
+                  <div class="field">
+                    <label for="outputFormat">OUTPUT FORMAT <span>AUTO KEEPS SOURCE</span></label>
+                    <select id="outputFormat">
+                      <option value="AUTO">Auto (same as source)</option>
+                      <option value="JPG">JPG</option>
+                      <option value="JPEG">JPEG</option>
+                      <option value="WEBP">WEBP</option>
+                      <option value="GIF">GIF</option>
+                      <option value="TIF">TIF</option>
+                      <option value="PNG">PNG</option>
+                      <option value="SVG">SVG</option>
+                    </select>
                   </div>
-                  <div>
-                    <div class="field two-col">
-                      <div><label for="fitStrategy">FIT METHOD</label><select class="control" id="fitStrategy"><option value="cover">COVER · CROP TO FILL</option><option value="contain">CONTAIN · SHOW ALL</option></select></div>
-                      <div><label for="outputFormat">OUTPUT FORMAT</label><select class="control" id="outputFormat"><option>JPG</option><option>JPEG</option><option>WEBP</option><option>GIF</option><option>TIF</option><option>PNG</option><option>SVG</option></select></div>
-                    </div>
-                    <div class="field two-col">
-                      <div><label for="dpi">OUTPUT DPI</label><input class="control" id="dpi" type="number" min="1" max="2400" value="72"></div>
-                      <div><label for="rotation">ROTATION</label><select class="control" id="rotation"><option value="0">0° · ORIGINAL</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></div>
-                    </div>
-                    <div class="field">
-                      <span class="field-label">IMAGE TUNING <span>−100 TO +100</span></span>
-                      <div class="range-row"><label for="brightness">BRIGHTNESS</label><input id="brightness" type="range" min="-100" max="100" value="0"><output for="brightness">0</output></div>
-                      <div class="range-row"><label for="contrast">CONTRAST</label><input id="contrast" type="range" min="-100" max="100" value="0"><output for="contrast">0</output></div>
-                      <div class="range-row"><label for="saturation">SATURATION</label><input id="saturation" type="range" min="-100" max="100" value="0"><output for="saturation">0</output></div>
-                      <div class="range-row"><label for="sharpness">SHARPNESS</label><input id="sharpness" type="range" min="-100" max="100" value="0"><output for="sharpness">0</output></div>
-                    </div>
-                    <div class="target-readout"><small>FINAL OUTPUT CANVAS</small><b id="targetDimensions">1280 × 720 px</b><span id="targetDetail">YOUTUBE THUMBNAIL · HD · 16:9 · JPG</span></div>
-                    <button class="btn primary convert-button" id="convertButton" type="button" disabled>CHANGE MODE &amp; CREATE PREVIEW →</button>
-                    <div class="status" id="status" role="status">READY // Start the Python engine, then upload one photo.</div>
+                  <button class="convert-button" id="convertButton" type="button" disabled>UPLOAD A PHOTO TO START</button>
+                </div>
+
+                <div class="status-box" id="statusBox" role="status" aria-live="polite">READY // Start by choosing one photo.</div>
+
+                <!-- Result panel remains hidden until /convert-photo-mode succeeds. -->
+                <div class="result-panel" id="resultPanel">
+                  <!-- Result header. -->
+                  <div class="result-head">
+                    <b>✓ PYTHON CONVERSION COMPLETE</b>
+                    <span id="resultMode">—</span>
                   </div>
+
+                  <!-- Real response metadata from exposed Python headers. -->
+                  <div class="result-stats">
+                    <div class="result-stat"><small>DIMENSIONS</small><b id="resultDimensions">—</b></div>
+                    <div class="result-stat"><small>FILE SIZE</small><b id="resultSize">—</b></div>
+                    <div class="result-stat"><small>FORMAT</small><b id="resultFormat">—</b></div>
+                    <div class="result-stat"><small>FIT</small><b id="resultFit">—</b></div>
+                  </div>
+
+                  <ul class="warning-list" id="warningList"></ul>
+                  <button class="download-button" id="downloadButton" type="button">DOWNLOAD THE NEW PHOTO ↓</button>
                 </div>
               </section>
             </div>
           </div>
-        </div>
-
-        <section class="result-panel" id="resultPanel" hidden aria-live="polite">
-          <div class="result-head"><b>04 // CONVERSION RESULT</b><span>EXPORT READY</span></div>
-          <div class="result-body">
-            <div class="result-preview" id="resultPreviewStage">
-              <img id="resultImage" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" alt="Converted image preview">
-              <div class="no-preview">PREVIEW NOT AVAILABLE FOR THIS FORMAT<br>THE DOWNLOAD FILE IS STILL READY</div>
-            </div>
-            <div class="result-data">
-              <p class="kicker">OUTPUT PAYLOAD</p>
-              <div class="data-table">
-                <div class="data-row"><small>MODE</small><b id="resultMode">—</b></div>
-                <div class="data-row"><small>DIMENSIONS</small><b id="resultDimensions">—</b></div>
-                <div class="data-row"><small>FORMAT</small><b id="resultFormat">—</b></div>
-                <div class="data-row"><small>QUALITY TIER</small><b id="resultTier">—</b></div>
-                <div class="data-row"><small>FIT METHOD</small><b id="resultFit">—</b></div>
-                <div class="data-row"><small>FILE SIZE</small><b id="resultSize">—</b></div>
-              </div>
-              <ul class="warning-list" id="warningList" hidden></ul>
-              <div class="download-row">
-                <button class="btn primary" id="downloadButton" type="button">DOWNLOAD CONVERTED IMAGE ↓</button>
-                <button class="btn" id="newImageButton" type="button">NEW IMAGE</button>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    </section>
-
-    <section class="section" id="sizes">
-      <div class="wrap">
-        <div class="section-head"><div><p class="kicker">02 // MODE &amp; PIXEL REFERENCE</p><h2>Every export size, before you click</h2></div><p>Quality tiers multiply the preset canvas. Manual width and height override the preset pixels while the chosen tier still controls encoding quality.</p></div>
-        <div class="preset-table-wrap">
-          <table class="preset-table">
-            <thead><tr><th>PHOTO MODE</th><th>PLATFORM</th><th>ASPECT</th><th>HD</th><th>FULL HD · 1.5×</th><th>ULTRA HD 4K · 3×</th><th>DEFAULT FIT</th></tr></thead>
-            <tbody>
-              <tr><td>YouTube Video Thumbnail</td><td>YouTube</td><td><span class="ratio-chip">16:9</span></td><td>1280 × 720</td><td>1920 × 1080</td><td>3840 × 2160</td><td>Cover</td></tr>
-              <tr><td>YouTube Channel Banner</td><td>YouTube</td><td><span class="ratio-chip">16:9</span></td><td>2560 × 1440</td><td>3840 × 2160</td><td>7680 × 4320</td><td>Cover</td></tr>
-              <tr><td>Instagram Feed Post</td><td>Instagram</td><td><span class="ratio-chip">1:1</span></td><td>1080 × 1080</td><td>1620 × 1620</td><td>3240 × 3240</td><td>Cover</td></tr>
-              <tr><td>Instagram Story / Reel</td><td>Instagram</td><td><span class="ratio-chip">9:16</span></td><td>1080 × 1920</td><td>1620 × 2880</td><td>3240 × 5760</td><td>Cover</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="formats">
-      <div class="wrap">
-        <div class="section-head"><div><p class="kicker">03 // FORMAT CHANGER</p><h2>Seven outputs, one workspace</h2></div><p>The Python engine handles all 42 cross-format routes. JPG and JPEG share the same codec identity, while SVG output embeds the raster result in a scalable container.</p></div>
-        <div class="format-grid">
-          <article class="format-card"><span class="format-badge">JPG</span><b>COMPACT PHOTO</b><p>Lossy photo compression and the widest everyday compatibility.</p></article>
-          <article class="format-card"><span class="format-badge">JPEG</span><b>JPEG ROUTE</b><p>Same image codec as JPG with the full-name file extension.</p></article>
-          <article class="format-card"><span class="format-badge">WEBP</span><b>MODERN WEB</b><p>Compact web delivery with transparency support.</p></article>
-          <article class="format-card"><span class="format-badge">GIF</span><b>INDEXED COLOR</b><p>Broadly recognized output with a limited color palette.</p></article>
-          <article class="format-card"><span class="format-badge">TIF</span><b>PRINT / ARCHIVE</b><p>High-fidelity production output for print workflows.</p></article>
-          <article class="format-card"><span class="format-badge">PNG</span><b>LOSSLESS ALPHA</b><p>Sharp graphics, screenshots, text, and transparency.</p></article>
-          <article class="format-card"><span class="format-badge">SVG</span><b>RASTER CONTAINER</b><p>Embeds the converted raster image inside an SVG document.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="guide">
-      <div class="wrap">
-        <div class="section-head"><div><p class="kicker">04 // ENGINE GUIDE</p><h2>What happens to your photo</h2></div><p>The page is the control surface; <span class="mono">prototype.py</span> performs the real decode, resize, mode fit, enhancement, encoding, and verification.</p></div>
-        <div class="info-grid">
-          <article class="info-card"><span>01</span><h3>Analyze the real source</h3><p>The engine reads the file bytes, detects format, corrects EXIF orientation, reports dimensions, and finds the closest common aspect ratio.</p></article>
-          <article class="info-card"><span>02</span><h3>Fit without stretching</h3><p>Cover fills the full canvas with a centered crop. Contain preserves the entire photo and uses transparent or white padding when needed.</p></article>
-          <article class="info-card"><span>03</span><h3>Export and verify</h3><p>The selected quality tier controls pixel multiplier and encoding strength. Upscaled results receive mild sharpening before the output is verified.</p></article>
-        </div>
-        <div class="setup-note">
-          <div><b>LOCAL ENGINE CONNECTION</b><small>Run the supplied Python backend first. This page calls its /analyze-photo-mode and /convert-photo-mode routes.</small></div>
-          <span class="api-address">http://127.0.0.1:5000</span>
         </div>
       </div>
     </section>
   </main>
 
-  <footer><div class="wrap footer-inner"><span>IMAGEREDUCER // PHOTO MODE &amp; FORMAT CHANGER</span><span>4 MODES · 3 QUALITY TIERS · 7 FORMATS · 42 ROUTES</span></div></footer>
+  <!-- Simple three-step reassurance strip. -->
+  <section class="trust-strip" id="howItWorks" aria-label="How the photo mode tool works">
+    <!-- Four concise facts stay scannable on desktop and mobile. -->
+    <div class="wrap trust-grid">
+      <article><span class="trust-mark">01</span><b>UPLOAD ONCE</b><p>One source photo can become any of the ready platform frames.</p></article>
+      <article><span class="trust-mark">02</span><b>SEE THE SHAPE</b><p>The live preview changes as soon as you tap another mode.</p></article>
+      <article><span class="trust-mark">03</span><b>PYTHON BUILDS IT</b><p>The backend creates the exact pixels and validates the output.</p></article>
+      <article><span class="trust-mark">04</span><b>ORIGINAL STAYS SAFE</b><p>Only a new downloadable file is made; the original is untouched.</p></article>
+    </div>
+  </section>
+
+  <!-- Footer: links back to the rest of the existing ImageReducer project. -->
+  <footer>
+    <!-- Footer inner flex row. -->
+    <div class="wrap footer-inner">
+      <span>IMAGEREDUCER // AURORA PHOTO-MODE PAVILION</span>
+      <nav class="footer-links" aria-label="Footer navigation"><a href="home_01.html">Pavilion</a><a href="index_02.html">Precision Resizer</a><a href="All_converter.html">Route Console</a></nav>
+      <span>35 MODES · 12 PLATFORM GROUPS · 3 QUALITY LEVELS</span>
+    </div>
+  </footer>
 
   <script>
     (function () {
       "use strict";
 
+      /*
+        ======================================================================
+        01 // FRONTEND CONSTANTS
+        KYA: API address aur upload limit fixed, readable names me rakhe hain.
+        KYUN: Ek hi place edit karna easy hai; code me address repeat nahi hota.
+        CHANGE EFFECT: Port change karoge to prototype.py ki app.run(port=...)
+                       value bhi same honi chahiye, warna connection fail hoga.
+        PYTHON EFFECT: Is constant ko edit karna Python file ko edit nahi karta.
+        ======================================================================
+      */
       const API_BASE = "http://127.0.0.1:5000";
       const MAX_FILE_BYTES = 25 * 1024 * 1024;
+      const PREVIEW_MAX_SIDE = 900;
 
-      const modes = {
-        YOUTUBE_THUMBNAIL: { label: "YouTube Thumbnail", platform: "YouTube", width: 1280, height: 720, aspect: "16:9" },
-        YOUTUBE_BANNER: { label: "YouTube Banner", platform: "YouTube", width: 2560, height: 1440, aspect: "16:9" },
-        INSTAGRAM_POST: { label: "Instagram Post", platform: "Instagram", width: 1080, height: 1080, aspect: "1:1" },
-        INSTAGRAM_STORY: { label: "Instagram Story", platform: "Instagram", width: 1080, height: 1920, aspect: "9:16" }
+      /*
+        FALLBACK CATALOG:
+        KYA: Backend start na ho tab bhi user platform/mode layout explore kar sake.
+        IMPORTANT: Final conversion ke waqt Python hi source of truth hai.
+        CHANGE EFFECT: Sirf fallback edit karne se Python export size nahi badlega;
+                       real size badalne ke liye prototype.py SMART_MODE_PRESETS edit karo.
+      */
+      const FALLBACK_MODES = {
+        FACEBOOK_PROFILE_PHOTO: { label: "Profile Photo Size", platform: "Facebook", width: 1080, height: 1080, aspect_label: "1:1" },
+        FACEBOOK_POST_SQUARE: { label: "Post Square Size", platform: "Facebook", width: 1080, height: 1080, aspect_label: "1:1" },
+        FACEBOOK_STORIES: { label: "Stories Size", platform: "Facebook", width: 1080, height: 1920, aspect_label: "9:16" },
+        FACEBOOK_REELS: { label: "Reels Size", platform: "Facebook", width: 1080, height: 1920, aspect_label: "9:16" },
+        FACEBOOK_GROUP_COVER_IMAGE: { label: "Group Cover Image Size", platform: "Facebook", width: 1920, height: 1080, aspect_label: "16:9" },
+        FACEBOOK_COVER_EVENT_IMAGE: { label: "Cover Event Image Size", platform: "Facebook", width: 1920, height: 1000, aspect_label: "1.92:1" },
+        INSTAGRAM_PROFILE_PICTURE: { label: "Profile Picture Size", platform: "Instagram", width: 1080, height: 1080, aspect_label: "1:1" },
+        INSTAGRAM_POST: { label: "Post (square) Size", platform: "Instagram", width: 1080, height: 1080, aspect_label: "1:1" },
+        INSTAGRAM_POST_PORTRAIT: { label: "Post (portrait) Size", platform: "Instagram", width: 1080, height: 1350, aspect_label: "4:5" },
+        INSTAGRAM_POST_LANDSCAPE: { label: "Post (landscape) Size", platform: "Instagram", width: 1910, height: 1000, aspect_label: "1.91:1" },
+        INSTAGRAM_STORY: { label: "Story Size", platform: "Instagram", width: 1080, height: 1920, aspect_label: "9:16" },
+        INSTAGRAM_REELS: { label: "Reels Size", platform: "Instagram", width: 1080, height: 1920, aspect_label: "9:16" },
+        INSTAGRAM_REELS_COVER: { label: "Reels Cover Size", platform: "Instagram", width: 1080, height: 1920, aspect_label: "9:16" },
+        YOUTUBE_PROFILE_PHOTO: { label: "Profile Photo Size", platform: "YouTube", width: 1080, height: 1080, aspect_label: "1:1" },
+        YOUTUBE_THUMBNAIL: { label: "Thumbnail Size", platform: "YouTube", width: 1280, height: 720, aspect_label: "16:9" },
+        YOUTUBE_BANNER: { label: "Banner Size", platform: "YouTube", width: 2560, height: 1440, aspect_label: "16:9" },
+        X_PROFILE_PICTURE: { label: "Profile Picture Size", platform: "X", width: 1080, height: 1080, aspect_label: "1:1" },
+        X_HEADER_PICTURE: { label: "Header Picture Size", platform: "X", width: 1920, height: 1080, aspect_label: "16:9" },
+        LINKEDIN_PERSONAL_PROFILE_PHOTO: { label: "Profile Photo Size", platform: "LinkedIn Personal", width: 1080, height: 1080, aspect_label: "1:1" },
+        LINKEDIN_PERSONAL_BACKGROUND_PHOTO: { label: "Background Photo Size", platform: "LinkedIn Personal", width: 1584, height: 396, aspect_label: "4:1" },
+        LINKEDIN_COMPANY_LOGO: { label: "Company Logo Size", platform: "LinkedIn Company", width: 1080, height: 1080, aspect_label: "1:1" },
+        LINKEDIN_COMPANY_COVER_PHOTO: { label: "Cover Photo Size", platform: "LinkedIn Company", width: 1182, height: 200, aspect_label: "5.91:1" },
+        PINTEREST_SQUARE_IMAGES_PIN: { label: "Square Images Pin Size", platform: "Pinterest", width: 1080, height: 1080, aspect_label: "1:1" },
+        PINTEREST_STANDARD_IMAGE_PIN: { label: "Standard Image Pin Size", platform: "Pinterest", width: 1000, height: 1500, aspect_label: "2:3" },
+        PINTEREST_VERTICAL_IMAGE_PIN: { label: "Vertical Image Pin Size", platform: "Pinterest", width: 1080, height: 1920, aspect_label: "9:16" },
+        TIKTOK_PROFILE_PICTURE: { label: "Profile Picture Size", platform: "TikTok", width: 1080, height: 1080, aspect_label: "1:1" },
+        TIKTOK_IN_FEED_AD_IMAGE: { label: "In-feed Ad Image Size", platform: "TikTok", width: 1080, height: 1080, aspect_label: "1:1" },
+        TUMBLR_PROFILE_PICTURE: { label: "Profile Picture Size", platform: "Tumblr", width: 1080, height: 1080, aspect_label: "1:1" },
+        TUMBLR_HEADER_IMAGE: { label: "Header Image Size", platform: "Tumblr", width: 1920, height: 1080, aspect_label: "16:9" },
+        SNAPCHAT_IMAGE_SHARE: { label: "Image Share Size", platform: "Snapchat", width: 1080, height: 1920, aspect_label: "9:16" },
+        VINTED_PROFILE_PICTURE: { label: "Profile Picture Size", platform: "Vinted", width: 1080, height: 1080, aspect_label: "1:1" },
+        VINTED_ITEM_PHOTO: { label: "Item Photo Size", platform: "Vinted", width: 1000, height: 1500, aspect_label: "2:3" },
+        EMAIL_BLOG_FEATURED_3_1: { label: "Email Blog Featured Size", platform: "E-mail", width: 1200, height: 400, aspect_label: "3:1" },
+        EMAIL_BLOG_IMAGE: { label: "Email Blog Image Size", platform: "E-mail", width: 1080, height: 1080, aspect_label: "1:1" },
+        EMAIL_BLOG_FEATURED_2_1: { label: "Email Blog Featured Size", platform: "E-mail", width: 1200, height: 600, aspect_label: "2:1" }
       };
 
-      const tiers = {
-        HD: { label: "HD", multiplier: 1, quality: 85, description: "STANDARD PLATFORM SIZE" },
-        FULL_HD: { label: "FULL HD", multiplier: 1.5, quality: 92, description: "1.5× PIXELS · BALANCED" },
-        ULTRA_HD_4K: { label: "ULTRA 4K", multiplier: 3, quality: 97, description: "3× PIXELS · MAXIMUM" }
+      /* Quality fallback prototype.py ke QUALITY_EXPORT_TIERS labels ko mirror karta hai. */
+      const FALLBACK_TIERS = {
+        HD: { label: "HD Photo", description: "Standard platform size. Fast and smaller file." },
+        FULL_HD: { label: "Full HD", description: "1.5× size. Best balance of sharpness and file size." },
+        ULTRA_HD_4K: { label: "Ultra HD 4K", description: "3× size. Maximum detail and largest file." }
       };
 
-      const extensions = { JPG: "jpg", JPEG: "jpeg", WEBP: "webp", GIF: "gif", TIF: "tif", PNG: "png", SVG: "svg" };
-      const acceptedExtensions = { jpg: "JPG", jpeg: "JPG", webp: "WEBP", gif: "GIF", tif: "TIF", tiff: "TIF", png: "PNG", svg: "SVG" };
-
+      /*
+        ======================================================================
+        02 // APP STATE
+        KYA: Current file/selection/result ki single memory object.
+        KYUN: Alag global variables se values out-of-sync ho sakti hain.
+        CHANGE EFFECT: Defaults change karoge to page ki first selected mode/fit badlegi.
+        ======================================================================
+      */
       const state = {
+        modes: FALLBACK_MODES,
+        tiers: FALLBACK_TIERS,
+        platform: "Instagram",
+        modeKey: "INSTAGRAM_POST",
+        fitStrategy: "cover",
+        qualityTier: "HD",
         file: null,
-        fileUrl: null,
+        sourceUrl: null,
+        sourceImage: null,
+        sourceInfo: null,
+        recommendedModes: [],
+        userPickedMode: false,
         resultBlob: null,
         resultUrl: null,
-        source: { format: null, width: 0, height: 0, orientation: null, aspect: null },
-        mode: "YOUTUBE_THUMBNAIL",
-        tier: "HD",
-        recommendedModes: [],
-        engineOnline: false
+        resultFilename: "photo_mode_result.png",
+        backendOnline: false,
+        previewView: "source"
       };
 
-      const $ = function (id) { return document.getElementById(id); };
+      /*
+        DOM references ek jagah cache kiye hain. Agar HTML id rename karo to
+        yahan matching property bhi update karna zaroori hai; Python unaffected.
+      */
+      const dom = {
+        pageLoader: document.getElementById("pageLoader"),
+        engineChip: document.getElementById("engineChip"),
+        engineText: document.getElementById("engineText"),
+        themeToggle: document.getElementById("themeToggle"),
+        topbarState: document.getElementById("topbarState"),
+        sourceState: document.getElementById("sourceState"),
+        dropzone: document.getElementById("dropzone"),
+        fileInput: document.getElementById("fileInput"),
+        fileMeta: document.getElementById("fileMeta"),
+        fileThumb: document.getElementById("fileThumb"),
+        fileName: document.getElementById("fileName"),
+        fileSize: document.getElementById("fileSize"),
+        fileHint: document.getElementById("fileHint"),
+        removeFile: document.getElementById("removeFile"),
+        sourceFormat: document.getElementById("sourceFormat"),
+        sourceDimensions: document.getElementById("sourceDimensions"),
+        sourceOrientation: document.getElementById("sourceOrientation"),
+        sourceRatio: document.getElementById("sourceRatio"),
+        previewStage: document.getElementById("previewStage"),
+        previewEmpty: document.getElementById("previewEmpty"),
+        previewCanvas: document.getElementById("previewCanvas"),
+        resultImage: document.getElementById("resultImage"),
+        browserPreviewNote: document.getElementById("browserPreviewNote"),
+        previewBadge: document.getElementById("previewBadge"),
+        previewTabs: document.getElementById("previewTabs"),
+        showSource: document.getElementById("showSource"),
+        showResult: document.getElementById("showResult"),
+        platformList: document.getElementById("platformList"),
+        modeGrid: document.getElementById("modeGrid"),
+        fitChoices: document.getElementById("fitChoices"),
+        qualityGrid: document.getElementById("qualityGrid"),
+        outputFormat: document.getElementById("outputFormat"),
+        convertButton: document.getElementById("convertButton"),
+        statusBox: document.getElementById("statusBox"),
+        resultPanel: document.getElementById("resultPanel"),
+        resultMode: document.getElementById("resultMode"),
+        resultDimensions: document.getElementById("resultDimensions"),
+        resultSize: document.getElementById("resultSize"),
+        resultFormat: document.getElementById("resultFormat"),
+        resultFit: document.getElementById("resultFit"),
+        warningList: document.getElementById("warningList"),
+        downloadButton: document.getElementById("downloadButton")
+      };
 
-      function humanSize(bytes) {
-        if (!Number.isFinite(bytes)) return "—";
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-        return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+      /*
+        ======================================================================
+        03 // SMALL DISPLAY HELPERS
+        ======================================================================
+      */
+
+      /** Bytes ko readable KB/MB text me badalta hai; actual file bytes change nahi hote. */
+      function formatBytes(bytes) {
+        const safeBytes = Number(bytes) || 0;
+
+        /* 1 MB se kam ho to KB child-friendly/readable hai. */
+        if (safeBytes < 1024 * 1024) {
+          return Math.max(0.1, safeBytes / 1024).toFixed(1) + " KB";
+        }
+
+        /* 1 MB ya zyada ho to MB me two decimals. */
+        return (safeBytes / (1024 * 1024)).toFixed(2) + " MB";
       }
 
-      function extensionFormat(file) {
-        const ext = String(file.name.split(".").pop() || "").toLowerCase();
-        return acceptedExtensions[ext] || null;
+      /** File extension ko UI format label me guess karta hai; backend later real bytes verify karega. */
+      function formatFromFilename(filename) {
+        const extension = String(filename || "").split(".").pop().toUpperCase();
+
+        /* Python UI TIF bolta hai, isliye TIFF extension ko TIF normalize karte hain. */
+        if (extension === "TIFF") {
+          return "TIF";
+        }
+
+        /* JPG/JPEG/WEBP/GIF/TIF/PNG/SVG match ho to same label; unknown par AUTO. */
+        if (["JPG","JPEG","WEBP","GIF","TIF","PNG","SVG"].includes(extension)) {
+          return extension;
+        }
+
+        return "AUTO";
       }
 
+      /** Status box ka text aur semantic visual state ek saath update karta hai. */
       function setStatus(message, type) {
-        $("status").textContent = message;
-        $("status").className = "status" + (type ? " " + type : "");
-      }
+        dom.statusBox.textContent = message;
+        dom.statusBox.className = "status-box";
 
-      function setEngineStatus(status) {
-        const chip = $("engineChip");
-        state.engineOnline = status === "online";
-        chip.className = "engine-chip " + status;
-        $("engineText").textContent = status === "online" ? "ENGINE ONLINE" : status === "offline" ? "ENGINE OFFLINE" : "CHECKING ENGINE";
-        $("convertButton").disabled = !state.file || !state.engineOnline;
-      }
-
-      async function checkEngine() {
-        setEngineStatus("checking");
-        try {
-          const response = await fetch(API_BASE + "/", { cache: "no-store" });
-          if (!response.ok) throw new Error("Not ready");
-          setEngineStatus("online");
-          setStatus(state.file ? "READY // Source analyzed. Choose a mode and create the output." : "READY // Python engine connected. Upload one photo.");
-        } catch (error) {
-          setEngineStatus("offline");
-          setStatus("ENGINE OFFLINE // Start prototype.py on http://127.0.0.1:5000, then refresh or upload again.", "error");
+        /* Processing/error state diya ho to matching class add hoti hai. */
+        if (type === "processing" || type === "error") {
+          dom.statusBox.classList.add(type);
         }
       }
 
-      function renderModeCards() {
-        const host = $("modeCards");
-        host.innerHTML = "";
-        Object.keys(modes).forEach(function (key) {
-          const mode = modes[key];
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "mode-card" + (state.mode === key ? " active" : "");
-          button.dataset.mode = key;
-          button.innerHTML = "<b>" + mode.label.toUpperCase() + "</b><small>" + mode.width + " × " + mode.height + " px</small><em>" + mode.aspect + " · " + mode.platform.toUpperCase() + "</em>" + (state.recommendedModes.includes(key) ? "<span class=\"recommend-tag\">CLOSE MATCH</span>" : "");
-          button.addEventListener("click", function () {
-            state.mode = key;
-            $("manualToggle").checked = false;
-            $("manualFields").hidden = true;
-            renderModeCards();
-            hideResult();
-            updateTargetReadout();
-          });
-          host.appendChild(button);
-        });
+      /** Backend online/offline chip update karta hai; conversion ko fake online nahi dikhata. */
+      function setEngineOnline(isOnline) {
+        state.backendOnline = Boolean(isOnline);
+        dom.engineChip.classList.toggle("online", state.backendOnline);
+        dom.engineText.textContent = state.backendOnline ? "ENGINE ONLINE" : "ENGINE OFFLINE";
       }
 
-      function renderQualityPills() {
-        const host = $("qualityPills");
-        host.innerHTML = "";
-        Object.keys(tiers).forEach(function (key) {
-          const tier = tiers[key];
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "quality-pill" + (state.tier === key ? " active" : "");
-          button.innerHTML = tier.label + "<span>" + tier.multiplier + "× · Q" + tier.quality + "</span>";
-          button.addEventListener("click", function () {
-            state.tier = key;
-            renderQualityPills();
-            hideResult();
-            updateTargetReadout();
-          });
-          host.appendChild(button);
-        });
-      }
-
-      function calculateTarget() {
-        const manual = $("manualToggle").checked;
-        const sourceWidth = state.source.width || 1;
-        const sourceHeight = state.source.height || 1;
-        if (manual) {
-          const enteredWidth = Math.round(Number($("manualWidth").value) || 0);
-          const enteredHeight = Math.round(Number($("manualHeight").value) || 0);
-          if (enteredWidth && enteredHeight) return { width: enteredWidth, height: enteredHeight, manual: true };
-          if (enteredWidth) return { width: enteredWidth, height: Math.max(1, Math.round(enteredWidth * sourceHeight / sourceWidth)), manual: true };
-          if (enteredHeight) return { width: Math.max(1, Math.round(enteredHeight * sourceWidth / sourceHeight)), height: enteredHeight, manual: true };
-          return { width: 0, height: 0, manual: true };
+      /** Selected mode object safely return karta hai; missing key par first catalog item fallback. */
+      function selectedMode() {
+        if (state.modes[state.modeKey]) {
+          return state.modes[state.modeKey];
         }
-        const mode = modes[state.mode];
-        const multiplier = tiers[state.tier].multiplier;
-        return { width: Math.round(mode.width * multiplier), height: Math.round(mode.height * multiplier), manual: false };
+
+        const firstKey = Object.keys(state.modes)[0];
+        state.modeKey = firstKey;
+        return state.modes[firstKey];
       }
 
-      function updateTargetReadout() {
-        const target = calculateTarget();
-        const mode = modes[state.mode];
-        const output = $("outputFormat").value;
-        $("targetDimensions").textContent = target.width && target.height ? target.width + " × " + target.height + " px" : "ENTER WIDTH OR HEIGHT";
-        $("targetDetail").textContent = (target.manual ? "CUSTOM SIZE" : mode.label.toUpperCase()) + " · " + tiers[state.tier].label + " · " + (target.manual ? "AUTO RATIO" : mode.aspect) + " · " + output;
-        $("tierDescription").textContent = tiers[state.tier].description;
-        $("routeSummary").textContent = (state.source.format || "AUTO INPUT") + " → " + output + " · " + (target.manual ? "CUSTOM" : mode.label.toUpperCase());
-        $("convertButton").disabled = !state.file || !state.engineOnline || !target.width || !target.height || target.width > 20000 || target.height > 20000;
+      /** Platform list dictionary insertion order se unique names banati hai. */
+      function platformNames() {
+        return Array.from(new Set(Object.values(state.modes).map(function (mode) {
+          return mode.platform;
+        })));
       }
 
-      function nearestRatioLabel(width, height) {
-        const ratios = [["1:1",1], ["16:9",16/9], ["9:16",9/16], ["4:3",4/3], ["3:4",3/4], ["4:5",4/5], ["5:4",5/4], ["3:2",3/2], ["2:3",2/3], ["21:9",21/9]];
-        const actual = width / height;
-        return ratios.sort(function (a, b) { return Math.abs(actual - a[1]) - Math.abs(actual - b[1]); })[0][0];
+      /*
+        ======================================================================
+        04 // CATALOG RENDERING
+        ======================================================================
+      */
+
+      /** Platform pills redraw karta hai whenever backend catalog/selection changes. */
+      function renderPlatforms() {
+        dom.platformList.innerHTML = "";
+
+        /* Har unique platform ke liye semantic button ban raha hai. */
+        platformNames().forEach(function (platform) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "platform-button";
+          button.textContent = platform;
+          button.classList.toggle("active", platform === state.platform);
+          button.setAttribute("aria-pressed", platform === state.platform ? "true" : "false");
+
+          button.addEventListener("click", function () {
+            state.platform = platform;
+            state.userPickedMode = true;
+
+            /* New platform ka first mode select hota hai so empty selection kabhi nahi. */
+            const firstEntry = Object.entries(state.modes).find(function (entry) {
+              return entry[1].platform === platform;
+            });
+
+            if (firstEntry) {
+              state.modeKey = firstEntry[0];
+            }
+
+            clearResult("Frame changed. Tap CREATE when the preview looks right.");
+            renderPlatforms();
+            renderModes();
+            renderPreview();
+            updateConvertButton();
+          });
+
+          dom.platformList.appendChild(button);
+        });
       }
 
-      function classifyOrientation(width, height) {
-        const ratio = width / height;
-        if (Math.abs(ratio - 1) <= .05) return "SQUARE";
-        return ratio > 1 ? "LANDSCAPE" : "PORTRAIT";
+      /** Mini shape ko target aspect ratio ke andar maximum 50x70 box me fit karta hai. */
+      function sizeModeShape(shapeNode, width, height) {
+        const ratio = width / Math.max(1, height);
+        let shapeWidth;
+        let shapeHeight;
+
+        /* Wide frame: width fixed, height ratio se calculated. */
+        if (ratio >= 1) {
+          shapeWidth = 50;
+          shapeHeight = Math.max(13, 50 / ratio);
+        } else {
+          /* Tall frame: height fixed, width ratio se calculated. */
+          shapeHeight = 70;
+          shapeWidth = Math.max(13, 70 * ratio);
+        }
+
+        shapeNode.style.width = shapeWidth + "px";
+        shapeNode.style.height = shapeHeight + "px";
       }
 
-      function browserAnalyzeImage(file) {
-        return new Promise(function (resolve, reject) {
+      /** Active platform ke exact backend modes ko visual cards me render karta hai. */
+      function renderModes() {
+        dom.modeGrid.innerHTML = "";
+
+        Object.entries(state.modes).forEach(function (entry) {
+          const modeKey = entry[0];
+          const mode = entry[1];
+
+          /* Dusre platform ke modes current grid me nahi dikhte; pills se switch hoga. */
+          if (mode.platform !== state.platform) {
+            return;
+          }
+
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "mode-button";
+          button.classList.toggle("active", modeKey === state.modeKey);
+          button.classList.toggle("recommended", state.recommendedModes.includes(modeKey));
+          button.setAttribute("aria-pressed", modeKey === state.modeKey ? "true" : "false");
+          button.setAttribute("aria-label", mode.label + ", " + mode.aspect_label + ", " + mode.width + " by " + mode.height + " pixels");
+
+          const shapeWrap = document.createElement("span");
+          shapeWrap.className = "mode-shape";
+          const shape = document.createElement("i");
+          shape.setAttribute("aria-hidden", "true");
+          sizeModeShape(shape, mode.width, mode.height);
+          shapeWrap.appendChild(shape);
+
+          const copy = document.createElement("span");
+          copy.className = "mode-copy";
+          const title = document.createElement("b");
+          title.textContent = mode.label.replace(/ Size$/i, "");
+          const details = document.createElement("small");
+          details.textContent = mode.aspect_label + " · " + mode.width + " × " + mode.height + " px";
+          copy.appendChild(title);
+          copy.appendChild(details);
+
+          const best = document.createElement("span");
+          best.className = "best-badge";
+          best.textContent = "GOOD MATCH";
+
+          button.appendChild(shapeWrap);
+          button.appendChild(copy);
+          button.appendChild(best);
+
+          button.addEventListener("click", function () {
+            state.modeKey = modeKey;
+            state.userPickedMode = true;
+            clearResult("Frame changed. Review the live preview, then create the new file.");
+            renderModes();
+            renderPreview();
+            updateConvertButton();
+          });
+
+          dom.modeGrid.appendChild(button);
+        });
+      }
+
+      /** HD/Full HD/4K cards backend-provided label/description se banata hai. */
+      function renderQualityTiers() {
+        dom.qualityGrid.innerHTML = "";
+
+        Object.entries(state.tiers).forEach(function (entry) {
+          const tierKey = entry[0];
+          const tier = entry[1];
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "quality-button";
+          button.classList.toggle("active", tierKey === state.qualityTier);
+          button.setAttribute("aria-pressed", tierKey === state.qualityTier ? "true" : "false");
+
+          const title = document.createElement("b");
+          title.textContent = tier.label;
+          const description = document.createElement("small");
+          description.textContent = tier.description;
+          button.appendChild(title);
+          button.appendChild(description);
+
+          button.addEventListener("click", function () {
+            state.qualityTier = tierKey;
+            clearResult("Quality changed. Python will use this level on the next conversion.");
+            renderQualityTiers();
+            updateConvertButton();
+          });
+
+          dom.qualityGrid.appendChild(button);
+        });
+      }
+
+      /*
+        ======================================================================
+        05 // LIVE CANVAS PREVIEW
+        IMPORTANT: Canvas only quick visual guide hai. Python result is source
+                   of truth and original full-resolution file use karta hai.
+        ======================================================================
+      */
+
+      /** Huge preset ko preview-safe canvas me proportional size deta hai. */
+      function previewCanvasSize(width, height) {
+        const scale = Math.min(1, PREVIEW_MAX_SIDE / Math.max(width, height));
+        return {
+          width: Math.max(1, Math.round(width * scale)),
+          height: Math.max(1, Math.round(height * scale))
+        };
+      }
+
+      /** Source image ko chosen cover/contain rule ke saath preview canvas par draw karta hai. */
+      function renderPreview() {
+        const mode = selectedMode();
+        dom.previewBadge.textContent = mode.platform.toUpperCase() + " · " + mode.aspect_label + " · " + mode.width + " × " + mode.height;
+
+        /*
+          Result view ko source-browser-support se pehle check karna zaroori hai.
+          EFFECT: TIF source ka PNG result bhi preview ho sakta hai, chahe browser
+          original TIF ko canvas me decode na kar paaye.
+        */
+        if (state.previewView === "result" && state.resultUrl) {
+          dom.previewEmpty.style.display = "none";
+          dom.previewCanvas.classList.remove("visible");
+          dom.browserPreviewNote.classList.remove("visible");
+          dom.resultImage.classList.add("visible");
+          return;
+        }
+
+        /* File/image absent ho to empty state rakho; canvas draw possible nahi. */
+        if (!state.file || !state.sourceImage) {
+          dom.previewCanvas.classList.remove("visible");
+          dom.resultImage.classList.remove("visible");
+          dom.browserPreviewNote.classList.toggle("visible", Boolean(state.file && !state.sourceImage));
+          dom.previewEmpty.style.display = state.file ? "none" : "block";
+          return;
+        }
+
+        const canvasSize = previewCanvasSize(mode.width, mode.height);
+        const canvas = dom.previewCanvas;
+        const context = canvas.getContext("2d");
+        canvas.width = canvasSize.width;
+        canvas.height = canvasSize.height;
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        const sourceWidth = state.sourceImage.naturalWidth;
+        const sourceHeight = state.sourceImage.naturalHeight;
+        const scaleX = canvas.width / sourceWidth;
+        const scaleY = canvas.height / sourceHeight;
+        let scale;
+
+        /* Cover uses larger scale so the complete frame fills and edges may crop. */
+        if (state.fitStrategy === "cover") {
+          scale = Math.max(scaleX, scaleY);
+        } else {
+          /* Contain uses smaller scale so entire source stays visible. */
+          scale = Math.min(scaleX, scaleY);
+          context.fillStyle = "#ffffff";
+          context.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        const drawWidth = sourceWidth * scale;
+        const drawHeight = sourceHeight * scale;
+        const drawX = (canvas.width - drawWidth) / 2;
+        const drawY = (canvas.height - drawHeight) / 2;
+        context.drawImage(state.sourceImage, drawX, drawY, drawWidth, drawHeight);
+
+        dom.previewEmpty.style.display = "none";
+        dom.browserPreviewNote.classList.remove("visible");
+
+        /* Is branch me source view hai; result view function ke start me handle ho chuka. */
+        dom.resultImage.classList.remove("visible");
+        dom.previewCanvas.classList.add("visible");
+      }
+
+      /** Preview source/result pill states update karta hai. */
+      function setPreviewView(view) {
+        state.previewView = view === "result" ? "result" : "source";
+        dom.showSource.classList.toggle("active", state.previewView === "source");
+        dom.showResult.classList.toggle("active", state.previewView === "result");
+        renderPreview();
+      }
+
+      /*
+        ======================================================================
+        06 // FILE HANDLING + ANALYSIS
+        ======================================================================
+      */
+
+      /** Current blob URLs release karta hai so repeated uploads browser memory leak na karein. */
+      function releaseObjectUrls() {
+        if (state.sourceUrl) {
+          URL.revokeObjectURL(state.sourceUrl);
+          state.sourceUrl = null;
+        }
+
+        if (state.resultUrl) {
+          URL.revokeObjectURL(state.resultUrl);
+          state.resultUrl = null;
+        }
+      }
+
+      /** Result-only data clear karta hai jab input/mode/quality change ho. */
+      function clearResult(message) {
+        if (state.resultUrl) {
+          URL.revokeObjectURL(state.resultUrl);
+        }
+
+        state.resultBlob = null;
+        state.resultUrl = null;
+        state.previewView = "source";
+        dom.resultImage.removeAttribute("src");
+        dom.resultImage.classList.remove("visible");
+        dom.previewTabs.classList.remove("visible");
+        dom.resultPanel.classList.remove("visible");
+        dom.warningList.classList.remove("visible");
+        dom.warningList.innerHTML = "";
+
+        if (message) {
+          setStatus(message);
+        }
+      }
+
+      /** Browser-decodable source ko Image object me load karta hai for instant preview. */
+      function loadBrowserPreview(url) {
+        return new Promise(function (resolve) {
           const image = new Image();
-          const url = URL.createObjectURL(file);
+
           image.onload = function () {
-            const width = image.naturalWidth;
-            const height = image.naturalHeight;
-            URL.revokeObjectURL(url);
-            resolve({ format: extensionFormat(file), width: width, height: height, orientation: classifyOrientation(width, height), aspect_ratio_label: nearestRatioLabel(width, height), message: "Browser analysis: " + width + " × " + height + " px · " + classifyOrientation(width, height) + " · ratio approx " + nearestRatioLabel(width, height) + ".", recommended_modes: [] });
+            resolve(image);
           };
-          image.onerror = function () { URL.revokeObjectURL(url); reject(new Error("Browser preview unavailable for this source format.")); };
+
+          /* TIF jaisi format browser na decode kare to null; backend conversion still allowed. */
+          image.onerror = function () {
+            resolve(null);
+          };
+
           image.src = url;
         });
       }
 
-      function applyAnalysis(payload, source) {
-        state.source.format = payload.format || extensionFormat(state.file);
-        state.source.width = Number(payload.width) || 0;
-        state.source.height = Number(payload.height) || 0;
-        state.source.orientation = payload.orientation || classifyOrientation(state.source.width, state.source.height);
-        state.source.aspect = payload.aspect_ratio_label || nearestRatioLabel(state.source.width, state.source.height);
-        state.recommendedModes = (payload.recommended_modes || []).map(function (item) { return item.mode; }).filter(function (key) { return modes[key]; });
-        $("sourceFormat").textContent = state.source.format || "—";
-        $("sourcePixels").textContent = state.source.width + " × " + state.source.height;
-        $("sourceSize").textContent = humanSize(state.file.size);
-        $("sourceOrientation").textContent = state.source.orientation || "—";
-        $("sourceAspect").textContent = state.source.aspect || "—";
-        $("sourceMegapixels").textContent = ((state.source.width * state.source.height) / 1000000).toFixed(2) + " MP";
-        $("profileMessage").textContent = payload.message || ("This photo is " + state.source.orientation + " with an approximate " + state.source.aspect + " ratio.");
-        $("analysisState").textContent = source === "server" ? "ENGINE VERIFIED" : "BROWSER PREVIEW";
-        $("recommendationLabel").textContent = state.recommendedModes.length ? "CLOSEST MATCH MARKED" : "SELECT ONE";
-        if (state.recommendedModes.length) state.mode = state.recommendedModes[0];
-        renderModeCards();
-        updateTargetReadout();
+      /** Backend absent ho to browser dimensions se basic local analysis banata hai. */
+      function localAnalysis(file, image) {
+        const width = image ? image.naturalWidth : 0;
+        const height = image ? image.naturalHeight : 0;
+        let orientation = "UNKNOWN";
+
+        if (width && height) {
+          const ratio = width / height;
+
+          if (Math.abs(ratio - 1) <= .05) {
+            orientation = "SQUARE";
+          } else if (ratio > 1) {
+            orientation = "LANDSCAPE";
+          } else {
+            orientation = "PORTRAIT";
+          }
+        }
+
+        return {
+          format: formatFromFilename(file.name),
+          width: width,
+          height: height,
+          dimensions: width && height ? width + " × " + height + " px" : "Browser preview unavailable",
+          orientation: orientation,
+          aspect_ratio_label: width && height ? (width / height).toFixed(2) + ":1" : "—",
+          recommended_modes: []
+        };
       }
 
-      async function analyzeFile(file) {
-        $("analysisState").textContent = "ANALYZING";
-        setStatus("ANALYZING // Reading format, dimensions, orientation, and best mode match.", "working");
-        if (state.engineOnline) {
+      /** Analysis data UI me likhta aur best backend suggestion highlight/select karta hai. */
+      function applyAnalysis(info) {
+        state.sourceInfo = info;
+        dom.sourceFormat.textContent = info.format || "—";
+        dom.sourceDimensions.textContent = info.dimensions || ((info.width || "—") + " × " + (info.height || "—"));
+        dom.sourceOrientation.textContent = info.orientation || "—";
+        dom.sourceRatio.textContent = info.aspect_ratio_label || "—";
+        dom.fileHint.textContent = (info.orientation || "PHOTO") + " · nearest " + (info.aspect_ratio_label || "ratio unknown");
+
+        state.recommendedModes = Array.isArray(info.recommended_modes) ? info.recommended_modes.map(function (item) {
+          return item.mode;
+        }) : [];
+
+        /* User ne abhi manually mode nahi choose kiya to first smart suggestion auto-select. */
+        if (!state.userPickedMode && state.recommendedModes.length && state.modes[state.recommendedModes[0]]) {
+          state.modeKey = state.recommendedModes[0];
+          state.platform = state.modes[state.modeKey].platform;
+        }
+
+        renderPlatforms();
+        renderModes();
+        renderPreview();
+        updateConvertButton();
+      }
+
+      /** Uploaded file ko /analyze-photo-mode par bhejta hai. */
+      async function analyzeWithBackend(file) {
+        const formData = new FormData();
+        formData.append("image", file, file.name);
+        const response = await fetch(API_BASE + "/analyze-photo-mode", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          let message = "Python could not analyze this photo.";
+
           try {
-            const formData = new FormData();
-            formData.append("image", file, file.name);
-            const response = await fetch(API_BASE + "/analyze-photo-mode", { method: "POST", body: formData });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || "Analysis failed.");
-            applyAnalysis(payload, "server");
-            setStatus("SOURCE VERIFIED // Choose the target mode, quality, fit, and format.");
-            return;
+            const errorBody = await response.json();
+            message = errorBody.error || message;
           } catch (error) {
-            setStatus("ENGINE ANALYSIS FAILED // " + error.message + " Trying browser preview.", "working");
+            /* Non-JSON error me safe generic message hi rakha jaata hai. */
           }
+
+          throw new Error(message);
         }
-        try {
-          const fallback = await browserAnalyzeImage(file);
-          applyAnalysis(fallback, "browser");
-          setStatus("BROWSER PREVIEW READY // Start the Python engine to enable full conversion.", state.engineOnline ? "working" : "error");
-        } catch (error) {
-          $("analysisState").textContent = "SERVER NEEDED";
-          $("profileMessage").textContent = "This file needs the Python decoder for analysis and preview.";
-          setStatus("PREVIEW UNAVAILABLE // " + error.message + " Start prototype.py to continue.", "error");
-        }
+
+        return response.json();
       }
 
-      async function chooseFile(file) {
-        if (!file) return;
+      /** File validation, preview load, UI summary aur backend analysis ek sequence me karta hai. */
+      async function handleFile(file) {
+        if (!file) {
+          return;
+        }
+
+        /* 25 MB Python limit se pehle browser me clear message dete hain. */
         if (file.size > MAX_FILE_BYTES) {
-          setStatus("FILE TOO LARGE // Select an image up to 25 MB.", "error");
-          $("fileInput").value = "";
+          setStatus("FILE TOO LARGE // Choose an image of 25 MB or less.", "error");
+          dom.fileInput.value = "";
           return;
         }
-        if (!extensionFormat(file)) {
-          setStatus("UNSUPPORTED FILE // Use JPG, JPEG, WebP, GIF, TIF, PNG, or SVG.", "error");
-          $("fileInput").value = "";
+
+        const guessedFormat = formatFromFilename(file.name);
+
+        /* Unknown extension ko backend tak bhejne se pehle user-friendly reject. */
+        if (guessedFormat === "AUTO") {
+          setStatus("UNSUPPORTED FILE // Use JPG, JPEG, WEBP, GIF, TIF, PNG or SVG.", "error");
+          dom.fileInput.value = "";
           return;
         }
-        clearResultOnly();
-        if (state.fileUrl) URL.revokeObjectURL(state.fileUrl);
+
+        clearResult();
+
+        if (state.sourceUrl) {
+          URL.revokeObjectURL(state.sourceUrl);
+        }
+
         state.file = file;
-        state.fileUrl = URL.createObjectURL(file);
-        state.source = { format: extensionFormat(file), width: 0, height: 0, orientation: null, aspect: null };
-        $("fileMeta").hidden = false;
-        $("fileThumb").src = state.fileUrl;
-        $("fileName").textContent = file.name;
-        $("fileLine").textContent = humanSize(file.size) + " · " + extensionFormat(file);
-        $("previewImage").src = state.fileUrl;
-        $("previewImage").onload = function () { $("previewStage").classList.add("ready"); };
-        $("previewImage").onerror = function () { $("previewStage").classList.remove("ready"); };
-        $("workspaceState").textContent = "SOURCE LOADED";
-        $("sourceFormat").textContent = extensionFormat(file);
-        $("sourceSize").textContent = humanSize(file.size);
-        updateTargetReadout();
-        await checkEngine();
-        await analyzeFile(file);
-      }
+        state.sourceUrl = URL.createObjectURL(file);
+        state.sourceImage = null;
+        state.sourceInfo = null;
+        state.recommendedModes = [];
+        state.userPickedMode = false;
 
-      function localWarnings(target) {
-        const warnings = [];
-        if (!state.source.width || !state.source.height) return warnings;
-        const originalPixels = state.source.width * state.source.height;
-        const targetPixels = target.width * target.height;
-        if (targetPixels > originalPixels) warnings.push("QUALITY ALERT: The target has more pixels than the original, so upscaling may look slightly softer. A higher-resolution source will produce the sharpest result.");
-        const ratioDifference = Math.abs((state.source.width / state.source.height) - (target.width / target.height));
-        if (target.manual && ratioDifference > .05 && $("fitStrategy").value === "cover") warnings.push("CROP ALERT: The manual aspect ratio differs from the source. Cover mode will crop edges to fill the output canvas without stretching.");
-        if (target.manual) warnings.push("MANUAL SIZE: Custom pixels override the selected preset. The quality tier still controls encoding strength.");
-        return warnings;
-      }
+        dom.fileName.textContent = file.name;
+        dom.fileSize.textContent = formatBytes(file.size);
+        dom.fileHint.textContent = "Analyzing photo…";
+        dom.fileMeta.classList.add("visible");
+        dom.fileThumb.src = state.sourceUrl;
+        dom.sourceState.textContent = "PHOTO LOADED";
+        dom.topbarState.textContent = "ANALYZING SOURCE";
+        setStatus("ANALYZING // Python is checking size, format, orientation and best frame…", "processing");
 
-      async function convertPhoto() {
-        if (!state.file) { setStatus("UPLOAD REQUIRED // Choose one source photo first.", "error"); return; }
-        if (!state.engineOnline) { setStatus("ENGINE OFFLINE // Start prototype.py before converting.", "error"); return; }
-        const target = calculateTarget();
-        if (!target.width || !target.height || target.width > 20000 || target.height > 20000) { setStatus("INVALID PIXELS // Enter a width or height between 1 and 20,000.", "error"); return; }
-
-        const button = $("convertButton");
-        const oldText = button.textContent;
-        button.disabled = true;
-        button.textContent = "PROCESSING PIXELS…";
-        setStatus("PROCESSING // Fitting, enhancing, encoding, and verifying the output.", "working");
+        state.sourceImage = await loadBrowserPreview(state.sourceUrl);
+        renderPreview();
 
         try {
-          const formData = new FormData();
-          formData.append("image", state.file, state.file.name);
-          formData.append("mode", target.manual ? "" : state.mode);
-          formData.append("quality_tier", state.tier);
-          formData.append("fit_strategy", $("fitStrategy").value);
-          formData.append("output_format", $("outputFormat").value);
-          formData.append("dpi", $("dpi").value || "72");
-          formData.append("rotation", $("rotation").value || "0");
-          formData.append("brightness", $("brightness").value);
-          formData.append("contrast", $("contrast").value);
-          formData.append("saturation", $("saturation").value);
-          formData.append("sharpness", $("sharpness").value);
-          if (target.manual) {
-            formData.append("width", $("manualWidth").value);
-            formData.append("height", $("manualHeight").value);
-          }
-
-          const response = await fetch(API_BASE + "/convert-photo-mode", { method: "POST", body: formData });
-          if (!response.ok) {
-            let message = "Conversion failed.";
-            try { const payload = await response.json(); message = payload.error || message; } catch (ignore) {}
-            throw new Error(message);
-          }
-          const blob = await response.blob();
-          if (state.resultUrl) URL.revokeObjectURL(state.resultUrl);
-          state.resultBlob = blob;
-          state.resultUrl = URL.createObjectURL(blob);
-          const outputWidth = Number(response.headers.get("X-Output-Width")) || target.width;
-          const outputHeight = Number(response.headers.get("X-Output-Height")) || target.height;
-          const outputFormat = response.headers.get("X-Output-Format") || $("outputFormat").value;
-          showResult({ width: outputWidth, height: outputHeight, format: outputFormat, size: blob.size, target: target, warnings: localWarnings(target) });
-          setStatus("COMPLETE // Your converted photo is verified and ready to download.");
-          $("workspaceState").textContent = "EXPORT READY";
+          const info = await analyzeWithBackend(file);
+          setEngineOnline(true);
+          applyAnalysis(info);
+          dom.topbarState.textContent = "READY TO FRAME";
+          setStatus("PHOTO READY // A matching frame is highlighted. You can choose any other mode too.");
         } catch (error) {
-          setStatus("CONVERSION ERROR // " + error.message, "error");
-        } finally {
-          button.textContent = oldText;
-          updateTargetReadout();
+          setEngineOnline(false);
+          applyAnalysis(localAnalysis(file, state.sourceImage));
+          dom.topbarState.textContent = "PREVIEW ONLY";
+          setStatus("PYTHON ENGINE OFFLINE // Preview works, but start prototype.py before creating the download. " + error.message, "error");
         }
       }
 
-      function showResult(meta) {
-        $("resultPanel").hidden = false;
-        $("resultImage").src = state.resultUrl;
-        $("resultPreviewStage").classList.remove("unavailable");
-        $("resultImage").onload = function () { $("resultPreviewStage").classList.remove("unavailable"); };
-        $("resultImage").onerror = function () { $("resultPreviewStage").classList.add("unavailable"); };
-        $("resultMode").textContent = meta.target.manual ? "CUSTOM PIXEL SIZE" : modes[state.mode].label.toUpperCase();
-        $("resultDimensions").textContent = meta.width + " × " + meta.height + " px";
-        $("resultFormat").textContent = meta.format;
-        $("resultTier").textContent = tiers[state.tier].label + " · ENCODE Q" + tiers[state.tier].quality;
-        $("resultFit").textContent = $("fitStrategy").value.toUpperCase();
-        $("resultSize").textContent = humanSize(meta.size);
-        const list = $("warningList");
-        list.innerHTML = "";
-        list.hidden = meta.warnings.length === 0;
-        meta.warnings.forEach(function (warning) { const item = document.createElement("li"); item.textContent = warning; list.appendChild(item); });
-        $("resultPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+      /** Remove button complete app ko clean file-waiting state me laata hai. */
+      function resetFile() {
+        releaseObjectUrls();
+        state.file = null;
+        state.sourceImage = null;
+        state.sourceInfo = null;
+        state.recommendedModes = [];
+        state.userPickedMode = false;
+        state.resultBlob = null;
+        state.previewView = "source";
+        dom.fileInput.value = "";
+        dom.fileMeta.classList.remove("visible");
+        dom.fileThumb.removeAttribute("src");
+        dom.sourceState.textContent = "NOT UPLOADED";
+        dom.topbarState.textContent = "WAITING FOR PHOTO";
+        dom.sourceFormat.textContent = "—";
+        dom.sourceDimensions.textContent = "—";
+        dom.sourceOrientation.textContent = "—";
+        dom.sourceRatio.textContent = "—";
+        dom.previewEmpty.style.display = "block";
+        dom.previewCanvas.classList.remove("visible");
+        dom.resultImage.classList.remove("visible");
+        dom.browserPreviewNote.classList.remove("visible");
+        clearResult();
+        renderModes();
+        updateConvertButton();
+        setStatus("READY // Start by choosing one photo.");
       }
 
+      /*
+        ======================================================================
+        07 // REAL PYTHON CONVERSION
+        ======================================================================
+      */
+
+      /** Current selection ke hisaab se button label/disabled state update karta hai. */
+      function updateConvertButton() {
+        const mode = selectedMode();
+
+        if (!state.file) {
+          dom.convertButton.disabled = true;
+          dom.convertButton.textContent = "UPLOAD A PHOTO TO START";
+          return;
+        }
+
+        dom.convertButton.disabled = false;
+        dom.convertButton.textContent = "CREATE " + mode.platform.toUpperCase() + " " + mode.aspect_label + " PHOTO →";
+      }
+
+      /** Response JSON error ko readable message me convert karta hai. */
+      async function responseErrorMessage(response) {
+        try {
+          const errorBody = await response.json();
+          return errorBody.error || "Python rejected the conversion request.";
+        } catch (error) {
+          return "Python rejected the conversion request (HTTP " + response.status + ").";
+        }
+      }
+
+      /** Safe download filename front-end par banata hai because Content-Disposition CORS exposed nahi. */
+      function buildDownloadFilename(outputFormat) {
+        const sourceBase = String(state.file.name || "photo").replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_-]+/g, "_");
+        const extensionMap = { JPG: "jpg", JPEG: "jpeg", WEBP: "webp", GIF: "gif", TIF: "tif", PNG: "png", SVG: "svg" };
+        const extension = extensionMap[outputFormat] || "png";
+        return sourceBase + "_" + state.modeKey.toLowerCase() + "_" + state.qualityTier.toLowerCase() + "." + extension;
+      }
+
+      /** Successful blob + exposed headers ko result panel me render karta hai. */
+      function showConversionResult(blob, response) {
+        if (state.resultUrl) {
+          URL.revokeObjectURL(state.resultUrl);
+        }
+
+        state.resultBlob = blob;
+        state.resultUrl = URL.createObjectURL(blob);
+
+        const width = response.headers.get("X-Output-Width") || "—";
+        const height = response.headers.get("X-Output-Height") || "—";
+        const outputFormat = response.headers.get("X-Output-Format") || "FILE";
+        const outputBytes = response.headers.get("X-Output-Bytes") || blob.size;
+        const appliedMode = response.headers.get("X-Applied-Mode") || state.modeKey;
+        const fit = response.headers.get("X-Fit-Strategy") || state.fitStrategy;
+        const warningsHeader = response.headers.get("X-Quality-Warning") || "";
+        const warnings = warningsHeader ? warningsHeader.split(" || ").filter(Boolean) : [];
+
+        state.resultFilename = buildDownloadFilename(outputFormat);
+        dom.resultMode.textContent = appliedMode.replace(/_/g, " ");
+        dom.resultDimensions.textContent = width + " × " + height + " px";
+        dom.resultSize.textContent = formatBytes(outputBytes);
+        dom.resultFormat.textContent = outputFormat;
+        dom.resultFit.textContent = fit.toUpperCase();
+        dom.warningList.innerHTML = "";
+
+        /* Har backend warning apni list item me; warning absent ho to box hidden. */
+        warnings.forEach(function (warning) {
+          const item = document.createElement("li");
+          item.textContent = warning;
+          dom.warningList.appendChild(item);
+        });
+        dom.warningList.classList.toggle("visible", warnings.length > 0);
+
+        dom.resultImage.src = state.resultUrl;
+        dom.resultPanel.classList.add("visible");
+        dom.previewTabs.classList.add("visible");
+        setPreviewView("result");
+        dom.topbarState.textContent = "RESULT READY";
+        setStatus("COMPLETE // Python created and verified the new photo. Download it below.");
+      }
+
+      /** Current choices ko exact prototype.py form field names ke saath POST karta hai. */
+      async function convertPhoto() {
+        if (!state.file) {
+          setStatus("UPLOAD REQUIRED // Choose a photo first.", "error");
+          return;
+        }
+
+        const mode = selectedMode();
+        const formData = new FormData();
+        formData.append("image", state.file, state.file.name);
+        formData.append("mode", state.modeKey);
+        formData.append("quality_tier", state.qualityTier);
+        formData.append("fit_strategy", state.fitStrategy);
+        formData.append("dpi", "72");
+
+        /* AUTO selected ho to field omit: Python original detected format preserve karega. */
+        if (dom.outputFormat.value !== "AUTO") {
+          formData.append("output_format", dom.outputFormat.value);
+        }
+
+        dom.convertButton.disabled = true;
+        dom.convertButton.textContent = "PYTHON IS CREATING THE PHOTO…";
+        dom.topbarState.textContent = "PROCESSING " + mode.aspect_label;
+        setStatus("PROCESSING // Resizing, fitting, sharpening if needed, encoding and verifying…", "processing");
+
+        try {
+          const response = await fetch(API_BASE + "/convert-photo-mode", {
+            method: "POST",
+            body: formData
+          });
+
+          if (!response.ok) {
+            throw new Error(await responseErrorMessage(response));
+          }
+
+          const blob = await response.blob();
+          setEngineOnline(true);
+          showConversionResult(blob, response);
+        } catch (error) {
+          setEngineOnline(false);
+          dom.topbarState.textContent = "CONVERSION STOPPED";
+          setStatus("CONVERSION FAILED // " + error.message + " Start prototype.py and try again.", "error");
+        } finally {
+          /* Success/failure dono me button wapas usable label/state paata hai. */
+          updateConvertButton();
+        }
+      }
+
+      /** Result blob ko explicit user click par local download karta hai. */
       function downloadResult() {
-        if (!state.resultBlob || !state.resultUrl || !state.file) return;
-        const base = state.file.name.replace(/\.[^.]+$/, "") || "photo";
-        const suffix = $("manualToggle").checked ? "custom" : state.mode.toLowerCase();
-        const format = $("outputFormat").value;
+        if (!state.resultBlob || !state.resultUrl) {
+          setStatus("NO RESULT // Create the new photo before downloading.", "error");
+          return;
+        }
+
         const link = document.createElement("a");
         link.href = state.resultUrl;
-        link.download = base + "_" + suffix + "_" + state.tier.toLowerCase() + "." + extensions[format];
+        link.download = state.resultFilename;
         document.body.appendChild(link);
         link.click();
         link.remove();
+        setStatus("DOWNLOADED // Your new photo file was sent to the browser downloads folder.");
       }
 
-      function clearResultOnly() {
-        if (state.resultUrl) URL.revokeObjectURL(state.resultUrl);
-        state.resultBlob = null;
-        state.resultUrl = null;
-        $("resultImage").removeAttribute("src");
-        $("resultPanel").hidden = true;
+      /*
+        ======================================================================
+        08 // BACKEND CATALOG + THEME + EVENT BINDING
+        ======================================================================
+      */
+
+      /** /photo-modes se Python ka live catalog laata; fallback only connection fail par. */
+      async function loadBackendCatalog() {
+        try {
+          const response = await fetch(API_BASE + "/photo-modes", { cache: "no-store" });
+
+          if (!response.ok) {
+            throw new Error("Catalog request failed with HTTP " + response.status + ".");
+          }
+
+          const payload = await response.json();
+
+          if (!payload.modes || !Object.keys(payload.modes).length) {
+            throw new Error("Python returned an empty mode catalog.");
+          }
+
+          state.modes = payload.modes;
+          state.tiers = payload.quality_tiers || FALLBACK_TIERS;
+
+          /* Default key Python catalog me missing ho to first valid key select. */
+          if (!state.modes[state.modeKey]) {
+            state.modeKey = Object.keys(state.modes)[0];
+            state.platform = state.modes[state.modeKey].platform;
+          }
+
+          setEngineOnline(true);
+        } catch (error) {
+          state.modes = FALLBACK_MODES;
+          state.tiers = FALLBACK_TIERS;
+          setEngineOnline(false);
+          setStatus("PYTHON ENGINE OFFLINE // Mode preview is available. Run prototype.py before final conversion.", "error");
+        }
+
+        renderPlatforms();
+        renderModes();
+        renderQualityTiers();
+        renderPreview();
+        updateConvertButton();
       }
 
-      function hideResult() {
-        if (state.resultBlob) clearResultOnly();
+      /** Theme button icon/label/ARIA ko current data-theme ke saath sync karta hai. */
+      function syncThemeButton() {
+        const isLight = document.documentElement.dataset.theme === "light";
+        dom.themeToggle.setAttribute("aria-pressed", isLight ? "true" : "false");
+        dom.themeToggle.setAttribute("aria-label", isLight ? "Switch to dark theme" : "Switch to bright theme");
+        dom.themeToggle.querySelector(".theme-icon").textContent = isLight ? "☾" : "☀";
+        dom.themeToggle.querySelector(".theme-label").textContent = isLight ? "DARK" : "BRIGHT";
       }
 
-      function clearFile() {
-        clearResultOnly();
-        if (state.fileUrl) URL.revokeObjectURL(state.fileUrl);
-        state.file = null;
-        state.fileUrl = null;
-        state.source = { format: null, width: 0, height: 0, orientation: null, aspect: null };
-        state.recommendedModes = [];
-        $("fileInput").value = "";
-        $("fileMeta").hidden = true;
-        $("fileThumb").removeAttribute("src");
-        $("previewImage").removeAttribute("src");
-        $("previewStage").classList.remove("ready");
-        ["sourceFormat","sourcePixels","sourceSize","sourceOrientation","sourceAspect","sourceMegapixels"].forEach(function (id) { $(id).textContent = "—"; });
-        $("analysisState").textContent = "NO DATA";
-        $("workspaceState").textContent = "WAITING FOR IMAGE";
-        $("profileMessage").textContent = "Upload a photo and the page will identify landscape, portrait/screen, or square mode and suggest the closest platform preset.";
-        $("recommendationLabel").textContent = "SELECT ONE";
-        renderModeCards();
-        updateTargetReadout();
-        setStatus(state.engineOnline ? "READY // Python engine connected. Upload one photo." : "ENGINE OFFLINE // Start prototype.py on http://127.0.0.1:5000.", state.engineOnline ? "" : "error");
-      }
-
-      function updatePreviewFilters() {
-        const brightness = 100 + Number($("brightness").value);
-        const contrast = 100 + Number($("contrast").value);
-        const saturation = 100 + Number($("saturation").value);
-        $("previewImage").style.filter = "brightness(" + brightness + "%) contrast(" + contrast + "%) saturate(" + saturation + "%)";
-        $("previewImage").style.transform = "rotate(" + $("rotation").value + "deg)";
-      }
-
+      /** All static/dynamic event listeners ek baar bind karta hai. */
       function bindEvents() {
-        $("fileInput").addEventListener("change", function () { chooseFile(this.files && this.files[0]); });
-        $("removeFile").addEventListener("click", clearFile);
-        $("newImageButton").addEventListener("click", function () { clearFile(); $("studio").scrollIntoView({ behavior: "smooth" }); });
-        $("downloadButton").addEventListener("click", downloadResult);
-        $("convertButton").addEventListener("click", convertPhoto);
-        $("manualToggle").addEventListener("change", function () { $("manualFields").hidden = !this.checked; hideResult(); updateTargetReadout(); });
-        ["manualWidth","manualHeight","fitStrategy","outputFormat","dpi"].forEach(function (id) { $(id).addEventListener("input", function () { hideResult(); updateTargetReadout(); }); });
-        $("rotation").addEventListener("change", function () { hideResult(); updatePreviewFilters(); });
-        ["brightness","contrast","saturation","sharpness"].forEach(function (id) {
-          const input = $(id);
-          input.addEventListener("input", function () { input.nextElementSibling.value = input.value; hideResult(); updatePreviewFilters(); });
+        dom.fileInput.addEventListener("change", function (event) {
+          handleFile(event.target.files && event.target.files[0]);
         });
-        const dropzone = $("dropzone");
-        ["dragenter","dragover"].forEach(function (eventName) { dropzone.addEventListener(eventName, function (event) { event.preventDefault(); dropzone.classList.add("drag"); }); });
-        ["dragleave","drop"].forEach(function (eventName) { dropzone.addEventListener(eventName, function (event) { event.preventDefault(); dropzone.classList.remove("drag"); }); });
-        dropzone.addEventListener("drop", function (event) { const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]; chooseFile(file); });
+
+        /* Drag enter/over default browser open behavior stop karke highlight dikhata hai. */
+        ["dragenter","dragover"].forEach(function (eventName) {
+          dom.dropzone.addEventListener(eventName, function (event) {
+            event.preventDefault();
+            dom.dropzone.classList.add("is-over");
+          });
+        });
+
+        /* Drag leave/drop highlight remove karta hai. */
+        ["dragleave","drop"].forEach(function (eventName) {
+          dom.dropzone.addEventListener(eventName, function (event) {
+            event.preventDefault();
+            dom.dropzone.classList.remove("is-over");
+          });
+        });
+
+        dom.dropzone.addEventListener("drop", function (event) {
+          const droppedFile = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+          handleFile(droppedFile);
+        });
+
+        dom.removeFile.addEventListener("click", resetFile);
+        dom.convertButton.addEventListener("click", convertPhoto);
+        dom.downloadButton.addEventListener("click", downloadResult);
+        dom.showSource.addEventListener("click", function () { setPreviewView("source"); });
+        dom.showResult.addEventListener("click", function () { setPreviewView("result"); });
+
+        /* TIF jaisa output browser display na kare to broken-image icon ki jagah clear note. */
+        dom.resultImage.addEventListener("error", function () {
+          if (state.previewView === "result") {
+            dom.resultImage.classList.remove("visible");
+            dom.browserPreviewNote.classList.add("visible");
+          }
+        });
+
+        /* Display-supported result load ho to unsupported-format note hide hota hai. */
+        dom.resultImage.addEventListener("load", function () {
+          if (state.previewView === "result") {
+            dom.browserPreviewNote.classList.remove("visible");
+          }
+        });
+
+        /* Fit buttons data-fit value directly Python cover/contain names use karti hain. */
+        dom.fitChoices.querySelectorAll("[data-fit]").forEach(function (button) {
+          button.addEventListener("click", function () {
+            state.fitStrategy = button.dataset.fit;
+
+            dom.fitChoices.querySelectorAll("[data-fit]").forEach(function (peer) {
+              const active = peer === button;
+              peer.classList.toggle("active", active);
+              peer.setAttribute("aria-pressed", active ? "true" : "false");
+            });
+
+            clearResult("Fit style changed. The live preview now shows " + (state.fitStrategy === "cover" ? "a filled frame." : "the whole photo."));
+            renderPreview();
+            updateConvertButton();
+          });
+        });
+
+        dom.outputFormat.addEventListener("change", function () {
+          clearResult("Output format changed. Create again to apply it.");
+          updateConvertButton();
+        });
+
+        dom.themeToggle.addEventListener("click", function () {
+          const nextTheme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+          document.documentElement.dataset.theme = nextTheme;
+
+          try {
+            localStorage.setItem("imageReducerTheme", nextTheme);
+          } catch (error) {
+            /* Storage fail ho to current session theme phir bhi visibly change hoti hai. */
+          }
+
+          syncThemeButton();
+        });
+
+        /* Page close/refresh par blob URLs free hote hain. */
+        window.addEventListener("beforeunload", releaseObjectUrls);
       }
 
-      renderModeCards();
-      renderQualityPills();
-      bindEvents();
-      updateTargetReadout();
-      checkEngine();
+      /** Initial page setup order: static render -> events -> backend catalog. */
+      function initialize() {
+        syncThemeButton();
+        renderPlatforms();
+        renderModes();
+        renderQualityTiers();
+        renderPreview();
+        updateConvertButton();
+        bindEvents();
+        loadBackendCatalog();
+      }
+
+      /* Window resources load hone par loader safely hide; converter already usable. */
+      window.addEventListener("load", function () {
+        window.setTimeout(function () {
+          dom.pageLoader.classList.add("is-hidden");
+        }, 220);
+      });
+
+      initialize();
     }());
   </script>
 </body>
