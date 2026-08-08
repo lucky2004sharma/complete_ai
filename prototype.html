@@ -20,7 +20,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
 
   <!-- Browser tab ka naam. Is text ka Python processing par koi asar nahi. -->
-  <title>Aurora Focus Rail — ImageReducer</title>
+  <title>Aurora Canvas First — ImageReducer</title>
 
   <!-- Search/share description; converter logic par zero effect. -->
   <meta name="description" content="Turn one photo into platform-ready Facebook, Instagram, YouTube, LinkedIn, Pinterest, TikTok and e-mail frames.">
@@ -591,40 +591,46 @@
   </style>
 
       <style id="prototype-variant">
-        /* Prototype 1: a left preview rail with a bento control workspace. */
-        .hero { padding: 52px 0 30px; }
-        .hero-panel { grid-template-columns: 1.08fr .72fr; border-radius: 30px 30px 120px 30px; }
-        .hero-copy h1 { max-width: 760px; }
-        .shape-theater { min-height: 300px; }
-        .section-heading { display: grid; grid-template-columns: .75fr 1.25fr; column-gap: 44px; align-items: end; }
-        .section-heading small { grid-column: 1; }
-        .section-heading h2 { grid-column: 1; }
-        .section-heading p { grid-column: 2; grid-row: 1 / span 2; margin: 0; align-self: end; }
-        .studio-shell { border-radius: 22px 66px 22px 22px; }
-        .studio-grid { grid-template-columns: minmax(330px,.72fr) minmax(0,1.28fr); }
-        .preview-deck { top: 124px; border-radius: 20px 48px 20px 20px; }
-        .control-path { grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; }
+        /* Prototype 2: preview dominates, controls sit in a clear band below. */
+        .site-header { border-radius: 18px; }
+        .hero { padding: 38px 0 24px; }
+        .hero-panel { min-height: 340px; grid-template-columns: 1.35fr .65fr; border-radius: 24px; }
+        .shape-theater { min-height: 250px; border-radius: 22px; }
+        .studio-section { padding-top: 24px; }
+        .studio-shell { padding: 12px; border-radius: 22px; box-shadow: 11px 13px 0 var(--shadow-cyan),0 34px 78px rgba(0,0,0,.28); }
+        .studio-grid { grid-template-columns: 1fr; }
+        .preview-deck {
+          position: static; display: grid; grid-template-columns: minmax(250px,.72fr) minmax(420px,1.28fr);
+          grid-template-rows: auto auto auto 1fr; gap: 14px; border-radius: 18px;
+        }
+        .panel-title { grid-column: 1 / -1; }
+        .dropzone { grid-column: 1; grid-row: 2; margin-top: 0; min-height: 138px; }
+        .file-meta { grid-column: 1; grid-row: 3; margin-top: 0; }
+        .analysis-grid { grid-column: 1; grid-row: 4; margin-top: 0; align-content: start; }
+        .preview-stage { grid-column: 2; grid-row: 2 / span 3; min-height: 520px; margin-top: 0; border-radius: 16px; }
+        .control-path { grid-template-columns: 1.25fr .75fr; gap: 12px; }
         .control-card { border-radius: 18px; }
-        .control-card:first-child, .control-card:last-child { grid-column: 1 / -1; }
-        .control-card:nth-child(2), .control-card:nth-child(3) { min-height: 100%; }
-        .mode-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
-        .control-heading { display: grid; grid-template-columns: 1fr; }
-        .control-heading small { max-width: 520px; text-align: left; }
-        .trust-grid article:nth-child(odd) { background: rgba(100,228,244,.025); }
-        @media (max-width: 1120px) {
+        .control-card:first-child { grid-column: 1 / -1; }
+        .control-card:last-child { grid-column: 1 / -1; }
+        .mode-grid { grid-template-columns: repeat(5,minmax(0,1fr)); }
+        .finish-grid { grid-template-columns: minmax(190px,.32fr) minmax(0,.68fr); }
+        .trust-grid article { text-align: center; }
+        .trust-mark { margin-inline: auto; }
+        @media (max-width: 1040px) {
+          .preview-deck { grid-template-columns: 1fr 1fr; }
           .mode-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
-          .control-path { grid-template-columns: 1fr; }
-          .control-card:first-child, .control-card:last-child { grid-column: auto; }
         }
         @media (max-width: 820px) {
-          .section-heading { display: block; }
-          .section-heading p { margin-top: 12px; }
+          .preview-deck { display: block; }
+          .preview-stage { min-height: 380px; margin-top: 14px; }
+          .control-path { grid-template-columns: 1fr; }
+          .control-card:first-child, .control-card:last-child { grid-column: auto; }
         }
       </style>
 </head>
 
-<body class="prototype-01">
-  <div class="prototype-tag" aria-hidden="true"><b>PROTOTYPE</b> 01 · FOCUS RAIL</div>
+<body class="prototype-02">
+  <div class="prototype-tag" aria-hidden="true"><b>PROTOTYPE</b> 02 · CANVAS FIRST</div>
   <!-- Loader wrapper: JS window.load event par isme .is-hidden class lagata hai. -->
   <div class="page-loader" id="pageLoader" role="status" aria-label="Opening Aurora Photo-Mode Pavilion">
     <!-- Loader ka visible arch; purely decorative, Python se connected nahi. -->
