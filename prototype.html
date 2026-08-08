@@ -20,7 +20,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
 
   <!-- Browser tab ka naam. Is text ka Python processing par koi asar nahi. -->
-  <title>Aurora Photo-Mode Pavilion — ImageReducer</title>
+  <title>Aurora Focus Rail — ImageReducer</title>
 
   <!-- Search/share description; converter logic par zero effect. -->
   <meta name="description" content="Turn one photo into platform-ready Facebook, Instagram, YouTube, LinkedIn, Pinterest, TikTok and e-mail frames.">
@@ -577,9 +577,54 @@
       *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
     }
   </style>
+
+  <style id="prototype-shared">
+    .prototype-tag {
+      position: fixed; right: 18px; bottom: 18px; z-index: 120;
+      padding: 8px 11px; border: 1px solid var(--line); border-radius: 999px;
+      color: var(--muted); background: var(--surface-soft); backdrop-filter: blur(18px);
+      font-size: 7px; font-weight: 700; letter-spacing: .13em;
+      box-shadow: 7px 8px 0 var(--shadow-violet);
+    }
+    .prototype-tag b { color: var(--cyan); }
+    @media (max-width: 700px) { .prototype-tag { display: none; } }
+  </style>
+
+      <style id="prototype-variant">
+        /* Prototype 1: a left preview rail with a bento control workspace. */
+        .hero { padding: 52px 0 30px; }
+        .hero-panel { grid-template-columns: 1.08fr .72fr; border-radius: 30px 30px 120px 30px; }
+        .hero-copy h1 { max-width: 760px; }
+        .shape-theater { min-height: 300px; }
+        .section-heading { display: grid; grid-template-columns: .75fr 1.25fr; column-gap: 44px; align-items: end; }
+        .section-heading small { grid-column: 1; }
+        .section-heading h2 { grid-column: 1; }
+        .section-heading p { grid-column: 2; grid-row: 1 / span 2; margin: 0; align-self: end; }
+        .studio-shell { border-radius: 22px 66px 22px 22px; }
+        .studio-grid { grid-template-columns: minmax(330px,.72fr) minmax(0,1.28fr); }
+        .preview-deck { top: 124px; border-radius: 20px 48px 20px 20px; }
+        .control-path { grid-template-columns: repeat(2,minmax(0,1fr)); align-items: start; }
+        .control-card { border-radius: 18px; }
+        .control-card:first-child, .control-card:last-child { grid-column: 1 / -1; }
+        .control-card:nth-child(2), .control-card:nth-child(3) { min-height: 100%; }
+        .mode-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
+        .control-heading { display: grid; grid-template-columns: 1fr; }
+        .control-heading small { max-width: 520px; text-align: left; }
+        .trust-grid article:nth-child(odd) { background: rgba(100,228,244,.025); }
+        @media (max-width: 1120px) {
+          .mode-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+          .control-path { grid-template-columns: 1fr; }
+          .control-card:first-child, .control-card:last-child { grid-column: auto; }
+        }
+        @media (max-width: 820px) {
+          .section-heading { display: block; }
+          .section-heading p { margin-top: 12px; }
+        }
+      </style>
 </head>
 
-<body>
+<body class="prototype-01">
+  <div class="prototype-tag" aria-hidden="true"><b>PROTOTYPE</b> 01 · FOCUS RAIL</div>
   <!-- Loader wrapper: JS window.load event par isme .is-hidden class lagata hai. -->
   <div class="page-loader" id="pageLoader" role="status" aria-label="Opening Aurora Photo-Mode Pavilion">
     <!-- Loader ka visible arch; purely decorative, Python se connected nahi. -->
