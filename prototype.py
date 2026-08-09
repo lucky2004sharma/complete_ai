@@ -17,9 +17,14 @@ IMPORTANT:
     * ``expected_input_format`` aane par original upload ka REAL format check
       hota hai. Isliye PNG upload karke input dropdown ko JPEG bolne se request
       accept nahi hogi.
-    * ``target_kb`` sabse high priority hai. 50 KB ko 50 * 1024 = 51,200 bytes
-      maana jaata hai aur response exactly utne hi bytes ka banaya jaata hai.
+    * ``target_kb`` maximum output size hai. 50 KB ko 50 * 1024 = 51,200 bytes
+      maana jaata hai aur response usse bada nahi hota. Fragile exact padding
+      default OFF hai; double opt-in ke bina junk/trailing bytes add nahi hote.
     * SVG input ko raster image me kholne ke liye ``cairosvg`` dependency chahiye.
+    * Har individual file, complete request aur generated output maximum 100 MB.
+    * Production me IMAGE_REDUCER_PRODUCTION=1 + IMAGE_REDUCER_API_KEY required.
+    * DOC/Excel parsing default OFF hai. Isse sirf external Docker/VM/seccomp
+      sandbox ke andar enable karo; details Office security constants me hain.
 
 COMMENTS ITNE DETAIL ME KYUN HAIN:
     User beginner hai. Har important constant, function, loop aur if/else ke
@@ -31,11 +36,18 @@ from __future__ import annotations
 
 # Standard-library imports: inka alag installation nahi karna padta.
 import base64
+import hmac
 import io
+import logging
 import math
+import os
 import re
+import signal
 import struct
+import threading
+import time
 import zlib
+from collections import defaultdict, deque
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Dict, Iterable, Optional, Tuple
 
@@ -45,10 +57,10 @@ from PIL import Image, ImageEnhance, ImageFilter, ImageOps, UnidentifiedImageErr
 # Flask optional-style import rakha hai taaki Flask absent ho to file ek clear
 # install message de, cryptic ModuleNotFoundError par band na ho.
 try:
-    from flask import Flask, jsonify, make_response, request, send_file
+    from flask import Flask, g, jsonify, make_response, request, send_file
 except ImportError:  # pragma: no cover - sirf dependency-missing computer par chalega.
     Flask = None  # type: ignore[assignment]
-    jsonify = make_response = request = send_file = None  # type: ignore[assignment]
+    g = jsonify = make_response = request = send_file = None  # type: ignore[assignment]
 
 
 # ============================================================================
@@ -60,18 +72,66 @@ except ImportError:  # pragma: no cover - sirf dependency-missing computer par c
 
 KB_IN_BYTES = 1024
 MB_IN_BYTES = 1024 * 1024
-MAX_UPLOAD_MB = 25
+
+# SECURITY CHANGE: Har individual uploaded file aur poori multipart request ka
+# hard upper ceiling 100 MB hai. MAX_CONTENT_LENGTH request ko body parse hone
+# se pehle stop karta hai; read_upload_bytes/document_read_upload per-file bytes
+# ko dobara verify karte hain. Value badhaane se network, disk aur RAM risk badhega.
+MAX_UPLOAD_MB = 100
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * MB_IN_BYTES
-MAX_TARGET_MB = 50
+MAX_REQUEST_MB = 100
+MAX_REQUEST_BYTES = MAX_REQUEST_MB * MB_IN_BYTES
+
+# Generated image/PDF/ZIP bhi 100 MB se bada response nahi ban sakta. Isse ek
+# allowed upload ko extremely large output me expand karke memory exhaust karna
+# difficult hota hai.
+MAX_OUTPUT_MB = 100
+MAX_OUTPUT_BYTES = MAX_OUTPUT_MB * MB_IN_BYTES
+MAX_TARGET_MB = 100
 MAX_TARGET_BYTES = MAX_TARGET_MB * MB_IN_BYTES
 DEFAULT_DPI = 72
 DEFAULT_QUALITY = 92
 MIN_DIMENSION = 1
 MAX_DIMENSION = 20_000
 
-# Pillow decompression-bomb protection. Isse bahut bade pixel-count wali image
-# server memory ko unexpectedly exhaust nahi karegi.
-Image.MAX_IMAGE_PIXELS = 50_000_000
+# Pillow decompression-bomb protection upload DECODE ke waqt kaam karti hai.
+# MAX_OUTPUT_PIXELS alag constant isliye hai kyunki Pillow ka `.resize()` naya
+# canvas banate waqt Image.MAX_IMAGE_PIXELS automatically check nahi karta.
+MAX_DECODE_PIXELS = 50_000_000
+MAX_OUTPUT_PIXELS = 50_000_000
+Image.MAX_IMAGE_PIXELS = MAX_DECODE_PIXELS
+
+# Exact target fitting multiple expensive encodes kar sakti hai. Large canvases
+# par target_kb use karna reject hota hai, total encode work bounded hai aur
+# loop ke beech cooperative deadline check hota hai.
+MAX_EXACT_TARGET_PIXELS = 8_000_000
+MAX_EXACT_TARGET_RESIZE_ATTEMPTS = 6
+MAX_EXACT_TARGET_ENCODE_OPERATIONS = 20
+MAX_EXACT_TARGET_PIXEL_WORK = 64_000_000
+EXACT_TARGET_TIME_LIMIT_SECONDS = 20.0
+
+# Exact-size padding strict validators ke saath fragile ho sakti hai. Safe
+# default OFF hai. Admin env EXACT_SIZE_PADDING_ENABLED=1 kare aur request form
+# `allow_exact_padding=true` bheje tabhi container-aware padding use hogi.
+EXACT_SIZE_PADDING_ENABLED = str(
+    os.environ.get("EXACT_SIZE_PADDING_ENABLED", "0")
+).strip().lower() in {"1", "true", "yes", "on"}
+
+# Multi-page PDF encoder decoded images ko ek saath memory me rakhta hai. Har
+# image ka individual 50M cap enough nahi, so combined pages ka smaller budget
+# rakha hai. 60M RGB pixels roughly 180 MB raw pixel memory hoti hai.
+MAX_PDF_TOTAL_INPUT_PIXELS = 60_000_000
+
+# Request abuse controls. Heavy routes per IP 60 seconds me limited hain aur
+# server par simultaneously sirf do CPU-heavy requests process hoti hain.
+RATE_LIMIT_WINDOW_SECONDS = 60
+GENERAL_RATE_LIMIT_PER_WINDOW = 30
+HEAVY_RATE_LIMIT_PER_WINDOW = 8
+MAX_CONCURRENT_HEAVY_REQUESTS = 2
+
+# Logging backend terminal/file handler ko useful operational details deta hai.
+# Raw errors HTTP response me nahi bheje jaate; logger administrator ke liye hai.
+LOGGER = logging.getLogger("image_reducer")
 
 # UI ke saat names ko Pillow ke actual encoder names se map kiya hai.
 # JPG/JPEG bytes same codec use karte hain, par UI route identity alag rakhta hai.
@@ -115,6 +175,115 @@ UI_FORMAT_BY_PIL = {
     "TIFF": "TIF",
     "PNG": "PNG",
 }
+
+
+# ============================================================================
+# 01.1 // SHARED RESOURCE-SAFETY HELPERS
+# KYA: Canvas pixels, output bytes aur boolean settings ko central rules se
+#      validate karte hain.
+# KYUN: Sirf upload decode secure karke resize/new-canvas paths open chhodna
+#       memory-exhaustion DoS ko nahi rokta. Har allocation se pehle same helper
+#       call karna future code ko bhi safer banata hai.
+# ============================================================================
+
+def parse_boolean(value: Any, *, default: bool = False) -> bool:
+    """Form/env style value ko strict True/False me parse karta hai."""
+
+    # Blank value documented default use karta hai. Yeh optional checkboxes ke
+    # liye useful hai; missing checkbox normally request me aati hi nahi.
+    if value is None or str(value).strip() == "":
+        return default
+
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "on"}:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+
+    # Unknown value ko truthy guess nahi karte, warna typo security option ko
+    # accidentally enable kar sakta hai.
+    raise ValueError("Boolean value must be true/false, yes/no, on/off, or 1/0.")
+
+
+def validate_pixel_budget(
+    width: int,
+    height: int,
+    context: str = "Requested output",
+    maximum_pixels: int = MAX_OUTPUT_PIXELS,
+) -> int:
+    """Canvas dimensions validate karke safe pixel count return karta hai."""
+
+    # Zero/negative dimensions Pillow me cryptic error de sakti hain; API par
+    # clear validation message beginner aur security dono ke liye better hai.
+    if width < MIN_DIMENSION or height < MIN_DIMENSION:
+        raise ValueError(f"{context} dimensions must be at least 1 × 1 pixel.")
+
+    # Auto-ratio calculations parse only one user-provided side; calculated
+    # second side bhi per-dimension 20,000 ceiling follow karni chahiye.
+    if width > MAX_DIMENSION or height > MAX_DIMENSION:
+        raise ValueError(
+            f"{context} dimensions cannot exceed {MAX_DIMENSION:,} pixels per side."
+        )
+
+    pixel_count = int(width) * int(height)
+    if pixel_count > maximum_pixels:
+        estimated_rgba_mb = (pixel_count * 4) / MB_IN_BYTES
+        raise ValueError(
+            f"{context} would create {pixel_count:,} pixels (about "
+            f"{estimated_rgba_mb:.1f} MB as an RGBA canvas). Maximum allowed is "
+            f"{maximum_pixels:,} pixels. Reduce width or height."
+        )
+
+    return pixel_count
+
+
+def validate_output_size(data: bytes, context: str = "Generated output") -> bytes:
+    """Generated bytes ko global 100 MB output ceiling ke andar verify karta hai."""
+
+    if len(data) > MAX_OUTPUT_BYTES:
+        raise ValueError(
+            f"{context} is larger than the {MAX_OUTPUT_MB} MB output limit. "
+            "Use smaller dimensions, lower quality, or fewer pages."
+        )
+
+    return data
+
+
+def validate_combined_upload_size(uploads: Iterable[Any], context: str) -> None:
+    """Multiple FileStorage objects ka declared total 100 MB se upar block karta hai."""
+
+    total_bytes = 0
+    for upload in uploads:
+        # Werkzeug content_length kabhi None/0 hota hai; actual read helper phir
+        # bhi per-file limit enforce karega. Available value ko early rejection
+        # ke liye use karte hain, security decision sirf isi par depend nahi hai.
+        declared_size = int(getattr(upload, "content_length", 0) or 0)
+        total_bytes += max(0, declared_size)
+
+    if total_bytes > MAX_UPLOAD_BYTES:
+        raise ValueError(
+            f"{context} files together exceed the {MAX_UPLOAD_MB} MB request limit."
+        )
+
+
+def sanitize_subprocess_log(value: Any, maximum_characters: int = 4000) -> str:
+    """Captured stdout/stderr ko terminal-safe, bounded single string banata hai."""
+
+    if isinstance(value, bytes):
+        text = value.decode("utf-8", errors="replace")
+    else:
+        text = str(value or "")
+
+    # Control characters terminal/log parser ko confuse kar sakte hain. Newline
+    # useful diagnostic hai, baaki non-printable values spaces me normalize hote hain.
+    cleaned = "".join(
+        character if character in "\n\r\t" or character.isprintable() else " "
+        for character in text
+    ).strip()
+
+    if len(cleaned) > maximum_characters:
+        return cleaned[:maximum_characters] + " …[truncated]"
+    return cleaned
 
 
 # ============================================================================
@@ -190,7 +359,7 @@ def parse_percent(value: Any, field_name: str) -> float:
 
 
 def parse_target_bytes(value: Any) -> Optional[int]:
-    """Target KB ko exact bytes me convert karta hai (50 KB -> 51,200 bytes)."""
+    """Maximum target KB ko bytes me convert karta hai (50 KB -> 51,200 bytes)."""
 
     if value is None or str(value).strip() == "":
         return None
@@ -246,8 +415,14 @@ def detect_input_format(data: bytes, filename: str) -> str:
     try:
         with Image.open(io.BytesIO(data)) as probe:
             pillow_format = str(probe.format or "").upper()
+            validate_pixel_budget(
+                probe.width,
+                probe.height,
+                "Uploaded image",
+                MAX_DECODE_PIXELS,
+            )
             probe.verify()
-    except (UnidentifiedImageError, OSError, ValueError) as exc:
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError) as exc:
         raise ValueError("Uploaded file is not a readable supported image.") from exc
 
     if pillow_format not in UI_FORMAT_BY_PIL:
@@ -293,6 +468,92 @@ def validate_expected_format(detected: str, expected_value: Any) -> None:
         )
 
 
+def safe_svg_output_dimensions(data: bytes) -> Tuple[int, int]:
+    """SVG root dimensions/viewBox se bounded raster canvas size calculate karta hai."""
+
+    # CairoSVG external <image>/CSS URL fetch kar sakta hai. Untrusted upload ko
+    # server-side HTTP/file access dena SSRF/local-file risk hai, isliye only
+    # inline/data content allowed hai. Regex complete bytes par case-insensitive
+    # scan karti hai without decoded duplicate string banaye.
+    if re.search(
+        br"(?:href\s*=\s*['\"]\s*|url\(\s*['\"]?\s*)(?:https?|file|ftp):",
+        data,
+        flags=re.IGNORECASE,
+    ):
+        raise ValueError("SVG external URLs/files are not allowed; embed resources as data URLs.")
+
+    # CairoSVG ko raw SVG ke declared 20,000×20,000 canvas par chhodna resize
+    # guard se pehle hi memory allocate kar sakta hai. Sirf root tag read karke
+    # output_width/output_height explicitly dene se renderer ka canvas bounded hai.
+    header_text = data[:65536].decode("utf-8", errors="ignore")
+    root_match = re.search(r"<svg\b([^>]*)>", header_text, flags=re.IGNORECASE)
+    if root_match is None:
+        raise ValueError("SVG root element could not be read safely.")
+
+    attributes = root_match.group(1)
+
+    def read_numeric_attribute(name: str) -> Optional[float]:
+        # px/unit-less values direct pixels hain. Physical CSS units ko 96-DPI
+        # approximation se pixels me convert karte hain. Percentage dimensions
+        # viewBox/default se resolve hongi, unhe yahan numeric guess nahi karte.
+        match = re.search(
+            rf"\b{name}\s*=\s*['\"]\s*([0-9]+(?:\.[0-9]+)?)\s*(px|pt|pc|in|cm|mm)?\s*['\"]",
+            attributes,
+            flags=re.IGNORECASE,
+        )
+        if match is None:
+            return None
+
+        number = float(match.group(1))
+        unit = str(match.group(2) or "px").lower()
+        multiplier = {
+            "px": 1.0,
+            "pt": 96.0 / 72.0,
+            "pc": 16.0,
+            "in": 96.0,
+            "cm": 96.0 / 2.54,
+            "mm": 96.0 / 25.4,
+        }[unit]
+        return number * multiplier
+
+    width_value = read_numeric_attribute("width")
+    height_value = read_numeric_attribute("height")
+
+    viewbox_match = re.search(
+        r"\bviewBox\s*=\s*['\"]\s*[-+0-9.eE]+[ ,]+[-+0-9.eE]+[ ,]+([-+0-9.eE]+)[ ,]+([-+0-9.eE]+)\s*['\"]",
+        attributes,
+        flags=re.IGNORECASE,
+    )
+    viewbox_width = float(viewbox_match.group(1)) if viewbox_match else None
+    viewbox_height = float(viewbox_match.group(2)) if viewbox_match else None
+
+    # Missing/percentage dimensions ke liye positive viewBox, aur uske bina SVG
+    # standard-like 300×150 fallback use hota hai. One-side value par viewBox
+    # ratio preserve karke second side calculate hoti hai.
+    if width_value is None and height_value is None:
+        width_value = viewbox_width if viewbox_width and viewbox_width > 0 else 300.0
+        height_value = viewbox_height if viewbox_height and viewbox_height > 0 else 150.0
+    elif width_value is None:
+        ratio = (
+            viewbox_width / viewbox_height
+            if viewbox_width and viewbox_height and viewbox_width > 0 and viewbox_height > 0
+            else 2.0
+        )
+        width_value = float(height_value or 150.0) * ratio
+    elif height_value is None:
+        ratio = (
+            viewbox_height / viewbox_width
+            if viewbox_width and viewbox_height and viewbox_width > 0 and viewbox_height > 0
+            else 0.5
+        )
+        height_value = float(width_value) * ratio
+
+    width = max(MIN_DIMENSION, int(math.ceil(float(width_value))))
+    height = max(MIN_DIMENSION, int(math.ceil(float(height_value))))
+    validate_pixel_budget(width, height, "SVG raster canvas", MAX_DECODE_PIXELS)
+    return width, height
+
+
 # ============================================================================
 # 04 // IMAGE DECODING AND EDITS
 # KYA: Source ko Pillow image banata, orientation fix karta, filters/resize lagata.
@@ -332,8 +593,20 @@ def open_image_bytes(data: bytes, detected_format: Optional[str] = None) -> Imag
 
         try:
             # unsafe=False external entities/oversized XML expansion ko allow nahi karta.
-            png_bytes = cairosvg.svg2png(bytestring=data, unsafe=False)
+            svg_width, svg_height = safe_svg_output_dimensions(data)
+            png_bytes = cairosvg.svg2png(
+                bytestring=data,
+                unsafe=False,
+                output_width=svg_width,
+                output_height=svg_height,
+            )
             with Image.open(io.BytesIO(png_bytes)) as svg_image:
+                validate_pixel_budget(
+                    svg_image.width,
+                    svg_image.height,
+                    "Rendered SVG",
+                    MAX_DECODE_PIXELS,
+                )
                 image = svg_image.convert("RGBA")
                 image.load()
                 return image
@@ -348,6 +621,15 @@ def open_image_bytes(data: bytes, detected_format: Optional[str] = None) -> Imag
             except EOFError:
                 pass
 
+            # Pillow threshold warning ka wait nahi karte; exact 50M hard cap
+            # conversion/copy se pehle enforce hota hai.
+            validate_pixel_budget(
+                source.width,
+                source.height,
+                "Uploaded image",
+                MAX_DECODE_PIXELS,
+            )
+
             # Phone-camera EXIF orientation ko pixels par physically apply karta hai.
             oriented = ImageOps.exif_transpose(source)
 
@@ -359,7 +641,7 @@ def open_image_bytes(data: bytes, detected_format: Optional[str] = None) -> Imag
 
             image.load()
             return image
-    except (UnidentifiedImageError, OSError, ValueError) as exc:
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError) as exc:
         raise ValueError("Backend could not decode the uploaded image.") from exc
 
 
@@ -377,19 +659,26 @@ def calculate_requested_dimensions(
     height = parse_int(height_value, 0, 0, MAX_DIMENSION, "HEIGHT")
 
     if width and height:
-        return width, height
+        final_width, final_height = width, height
 
     # Sirf width diya to original ratio se height auto-calculate hoti hai.
-    if width:
+    elif width:
         height = max(MIN_DIMENSION, round(width * original_height / original_width))
-        return width, height
+        final_width, final_height = width, height
 
     # Sirf height diya to original ratio se width auto-calculate hoti hai.
-    if height:
+    elif height:
         width = max(MIN_DIMENSION, round(height * original_width / original_height))
-        return width, height
+        final_width, final_height = width, height
 
-    return original_width, original_height
+    else:
+        final_width, final_height = original_width, original_height
+
+    # CRITICAL DoS FIX: MAX_DIMENSION per side enough nahi hai. 20,000×20,000
+    # 400M pixels hota hai. Multiplication check `.resize()` call se PEHLE hoti
+    # hai, so malicious small upload huge canvas allocate nahi kar sakti.
+    validate_pixel_budget(final_width, final_height, "Requested resize")
+    return final_width, final_height
 
 
 def apply_requested_edits(image: Image.Image, form: Any) -> Image.Image:
@@ -401,8 +690,21 @@ def apply_requested_edits(image: Image.Image, form: Any) -> Image.Image:
     # future/TIFF fallback ke liye hai; blank ho to zero rotation.
     rotation = parse_int(form.get("rotation"), 0, 0, 359, "ROTATION")
     if rotation:
+        # expand=True ka bounding canvas pehle calculate hota hai. Validate
+        # BEFORE Pillow allocation, warna 50M source 45° rotate hoke ~100M
+        # temporary canvas bana sakti hai.
+        radians = math.radians(rotation)
+        rotated_width = int(
+            math.ceil(abs(working.width * math.cos(radians)) + abs(working.height * math.sin(radians)))
+        )
+        rotated_height = int(
+            math.ceil(abs(working.width * math.sin(radians)) + abs(working.height * math.cos(radians)))
+        )
+        validate_pixel_budget(rotated_width, rotated_height, "Rotated canvas")
+
         # Pillow positive angle anti-clockwise hota hai; UI rotate button clockwise hai.
         working = working.rotate(-rotation, expand=True, resample=Image.Resampling.BICUBIC)
+        validate_pixel_budget(working.width, working.height, "Rotated canvas")
 
     # Brightness/contrast/saturation -100..100 ko Pillow factor 0..2 me map kiya.
     brightness = parse_percent(form.get("brightness"), "BRIGHTNESS")
@@ -449,6 +751,7 @@ def flatten_transparency(image: Image.Image) -> Image.Image:
     """JPEG jaise no-alpha format ke liye transparent area white banata hai."""
 
     if image.mode == "RGBA":
+        validate_pixel_budget(image.width, image.height, "Transparency canvas")
         background = Image.new("RGB", image.size, "white")
         background.paste(image, mask=image.getchannel("A"))
         return background
@@ -473,6 +776,7 @@ def quantize_image(image: Image.Image, colors: int) -> Image.Image:
 def encode_svg(image: Image.Image, palette_colors: Optional[int]) -> bytes:
     """Raster result ko self-contained SVG image container me embed karta hai."""
 
+    validate_pixel_budget(image.width, image.height, "SVG output canvas")
     embedded = image
     if palette_colors is not None:
         embedded = quantize_image(image, palette_colors)
@@ -488,7 +792,7 @@ def encode_svg(image: Image.Image, palette_colors: Optional[int]) -> bytes:
         f'viewBox="0 0 {width} {height}"><image width="{width}" height="{height}" '
         f'href="data:image/png;base64,{encoded_png}"/></svg>'
     )
-    return svg.encode("utf-8")
+    return validate_output_size(svg.encode("utf-8"), "Generated SVG")
 
 
 def encode_once(
@@ -501,6 +805,7 @@ def encode_once(
     """Ek image ko ek baar requested settings par memory bytes me save karta hai."""
 
     output_format = normalize_format(output_format) or "PNG"
+    validate_pixel_budget(image.width, image.height, "Encoder canvas")
 
     if output_format == "SVG":
         return encode_svg(image, palette_colors)
@@ -543,16 +848,56 @@ def encode_once(
         format=PIL_FORMAT_BY_UI[output_format],
         **save_options,
     )
-    return buffer.getvalue()
+    return validate_output_size(buffer.getvalue(), f"Generated {output_format}")
 
 
 def palette_candidates() -> Iterable[Optional[int]]:
     """High color fidelity se low file size tak ordered palette options deta hai."""
 
-    # None pehle full-color try karta hai; baaki values progressively size ghataati hain.
+    # SECURITY CHANGE: Purani 15-value list har resize attempt par 15 expensive
+    # encodes kar sakti thi. Seven representative steps quality range preserve
+    # karte hain aur CPU work ko predictable banate hain.
     yield None
-    for colors in (256, 192, 128, 96, 64, 48, 32, 24, 16, 12, 8, 6, 4, 2):
+    for colors in (256, 128, 64, 32, 16, 4, 2):
         yield colors
+
+
+def consume_exact_target_budget(
+    image: Image.Image,
+    deadline: float,
+    budget: Dict[str, int],
+) -> None:
+    """One planned encode ko time, operation aur cumulative-pixel budget me charge karta hai."""
+
+    if time.monotonic() > deadline:
+        raise ValueError(
+            f"Target-size processing exceeded {EXACT_TARGET_TIME_LIMIT_SECONDS:.0f} seconds. "
+            "Use a larger target size or smaller dimensions."
+        )
+
+    pixel_count = validate_pixel_budget(
+        image.width,
+        image.height,
+        "Target-size encoder canvas",
+        MAX_EXACT_TARGET_PIXELS,
+    )
+    next_operations = budget.get("operations", 0) + 1
+    next_pixel_work = budget.get("pixel_work", 0) + pixel_count
+
+    if next_operations > MAX_EXACT_TARGET_ENCODE_OPERATIONS:
+        raise ValueError(
+            "Target-size processing needs too many encode attempts. "
+            "Use a larger target size or smaller dimensions."
+        )
+
+    if next_pixel_work > MAX_EXACT_TARGET_PIXEL_WORK:
+        raise ValueError(
+            "Target-size processing exceeds the per-request CPU budget. "
+            "Use a smaller canvas or remove target_kb."
+        )
+
+    budget["operations"] = next_operations
+    budget["pixel_work"] = next_pixel_work
 
 
 def best_candidate_at_current_size(
@@ -561,18 +906,27 @@ def best_candidate_at_current_size(
     requested_quality: int,
     dpi: int,
     target_bytes: int,
+    deadline: float,
+    budget: Dict[str, int],
 ) -> Tuple[bytes, bool]:
     """Current dimensions par best quality candidate dhoondhta hai."""
 
+    def budgeted_encode(quality_value: int, colors: Optional[int] = None) -> bytes:
+        # Every encoder call se pehle cooperative deadline + cumulative CPU
+        # budget check hota hai. Pillow encode ke beech Python interrupt nahi
+        # kar sakta, isliye large exact-target canvases separately reject hote hain.
+        consume_exact_target_budget(image, deadline, budget)
+        return encode_once(image, output_format, quality_value, dpi, colors)
+
     if output_format in {"JPG", "JPEG", "WEBP"}:
         maximum_quality = min(95 if output_format in {"JPG", "JPEG"} else 100, requested_quality)
-        high_data = encode_once(image, output_format, maximum_quality, dpi)
+        high_data = budgeted_encode(maximum_quality)
 
         # Requested quality already fit hai to aur quality reduce karne ki zarurat nahi.
         if len(high_data) <= target_bytes:
             return high_data, True
 
-        low_data = encode_once(image, output_format, 1, dpi)
+        low_data = budgeted_encode(1)
         if len(low_data) > target_bytes:
             return low_data, False
 
@@ -583,7 +937,7 @@ def best_candidate_at_current_size(
 
         while low_quality <= high_quality:
             middle_quality = (low_quality + high_quality) // 2
-            candidate = encode_once(image, output_format, middle_quality, dpi)
+            candidate = budgeted_encode(middle_quality)
 
             if len(candidate) <= target_bytes:
                 best_data = candidate
@@ -597,7 +951,7 @@ def best_candidate_at_current_size(
     # Palette list full-color se 2 colors tak try hoti hai.
     smallest = b""
     for colors in palette_candidates():
-        candidate = encode_once(image, output_format, requested_quality, dpi, colors)
+        candidate = budgeted_encode(requested_quality, colors)
         smallest = candidate
 
         if len(candidate) <= target_bytes:
@@ -607,10 +961,12 @@ def best_candidate_at_current_size(
 
 
 # ============================================================================
-# 06 // EXACT BYTE-SIZE PADDING
-# KYA: Candidate target se chhota ho to invisible/metadata bytes safely add karta hai.
-# KYUN: 55 KB PNG -> exactly 123 KB JPEG quality badha kar exact hona guaranteed nahi;
-#       controlled padding exact size guarantee karta hai bina pixels badle.
+# 06 // OPTIONAL STRICT-CONTAINER EXACT BYTE PADDING
+# KYA: Double opt-in par candidate target se chhota ho to valid container
+#      metadata/fill bytes add karta hai.
+# KYUN: Purane trailing null/whitespace hacks strict validators reject kar sakte
+#       the. Default maximum-size mode koi padding nahi karta; GIF/TIFF exact
+#       padding intentionally unsupported hai.
 # ============================================================================
 
 def make_png_padding_chunk(payload_size: int) -> bytes:
@@ -623,16 +979,16 @@ def make_png_padding_chunk(payload_size: int) -> bytes:
 
 
 def pad_png(data: bytes, extra_bytes: int) -> bytes:
-    """PNG IEND se pehle padding chunk insert karta; tiny remainder trailing rakhta hai."""
+    """PNG IEND se pehle complete private ancillary chunk insert karta hai."""
 
     if extra_bytes >= 12 and data.endswith(b"\x00\x00\x00\x00IEND\xaeB`\x82"):
         # Chunk overhead 12 bytes hai; remaining bytes us chunk ka payload bante hain.
         chunk = make_png_padding_chunk(extra_bytes - 12)
         return data[:-12] + chunk + data[-12:]
 
-    # 1..11 bytes me complete PNG chunk possible nahi. PNG readers IEND ke baad
-    # trailing inert bytes ignore karte hain; pixels aur decode result same rehta hai.
-    return data + (b"\x00" * extra_bytes)
+    # Strict mode incomplete chunk ya IEND ke baad junk bytes kabhi add nahi
+    # karta. User target slightly change karke at least 12-byte gap de sakta hai.
+    raise ValueError("Exact PNG padding needs at least 12 additional bytes.")
 
 
 def pad_webp(data: bytes, extra_bytes: int) -> bytes:
@@ -644,9 +1000,9 @@ def pad_webp(data: bytes, extra_bytes: int) -> bytes:
         # RIFF header byte 4..7 total file size minus 8 store karta hai.
         return padded[:4] + struct.pack("<I", len(padded) - 8) + padded[8:]
 
-    # Odd/tiny difference rare hai (integer KB target always even). Fallback bytes
-    # RIFF declared region ke bahar inert hain and common decoders ignore karte hain.
-    return data + (b"\x00" * extra_bytes)
+    # RIFF ke bahar trailing bytes add karna intentionally removed hai. Valid
+    # custom chunk ke liye even size aur minimum 8-byte overhead required hai.
+    raise ValueError("Exact WEBP padding needs an even gap of at least 8 bytes.")
 
 
 def pad_to_exact_size(data: bytes, target_bytes: int, output_format: str) -> bytes:
@@ -673,12 +1029,19 @@ def pad_to_exact_size(data: bytes, target_bytes: int, output_format: str) -> byt
         return pad_webp(data, extra_bytes)
 
     if output_format == "SVG":
-        # XML document ke closing root ke baad whitespace legal hai.
-        return data + (b" " * extra_bytes)
+        # Root ke baad whitespace ke bajaye closing tag se pehle valid XML
+        # comment insert hota hai. Comment overhead 7 bytes (`<!---->`).
+        closing_index = data.rfind(b"</svg>")
+        if closing_index < 0 or extra_bytes < 7:
+            raise ValueError("Exact SVG padding needs a valid closing tag and 7-byte gap.")
+        comment = b"<!--" + (b" " * (extra_bytes - 7)) + b"-->"
+        return data[:closing_index] + comment + data[closing_index:]
 
-    # GIF/TIFF decoders logical end marker/directory ke baad trailing bytes ignore
-    # karte hain. Yeh bytes pixels, DPI ya dimensions ko touch nahi karti.
-    return data + (b"\x00" * extra_bytes)
+    # GIF/TIFF me purana trailing-null hack strict validators reject kar sakte
+    # the. Safe default: in formats ke liye exact padding unsupported hai.
+    raise ValueError(
+        f"Exact padding is not supported for {output_format}; use maximum target mode instead."
+    )
 
 
 def resize_for_next_attempt(image: Image.Image, current_size: int, target_size: int) -> Image.Image:
@@ -701,6 +1064,7 @@ def resize_for_next_attempt(image: Image.Image, current_size: int, target_size: 
         new_width = max(MIN_DIMENSION, width - 1)
         new_height = max(MIN_DIMENSION, height - 1)
 
+    validate_pixel_budget(new_width, new_height, "Target-size retry canvas")
     return image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
 
@@ -710,30 +1074,50 @@ def encode_with_optional_exact_target(
     quality: int,
     dpi: int,
     target_bytes: Optional[int],
+    allow_exact_padding: bool = False,
 ) -> Tuple[bytes, Image.Image, bool]:
-    """Normal encode ya exact-target iterative encode perform karta hai."""
+    """Normal encode ya bounded maximum-target iterative encode perform karta hai."""
 
     if target_bytes is None:
         return encode_once(image, output_format, quality, dpi), image, False
 
-    working = image
+    # CPU DoS FIX: target_kb ke saath big canvas reject hota hai even though
+    # one normal encode global 50M canvas cap ke andar allowed ho sakta hai.
+    validate_pixel_budget(
+        image.width,
+        image.height,
+        "Target-size canvas",
+        MAX_EXACT_TARGET_PIXELS,
+    )
 
-    # 24 attempts practically 20,000px se 1px tak pahunchne ke liye enough hain;
-    # ratio-based jump usually 2-5 attempts me result de deta hai.
-    for _attempt in range(24):
+    working = image
+    deadline = time.monotonic() + EXACT_TARGET_TIME_LIMIT_SECONDS
+    budget: Dict[str, int] = {"operations": 0, "pixel_work": 0}
+
+    # Purane 24 attempts ko six hard attempts me reduce kiya. Ratio-based jump
+    # usually 2-5 attempts me result deta hai; otherwise clear error safer hai.
+    for _attempt in range(MAX_EXACT_TARGET_RESIZE_ATTEMPTS):
         candidate, fits = best_candidate_at_current_size(
             working,
             output_format,
             quality,
             dpi,
             target_bytes,
+            deadline,
+            budget,
         )
 
         if fits:
-            exact = pad_to_exact_size(candidate, target_bytes, output_format)
-            if len(exact) != target_bytes:
-                raise ValueError("Exact target-size verification failed.")
-            return exact, working, True
+            # Default behavior candidate ko target se chhota/equal return karta
+            # hai—no junk bytes. Exact padding double opt-in (server + request)
+            # hone par only container-aware padding helpers run karte hain.
+            if allow_exact_padding:
+                exact = pad_to_exact_size(candidate, target_bytes, output_format)
+                if len(exact) != target_bytes:
+                    raise ValueError("Exact target-size verification failed.")
+                return validate_output_size(exact), working, True
+
+            return candidate, working, True
 
         smaller = resize_for_next_attempt(working, len(candidate), target_bytes)
         if smaller.size == working.size:
@@ -771,7 +1155,9 @@ def read_upload_bytes(upload: Any, field_name: str) -> bytes:
     if upload is None or not getattr(upload, "filename", ""):
         raise ValueError(f"Missing {field_name} upload.")
 
-    data = upload.read()
+    # Limit+1 bytes enough hain size violation identify karne ke liye; malformed
+    # stream ko unlimited `.read()` se memory me pull nahi karte.
+    data = upload.read(MAX_UPLOAD_BYTES + 1)
 
     if not data:
         raise ValueError(f"{field_name} upload is empty.")
@@ -1396,6 +1782,10 @@ def compute_mode_export_size(mode_key: str, tier_key: str) -> Tuple[int, int, in
     final_width = max(MIN_DIMENSION, min(MAX_DIMENSION, round(raw_width)))
     final_height = max(MIN_DIMENSION, min(MAX_DIMENSION, round(raw_height)))
 
+    # Per-side clamp ke baad area check essential hai: 20k×20k otherwise pass
+    # ho jaata. Preset table future me badle tab bhi unsafe canvas block hogi.
+    validate_pixel_budget(final_width, final_height, "Photo-mode output")
+
     return final_width, final_height, tier["encode_quality"]
 
 
@@ -1498,6 +1888,7 @@ def resolve_export_target(
         warnings = build_manual_quality_warnings(
             original_width, original_height, target_width, target_height, mode_key
         )
+        validate_pixel_budget(target_width, target_height, "Manual photo-mode output")
         return target_width, target_height, encode_quality, warnings, True
 
     # ---- CASE 2: User ne preset mode + quality tier choose kiya (automatic). ----
@@ -1541,6 +1932,10 @@ def fit_image_to_target_canvas(
     fit_strategy: str,
 ) -> Image.Image:
     """Image ko target canvas me 'cover' (crop-to-fill) ya 'contain' (letterbox) se fit karta hai."""
+
+    # ImageOps.contain/Image.new/ImageOps.fit allocation se pehle shared canvas
+    # area check hota hai. Yeh smart photo-mode ke manual 20k×20k DoS ko rokta hai.
+    validate_pixel_budget(target_width, target_height, "Photo-mode canvas")
 
     if fit_strategy == "contain":
         # ---- CONTAIN: poori photo dikhti hai, zaroorat par khaali jagah (background) aati hai. ----
@@ -1883,9 +2278,35 @@ DOCUMENT_DEFAULT_DPI = 144
 DOCUMENT_MIN_DPI = 72
 DOCUMENT_MAX_DPI = 200
 
-# LibreOffice ko corrupt/very-complex file par forever hang hone se rokne ke
-# liye hard timeout. Value seconds me hai; slow server par carefully badha sakte ho.
-DOCUMENT_OFFICE_TIMEOUT_SECONDS = 120
+# LibreOffice untrusted complex files ke liye security-sensitive dependency hai.
+# Office parsing secure-by-default OFF hai. Admin ko container/VM/seccomp jaisi
+# external isolation confirm karke dono env flags enable karne honge:
+#   ENABLE_OFFICE_CONVERSION=1
+#   OFFICE_SANDBOX_CONFIRMED=1
+# Python process alone LibreOffice CVE ko fully sandbox nahi kar sakta.
+DOCUMENT_OFFICE_CONVERSION_ENABLED = parse_boolean(
+    os.environ.get("ENABLE_OFFICE_CONVERSION"),
+    default=False,
+)
+DOCUMENT_OFFICE_SANDBOX_CONFIRMED = parse_boolean(
+    os.environ.get("OFFICE_SANDBOX_CONFIRMED"),
+    default=False,
+)
+
+# Optional trusted wrapper example: firejail/bwrap/container-exec arguments.
+# shlex.split use hoga; value sirf server administrator set kare, user form nahi.
+DOCUMENT_OFFICE_SANDBOX_PREFIX = str(
+    os.environ.get("LIBREOFFICE_SANDBOX_PREFIX", "")
+).strip()
+
+# Wall time, CPU time, address-space, output-file aur open-file budgets subprocess
+# ko runaway hone se rokne ki second layer hain. Linux `prlimit` available ho to
+# yeh child + inherited processes par apply hote hain.
+DOCUMENT_OFFICE_TIMEOUT_SECONDS = 60
+DOCUMENT_OFFICE_CPU_SECONDS = 45
+DOCUMENT_OFFICE_MEMORY_MB = 1024
+DOCUMENT_OFFICE_OPEN_FILES = 64
+DOCUMENT_OFFICE_SEMAPHORE = threading.BoundedSemaphore(value=1)
 
 # PDF/Office page output ke common raster formats. SVG intentionally nahi hai:
 # rendered document page raster image hota hai; fake raster-wrapped SVG dena
@@ -1976,14 +2397,15 @@ def document_read_upload(upload: Any, field_name: str) -> bytes:
     if upload is None or not getattr(upload, "filename", ""):
         raise ValueError(f"Missing uploaded file in '{field_name}' field.")
 
-    data = upload.read()
+    # Limit+1 read oversized stream ko poora memory me load kiye bina reject karta hai.
+    data = upload.read(MAX_UPLOAD_BYTES + 1)
 
     # Zero-byte file valid PDF/document/image nahi hoti; conversion se pehle stop.
     if not data:
         raise ValueError(f"Uploaded {field_name} file is empty.")
 
-    # Existing project ka 25 MB per-file limit reuse kiya hai. Is constant ko
-    # badalne se purane aur naye dono upload paths ki per-file ceiling badlegi.
+    # Shared 100 MB per-file limit purane image aur naye document paths dono par
+    # identical hai. Global multipart body limit iske upar second safety layer hai.
     if len(data) > MAX_UPLOAD_BYTES:
         raise ValueError(f"{field_name} exceeds the {MAX_UPLOAD_MB} MB per-file limit.")
 
@@ -2008,11 +2430,11 @@ def document_require_pymupdf() -> Any:
     return pymupdf
 
 
-def document_convert_office_to_pdf(data: bytes, filename: str) -> bytes:
-    """Word/Excel bytes ko isolated temporary folder me LibreOffice se PDF banata hai."""
+def _document_convert_office_to_pdf_isolated(data: bytes, filename: str) -> bytes:
+    """Validated Office bytes ko temp workspace me limited LibreOffice child se PDF banata hai."""
 
     # Imports function ke andar hain taaki Section 01 ka old import block untouched rahe.
-    import os
+    import shlex
     import shutil
     import subprocess
     import tempfile
@@ -2058,9 +2480,10 @@ def document_convert_office_to_pdf(data: bytes, filename: str) -> bytes:
         # Alag user-profile concurrent requests ko ek global LibreOffice lock/profile
         # share karne se bachata hai. `as_uri()` Windows/Linux dono par valid file URI deta hai.
         profile_uri = Path(profile_directory).resolve().as_uri()
-        command = [
+        office_arguments = [
             office_command,
             "--headless",
+            "--safe-mode",
             "--nologo",
             "--nodefault",
             "--nolockcheck",
@@ -2073,22 +2496,94 @@ def document_convert_office_to_pdf(data: bytes, filename: str) -> bytes:
             input_path,
         ]
 
+        # Trusted admin wrapper (for example a firejail/bwrap command) first
+        # priority hai. User request is string ko control nahi karti.
+        if DOCUMENT_OFFICE_SANDBOX_PREFIX:
+            command = shlex.split(DOCUMENT_OFFICE_SANDBOX_PREFIX) + office_arguments
+        else:
+            command = office_arguments
+
+        # Linux util-linux `prlimit` milne par Office child ko CPU/RAM/file
+        # limits ke andar launch karte hain. External container/seccomp phir bhi
+        # required hai; yeh defense-in-depth hai, full sandbox replacement nahi.
+        prlimit_command = shutil.which("prlimit")
+        if prlimit_command is not None:
+            command = [
+                prlimit_command,
+                f"--as={DOCUMENT_OFFICE_MEMORY_MB * MB_IN_BYTES}",
+                f"--cpu={DOCUMENT_OFFICE_CPU_SECONDS}",
+                f"--fsize={MAX_OUTPUT_BYTES}",
+                f"--nofile={DOCUMENT_OFFICE_OPEN_FILES}:{DOCUMENT_OFFICE_OPEN_FILES}",
+                "--",
+            ] + command
+
+        # HOME/TMP/LibreOffice profile sab same per-request temporary root me
+        # point karte hain. Process normal user config/cache ko read/write nahi karega.
+        child_environment = os.environ.copy()
+        child_environment.update(
+            {
+                "HOME": temp_root,
+                "TMPDIR": temp_root,
+                "TEMP": temp_root,
+                "TMP": temp_root,
+                "SAL_USE_VCLPLUGIN": "svp",
+            }
+        )
+
         try:
-            # check=False isliye use kiya hai taaki return-code aur output-file dono
-            # inspect karke beginner-friendly message de sakein; timeout hang ko rokta hai.
-            completed = subprocess.run(
+            # Popen + process group isliye use hota hai taaki timeout par direct
+            # soffice ke saath uske child processes bhi terminate ho sakein.
+            creation_flags = 0
+            if os.name == "nt" and hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+                creation_flags = subprocess.CREATE_NEW_PROCESS_GROUP
+
+            process = subprocess.Popen(
                 command,
-                check=False,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=DOCUMENT_OFFICE_TIMEOUT_SECONDS,
+                cwd=temp_root,
+                env=child_environment,
+                start_new_session=(os.name != "nt"),
+                creationflags=creation_flags,
+            )
+            stdout_bytes, stderr_bytes = process.communicate(
+                timeout=DOCUMENT_OFFICE_TIMEOUT_SECONDS
             )
         except subprocess.TimeoutExpired as exc:
-            # Timeout badhaana ho to DOCUMENT_OFFICE_TIMEOUT_SECONDS constant change karo.
+            # POSIX session ke poore process group ko kill karna orphan soffice
+            # process ko background me CPU consume karte rehne se rokta hai.
+            if os.name != "nt":
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except (OSError, ProcessLookupError):
+                    process.kill()
+            else:
+                process.kill()
+
+            stdout_bytes, stderr_bytes = process.communicate()
+            LOGGER.warning(
+                "LibreOffice timed out after %s seconds. stderr=%s",
+                DOCUMENT_OFFICE_TIMEOUT_SECONDS,
+                sanitize_subprocess_log(stderr_bytes),
+            )
             raise ValueError(
                 f"Office conversion took more than {DOCUMENT_OFFICE_TIMEOUT_SECONDS} seconds. "
                 "Try a smaller or simpler document."
             ) from exc
+        except OSError as exc:
+            LOGGER.exception("LibreOffice sandbox/process could not start")
+            raise ValueError(
+                "LibreOffice sandbox process could not start. Check the configured "
+                "executable and sandbox wrapper."
+            ) from exc
+
+        # Stderr pehle silently discard hota tha. Ab terminal/server logs me
+        # sanitized + truncated diagnostic milta hai, HTTP user ko raw paths nahi.
+        stderr_text = sanitize_subprocess_log(stderr_bytes)
+        stdout_text = sanitize_subprocess_log(stdout_bytes)
+        if stderr_text:
+            log_method = LOGGER.warning if process.returncode != 0 else LOGGER.info
+            log_method("LibreOffice stderr (code %s): %s", process.returncode, stderr_text)
 
         # LibreOffice normally one PDF banata hai. Directory scan exact basename/output
         # capitalization differences ko safely handle karta hai.
@@ -2096,14 +2591,28 @@ def document_convert_office_to_pdf(data: bytes, filename: str) -> bytes:
 
         # Non-zero code YA missing result dono failure hain; raw terminal output user ko
         # nahi bhejte kyunki usme server paths ho sakte hain.
-        if completed.returncode != 0 or not pdf_candidates:
+        if process.returncode != 0 or not pdf_candidates:
+            LOGGER.error(
+                "LibreOffice conversion failed: code=%s stdout=%s stderr=%s",
+                process.returncode,
+                stdout_text,
+                stderr_text,
+            )
             raise ValueError(
                 "LibreOffice could not render this file. Check that it is not corrupt, "
                 "password-protected, or using an unsupported document feature."
             )
 
+        # Disk size pehle check hoti hai, taaki oversized generated PDF ko
+        # `.read_bytes()` se process RAM me load na kiya jaaye.
+        if pdf_candidates[0].stat().st_size > MAX_OUTPUT_BYTES:
+            raise ValueError(
+                f"LibreOffice PDF exceeds the {MAX_OUTPUT_MB} MB output limit."
+            )
+
         # Sirf first/expected PDF read hoti hai; ek input request ko ek output document maana hai.
         pdf_data = pdf_candidates[0].read_bytes()
+        validate_output_size(pdf_data, "LibreOffice PDF")
 
         # Output signature validate karna extension rename ko successful conversion maanne se rokta hai.
         if not pdf_data.lstrip().startswith(b"%PDF-"):
@@ -2111,6 +2620,29 @@ def document_convert_office_to_pdf(data: bytes, filename: str) -> bytes:
 
         # Bytes memory me return hoti hain; TemporaryDirectory exit hote hi disk files delete hongi.
         return pdf_data
+
+
+def document_convert_office_to_pdf(data: bytes, filename: str) -> bytes:
+    """Security gate + one-at-a-time slot ke saath Office conversion run karta hai."""
+
+    # Secure-by-default gate: untrusted Office parsing tabhi on hoti hai jab
+    # administrator explicitly feature enable aur external sandbox confirm kare.
+    if not DOCUMENT_OFFICE_CONVERSION_ENABLED or not DOCUMENT_OFFICE_SANDBOX_CONFIRMED:
+        raise ValueError(
+            "Office conversion is disabled for safety. Run LibreOffice inside a Docker/VM/"
+            "seccomp-style sandbox, then set ENABLE_OFFICE_CONVERSION=1 and "
+            "OFFICE_SANDBOX_CONFIRMED=1. PDF conversion remains available."
+        )
+
+    # Only one LibreOffice child at a time. Non-blocking acquire queued requests
+    # ko 60 seconds hold karne ke bajaye immediate retry message deta hai.
+    if not DOCUMENT_OFFICE_SEMAPHORE.acquire(blocking=False):
+        raise ValueError("Another Office document is being converted. Try again shortly.")
+
+    try:
+        return _document_convert_office_to_pdf_isolated(data, filename)
+    finally:
+        DOCUMENT_OFFICE_SEMAPHORE.release()
 
 
 def document_prepare_pdf_bytes(data: bytes, filename: str) -> Tuple[bytes, str]:
@@ -2277,8 +2809,9 @@ def document_encode_page_image(
         # Table/function future me out-of-sync ho to silent wrong file ke bajaye clear developer error.
         raise ValueError(f"No document page encoder is configured for {output_format}.")
 
-    # Bytes ZIP me jayengi; buffer object request end ke baad needed nahi hai.
-    return buffer.getvalue()
+    # Bytes ZIP me jayengi; individual page bhi global output limit verify hota
+    # hai. Combined archive budget document_render_zip separately track karta hai.
+    return validate_output_size(buffer.getvalue(), f"Rendered {output_format} page")
 
 
 def document_split_page_vertically(image: Image.Image) -> Tuple[Image.Image, Image.Image]:
@@ -2322,6 +2855,7 @@ def document_render_zip(
     # kyunki allowed maximum actual ka double hai.
     extra_images_needed = requested_count - actual_pages
     output_number = 0
+    total_output_image_bytes = 0
     base_name = safe_base_name(source_filename)
     extension = DOCUMENT_IMAGE_OUTPUTS[output_format]["extension"]
 
@@ -2339,10 +2873,30 @@ def document_render_zip(
 
             # PDF points 72 DPI base par hote hain; scale=dpi/72 requested raster detail deta hai.
             scale = dpi / 72.0
+
+            # CRITICAL: get_pixmap allocation se pehle page rectangle × DPI se
+            # predicted raster size validate hota hai. Malicious PDF giant page
+            # box se PyMuPDF ko enormous pixmap allocate nahi karwa sakti.
+            estimated_width = max(1, int(math.ceil(float(page.rect.width) * scale)))
+            estimated_height = max(1, int(math.ceil(float(page.rect.height) * scale)))
+            validate_pixel_budget(
+                estimated_width,
+                estimated_height,
+                f"Rendered document page {page_index + 1}",
+            )
+
             pixmap = page.get_pixmap(
                 matrix=pymupdf.Matrix(scale, scale),
                 colorspace=pymupdf.csRGB,
                 alpha=False,
+            )
+
+            # Library rounding/rotation differences ke baad actual dimensions
+            # bhi second time check hoti hain before Pillow Image.frombytes.
+            validate_pixel_budget(
+                pixmap.width,
+                pixmap.height,
+                f"Rendered document page {page_index + 1}",
             )
 
             # Pixmap bytes ko Pillow image me badalte hain; RGB forced hai so encoder behavior predictable hai.
@@ -2351,6 +2905,9 @@ def document_render_zip(
                 (pixmap.width, pixmap.height),
                 pixmap.samples,
             )
+            # Pillow ne samples copy kar liye; PyMuPDF pixmap buffer ab release
+            # ho sakta hai, so same page ki do full RGB buffers unnecessarily nahi rehti.
+            del pixmap
 
             # First `extra_images_needed` pages split hoti hain. Example 3 actual,
             # 5 requested => page 1 and 2 split, page 3 whole => exactly 5 images.
@@ -2359,26 +2916,33 @@ def document_render_zip(
             else:
                 output_parts = (rendered_page,)
 
-            # Ek page ke one/two parts ko top-to-bottom order me ZIP me write karte hain.
-            for part_image in output_parts:
-                output_number += 1
-                image_bytes = document_encode_page_image(
-                    part_image,
-                    output_format,
-                    quality,
-                    dpi,
-                )
-                image_filename = (
-                    f"{base_name}_image_{output_number:03d}.{extension}"
-                )
-                archive.writestr(image_filename, image_bytes)
-
-                # Crop se new image object bani ho to close RAM jaldi release karta hai.
-                if part_image is not rendered_page:
-                    part_image.close()
-
-            # Har rendered full page loop ke end par close hoti hai; 30 pages RAM me ek saath nahi rehte.
-            rendered_page.close()
+            try:
+                # Ek page ke one/two parts ko top-to-bottom order me ZIP me write karte hain.
+                for part_image in output_parts:
+                    output_number += 1
+                    image_bytes = document_encode_page_image(
+                        part_image,
+                        output_format,
+                        quality,
+                        dpi,
+                    )
+                    total_output_image_bytes += len(image_bytes)
+                    if total_output_image_bytes > MAX_OUTPUT_BYTES:
+                        raise ValueError(
+                            f"Document images exceed the {MAX_OUTPUT_MB} MB combined output limit. "
+                            "Use lower DPI/quality or a smaller document."
+                        )
+                    image_filename = (
+                        f"{base_name}_image_{output_number:03d}.{extension}"
+                    )
+                    archive.writestr(image_filename, image_bytes)
+            finally:
+                # Encode/archive error aaye tab bhi split halves aur full page
+                # immediately close hoti hain; garbage collector ka wait nahi.
+                for part_image in output_parts:
+                    if part_image is not rendered_page:
+                        part_image.close()
+                rendered_page.close()
 
         # Defensive assertion: algorithm bug se count mismatch ho to incomplete ZIP download nahi hogi.
         if output_number != requested_count:
@@ -2408,8 +2972,9 @@ def document_render_zip(
             json.dumps(manifest, indent=2, ensure_ascii=False).encode("utf-8"),
         )
 
-    # Entire ZIP bytes Flask send_file ko milti hain.
-    return archive_buffer.getvalue()
+    # Entire ZIP bytes Flask send_file ko milti hain; compressed archive par
+    # final 100 MB limit independently verify hoti hai.
+    return validate_output_size(archive_buffer.getvalue(), "Document image ZIP")
 
 
 def document_open_any_image(data: bytes, filename: str) -> Image.Image:
@@ -2423,8 +2988,14 @@ def document_open_any_image(data: bytes, filename: str) -> Image.Image:
             # Pillow plugins BMP/PNG/JPEG/WEBP/TIFF/GIF aur installed optional formats detect karte hain.
             with Image.open(io.BytesIO(data)) as source_image:
                 source_image.seek(0)  # Animated/multi-frame upload ka first frame ek input photo maana hai.
+                validate_pixel_budget(
+                    source_image.width,
+                    source_image.height,
+                    f"Uploaded image '{filename or 'image'}'",
+                    MAX_DECODE_PIXELS,
+                )
                 opened = ImageOps.exif_transpose(source_image).copy()
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
+        except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError) as exc:
             raise ValueError(
                 f"'{filename or 'image'}' is not a readable Pillow-supported image."
             ) from exc
@@ -2440,27 +3011,48 @@ def document_build_pdf_from_images(
     """Ordered uploaded images ko exactly same page-count wale PDF bytes me jodta hai."""
 
     pdf_pages = []
-
-    # Upload list maximum 30 validate hone ke baad hi yahan aati hai.
-    for image_index, upload in enumerate(uploads, start=1):
-        data = document_read_upload(upload, f"images[{image_index}]")
-        page_image = document_open_any_image(data, upload.filename)
-
-        # Defensive dimensions check: Pillow normally zero size allow nahi karta, par clear error better hai.
-        if page_image.width < 1 or page_image.height < 1:
-            page_image.close()
-            raise ValueError(f"Image {image_index} has invalid dimensions.")
-
-        # append order exactly browser upload order hai; isi order me PDF pages banenge.
-        pdf_pages.append(page_image)
-
-    # Function normally non-empty list paata hai; direct future calls ke liye guard rakha hai.
-    if not pdf_pages:
-        raise ValueError("Upload at least one image to create a PDF.")
-
+    total_input_bytes = 0
+    total_input_pixels = 0
     output_buffer = io.BytesIO()
 
     try:
+        # Upload list maximum 30 validate hone ke baad hi yahan aati hai. Actual
+        # bytes sum declared Content-Length ke alawa authoritative 100 MB check hai.
+        for image_index, upload in enumerate(uploads, start=1):
+            data = document_read_upload(upload, f"images[{image_index}]")
+            total_input_bytes += len(data)
+
+            if total_input_bytes > MAX_UPLOAD_BYTES:
+                raise ValueError(
+                    f"All images together exceed the {MAX_UPLOAD_MB} MB upload limit."
+                )
+
+            page_image = document_open_any_image(data, upload.filename)
+
+            # Individual dimensions + combined decoded pixel budget dono check
+            # hote hain. 30 separate 50M images ko list me rakhna OOM karega.
+            page_pixels = validate_pixel_budget(
+                page_image.width,
+                page_image.height,
+                f"Image {image_index}",
+                MAX_DECODE_PIXELS,
+            )
+            total_input_pixels += page_pixels
+
+            if total_input_pixels > MAX_PDF_TOTAL_INPUT_PIXELS:
+                page_image.close()
+                raise ValueError(
+                    "Images are individually valid but too large together for one PDF. "
+                    f"Combined maximum is {MAX_PDF_TOTAL_INPUT_PIXELS:,} decoded pixels."
+                )
+
+            # Append order exactly browser upload order hai; isi order me PDF pages banenge.
+            pdf_pages.append(page_image)
+
+        # Function normally non-empty list paata hai; direct future calls ke liye guard rakha hai.
+        if not pdf_pages:
+            raise ValueError("Upload at least one image to create a PDF.")
+
         # Pillow ka multi-page PDF encoder first image ko base page aur baaki ko
         # append_images se same order me add karta hai. Thus 10 inputs = 10 pages.
         pdf_pages[0].save(
@@ -2471,21 +3063,21 @@ def document_build_pdf_from_images(
             resolution=float(dpi),
             title="Images converted to PDF",
         )
-    except (OSError, ValueError) as exc:
+        pdf_bytes = validate_output_size(output_buffer.getvalue(), "Generated PDF")
+
+        # Last signature check ensures response actually PDF hai, renamed bytes nahi.
+        if not pdf_bytes.startswith(b"%PDF-"):
+            raise ValueError("PDF output verification failed.")
+
+        # Page count upload list ke equal return hota hai; route/header isse verify kar sakta hai.
+        return pdf_bytes, len(uploads)
+    except OSError as exc:
         raise ValueError("Could not encode the uploaded images as PDF.") from exc
     finally:
-        # Success/error dono paths me decoded images close karke RAM release hoti hai.
+        # Decode/validation/save kisi bhi point par fail ho, already-opened images
+        # close hoti hain. Purane code me input loop error par early images leak ho sakti thi.
         for page_image in pdf_pages:
             page_image.close()
-
-    pdf_bytes = output_buffer.getvalue()
-
-    # Last signature check ensures response actually PDF hai, renamed bytes nahi.
-    if not pdf_bytes.startswith(b"%PDF-"):
-        raise ValueError("PDF output verification failed.")
-
-    # Page count upload list ke equal return hota hai; route header/frontend isse verify kar sakta hai.
-    return pdf_bytes, len(uploads)
 
 
 # ----------------------------------------------------------------------------
@@ -2512,10 +3104,27 @@ def register_document_conversion_routes(flask_app: Any) -> None:
             },
             image_outputs=list(DOCUMENT_IMAGE_OUTPUTS.keys()),
             image_to_pdf_inputs="Any readable Pillow raster format; SVG when cairosvg is installed.",
+            office_conversion={
+                "enabled": (
+                    DOCUMENT_OFFICE_CONVERSION_ENABLED
+                    and DOCUMENT_OFFICE_SANDBOX_CONFIRMED
+                ),
+                "security_policy": (
+                    "Office parsing requires explicit enablement and external sandbox confirmation."
+                ),
+                "wall_timeout_seconds": DOCUMENT_OFFICE_TIMEOUT_SECONDS,
+                "cpu_limit_seconds": DOCUMENT_OFFICE_CPU_SECONDS,
+                "memory_limit_mb_when_prlimit_is_available": DOCUMENT_OFFICE_MEMORY_MB,
+            },
             limits={
+                "maximum_request_mb": MAX_REQUEST_MB,
+                "maximum_individual_file_mb": MAX_UPLOAD_MB,
+                "maximum_generated_output_mb": MAX_OUTPUT_MB,
+                "maximum_canvas_pixels": MAX_OUTPUT_PIXELS,
                 "maximum_document_pages": DOCUMENT_MAX_PAGES,
                 "maximum_output_images": DOCUMENT_MAX_OUTPUT_IMAGES,
                 "maximum_input_images_for_pdf": DOCUMENT_MAX_INPUT_IMAGES,
+                "maximum_combined_images_to_pdf_pixels": MAX_PDF_TOTAL_INPUT_PIXELS,
                 "office_manual_maximum_rule": (
                     f"min(actual_pages * {DOCUMENT_OFFICE_MAX_MULTIPLIER}, "
                     f"{DOCUMENT_MAX_OUTPUT_IMAGES})"
@@ -2670,6 +3279,10 @@ def register_document_conversion_routes(flask_app: Any) -> None:
                 f"{DOCUMENT_MAX_INPUT_IMAGES}."
             )
 
+        # Declared sizes available hon to decoding se pehle combined 100 MB
+        # check. Actual bytes document_build_pdf_from_images dobara sum karta hai.
+        validate_combined_upload_size(uploads, "Uploaded image")
+
         # PDF resolution metadata user choose kar sakta hai; same safe 72-200 range rakhi hai.
         dpi = parse_int(
             request.form.get("dpi"),
@@ -2705,31 +3318,214 @@ def create_app() -> Any:
 
     flask_app = Flask(__name__)
 
-    # All_converter source + edited-canvas mila kar 25 MB se zyada request body ho
-    # sakti hai. Per-file check 25 MB hi rahega; total multipart ceiling 60 MB hai.
-    flask_app.config["MAX_CONTENT_LENGTH"] = 60 * MB_IN_BYTES
+    # Flask official request-body gate parser/read se pehle 413 raise karta hai.
+    # Whole multipart request—including all files together—100 MB se upar nahi.
+    flask_app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
+
+    # Flask 3.1+ non-file form memory aur multipart part-count controls. Older
+    # Flask versions unknown config keys ignore karte hain; app-level validation
+    # phir bhi active rehti hai.
+    flask_app.config["MAX_FORM_MEMORY_SIZE"] = 2 * MB_IN_BYTES
+    flask_app.config["MAX_FORM_PARTS"] = 100
     flask_app.config["JSON_SORT_KEYS"] = False
+
+    # CORS wildcard removed. Comma-separated env value se production frontend
+    # origins add ho sakte hain, e.g. ALLOWED_ORIGINS=https://app.example.com.
+    default_allowed_origins = {
+        "http://127.0.0.1:5000",
+        "http://localhost:5000",
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
+    }
+    configured_origins = {
+        origin.strip().rstrip("/")
+        for origin in str(os.environ.get("ALLOWED_ORIGINS", "")).split(",")
+        if origin.strip()
+    }
+    allowed_origins = configured_origins or default_allowed_origins
+
+    # API key optional only for loopback local use. Production mode explicitly
+    # enabled ho to missing key startup error hai, silent insecure deployment nahi.
+    api_key = str(os.environ.get("IMAGE_REDUCER_API_KEY", "")).strip()
+    production_mode = parse_boolean(
+        os.environ.get("IMAGE_REDUCER_PRODUCTION"),
+        default=False,
+    )
+    if production_mode and not api_key:
+        raise RuntimeError(
+            "IMAGE_REDUCER_API_KEY is required when IMAGE_REDUCER_PRODUCTION=1."
+        )
+
+    # Processing endpoints authentication, rate-limit aur concurrency controls
+    # share karte hain. Endpoint names Flask function names hote hain, URL aliases
+    # same bucket use karte hain.
+    protected_processing_endpoints = {
+        "inspect_image",
+        "resize_or_convert",
+        "analyze_photo_mode",
+        "convert_photo_mode",
+        "inspect_document_for_conversion",
+        "convert_document_to_images",
+        "convert_images_to_pdf",
+    }
+    heavy_processing_endpoints = {
+        "resize_or_convert",
+        "convert_photo_mode",
+        "inspect_document_for_conversion",
+        "convert_document_to_images",
+        "convert_images_to_pdf",
+    }
+
+    # In-memory limiter single-process deployment ke liye dependency-free hai.
+    # Multi-worker production me reverse proxy/Redis shared limiter bhi use karo.
+    rate_buckets: Dict[Tuple[str, str], Any] = defaultdict(deque)
+    rate_lock = threading.Lock()
+    heavy_semaphore = threading.BoundedSemaphore(MAX_CONCURRENT_HEAVY_REQUESTS)
+
+    def release_heavy_slot() -> None:
+        """Current request ka acquired semaphore slot maximum ek baar release karta hai."""
+
+        if getattr(g, "heavy_slot_acquired", False):
+            g.heavy_slot_acquired = False
+            heavy_semaphore.release()
+
+    @flask_app.before_request
+    def enforce_request_security() -> Optional[Any]:
+        """Origin, API key, rate aur concurrency checks body processing se pehle lagata hai."""
+
+        origin = str(request.headers.get("Origin") or "").rstrip("/")
+
+        # Browser attacker origin ko preflight/POST dono par clear 403 milta hai.
+        # Origin absent curl/server request ho sakti hai; auth/rate rules below apply.
+        if origin and origin not in allowed_origins:
+            return jsonify(error="This browser origin is not allowed."), 403
+
+        # Preflight file processing/auth run nahi karta. Actual request API key
+        # ke saath separately validate hogi.
+        if request.method == "OPTIONS":
+            return None
+
+        endpoint = str(request.endpoint or "")
+        if endpoint not in protected_processing_endpoints:
+            return None
+
+        remote_address = str(request.remote_addr or "unknown")
+        is_loopback = remote_address in {"127.0.0.1", "::1"}
+
+        # Configured key constant-time compare hoti hai. X-API-Key ke saath
+        # standard Authorization: Bearer fallback bhi supported hai.
+        if api_key:
+            supplied_key = str(request.headers.get("X-API-Key") or "").strip()
+            if not supplied_key:
+                authorization = str(request.headers.get("Authorization") or "")
+                if authorization.lower().startswith("bearer "):
+                    supplied_key = authorization[7:].strip()
+
+            if not supplied_key or not hmac.compare_digest(supplied_key, api_key):
+                return jsonify(error="A valid API key is required."), 401
+        elif not is_loopback:
+            # Local no-key development preserved; non-loopback processing never
+            # silently becomes unauthenticated even if production flag forgotten.
+            return jsonify(
+                error="Set IMAGE_REDUCER_API_KEY before allowing remote processing."
+            ), 401
+
+        bucket_name = "heavy" if endpoint in heavy_processing_endpoints else "general"
+        request_limit = (
+            HEAVY_RATE_LIMIT_PER_WINDOW
+            if bucket_name == "heavy"
+            else GENERAL_RATE_LIMIT_PER_WINDOW
+        )
+        now = time.monotonic()
+        bucket_key = (remote_address, bucket_name)
+
+        with rate_lock:
+            bucket = rate_buckets[bucket_key]
+            cutoff = now - RATE_LIMIT_WINDOW_SECONDS
+            while bucket and bucket[0] <= cutoff:
+                bucket.popleft()
+
+            if len(bucket) >= request_limit:
+                retry_after = max(1, int(math.ceil(RATE_LIMIT_WINDOW_SECONDS - (now - bucket[0]))))
+                response = jsonify(
+                    error="Too many processing requests. Wait and try again."
+                )
+                response.status_code = 429
+                response.headers["Retry-After"] = str(retry_after)
+                return response
+
+            bucket.append(now)
+
+            # Many unique IP keys indefinitely store na hon. Threshold par only
+            # fully expired buckets remove hote hain; active limiter data stays.
+            if len(rate_buckets) > 10_000:
+                expired_keys = [
+                    key for key, values in rate_buckets.items()
+                    if not values or values[-1] <= cutoff
+                ]
+                for key in expired_keys:
+                    rate_buckets.pop(key, None)
+
+        if endpoint in heavy_processing_endpoints:
+            if not heavy_semaphore.acquire(blocking=False):
+                response = jsonify(
+                    error="Server is busy with other conversions. Try again shortly."
+                )
+                response.status_code = 503
+                response.headers["Retry-After"] = "2"
+                return response
+            g.heavy_slot_acquired = True
+
+        return None
 
     @flask_app.after_request
     def add_cors_headers(response: Any) -> Any:
-        """Local HTML file ko localhost backend response read karne deta hai."""
+        """Allowed browser origin ko scoped CORS headers deta aur request slot release karta hai."""
 
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        release_heavy_slot()
+        origin = str(request.headers.get("Origin") or "").rstrip("/")
+
+        # Explicit origin reflect sirf allowlist match par hota hai. Vary: Origin
+        # caches ko one origin ka response doosre origin ko serve karne se rokta hai.
+        if origin in allowed_origins:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.vary.add("Origin")
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = (
+                "Content-Type, X-API-Key, Authorization"
+            )
+            response.headers["Access-Control-Max-Age"] = "600"
+
         response.headers["Access-Control-Expose-Headers"] = (
             "X-Output-Width, X-Output-Height, X-Output-Format, X-Output-DPI, "
             "X-Output-Bytes, X-Target-Bytes, X-Target-Matched, X-Applied-Mode, "
             "X-Quality-Tier, X-Fit-Strategy, X-Used-Manual-Size, "
-            "X-Original-Width, X-Original-Height, X-Quality-Warning"
+            "X-Original-Width, X-Original-Height, X-Quality-Warning, "
+            "X-Output-Padded, X-Document-Pages, X-Images-Created, "
+            "X-Maximum-Images, X-Input-Images, X-PDF-Pages"
         )
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
         return response
+
+    @flask_app.teardown_request
+    def release_slot_after_exception(_error: Optional[BaseException]) -> None:
+        """after_request tak response na bane tab bhi heavy slot leak nahi hone deta."""
+
+        release_heavy_slot()
 
     @flask_app.errorhandler(413)
     def request_too_large(_error: Any) -> Tuple[Any, int]:
         """Flask body limit cross hone par beginner-friendly JSON error deta hai."""
 
-        return jsonify(error="Request is too large. Each image must be 25 MB or less."), 413
+        return jsonify(
+            error=(
+                f"Request is too large. The complete request and every individual file "
+                f"must be {MAX_UPLOAD_MB} MB or less."
+            )
+        ), 413
 
     @flask_app.errorhandler(Exception)
     def handle_unexpected_error(error: Exception) -> Tuple[Any, int]:
@@ -2754,7 +3550,11 @@ def create_app() -> Any:
             social_platforms=list(
                 dict.fromkeys(preset["platform"] for preset in SMART_MODE_PRESETS.values())
             ),
-            target_size="EXACT BYTES",
+            target_size="MAXIMUM BYTES (exact padding is optional and disabled by default)",
+            maximum_upload_mb=MAX_UPLOAD_MB,
+            maximum_output_mb=MAX_OUTPUT_MB,
+            maximum_output_pixels=MAX_OUTPUT_PIXELS,
+            authentication=("API key required" if api_key else "loopback-only without API key"),
         )
 
     @flask_app.route("/inspect", methods=["POST", "OPTIONS"])
@@ -2829,6 +3629,20 @@ def create_app() -> Any:
             "DPI",
         )
         target_bytes = parse_target_bytes(request.form.get("target_kb"))
+        requested_exact_padding = parse_boolean(
+            request.form.get("allow_exact_padding"),
+            default=False,
+        )
+
+        # Fragile byte-padding double opt-in hai. Request checkbox true ho lekin
+        # server policy disabled ho to silent fallback ke bajaye clear error.
+        if requested_exact_padding and not EXACT_SIZE_PADDING_ENABLED:
+            raise ValueError(
+                "Exact byte padding is disabled by server policy. Remove "
+                "allow_exact_padding or set EXACT_SIZE_PADDING_ENABLED=1."
+            )
+
+        allow_exact_padding = requested_exact_padding and EXACT_SIZE_PADDING_ENABLED
 
         edited_image = apply_requested_edits(image, request.form)
         output_bytes, final_image, target_matched = encode_with_optional_exact_target(
@@ -2837,14 +3651,23 @@ def create_app() -> Any:
             quality,
             dpi,
             target_bytes,
+            allow_exact_padding=allow_exact_padding,
         )
 
         verify_encoded_output(output_bytes, output_format)
 
-        # Final exact assertion last safety gate hai: mismatch hua to download nahi hoga.
-        if target_bytes is not None and len(output_bytes) != target_bytes:
+        # Default target_kb ab maximum-size contract hai: output target se chhota
+        # ho sakta hai but kabhi bada nahi. Exact assertion only explicit strict
+        # padding mode me required hai.
+        if target_bytes is not None and len(output_bytes) > target_bytes:
             raise ValueError(
-                f"Target verification failed: expected {target_bytes} bytes, got {len(output_bytes)}."
+                f"Target verification failed: maximum {target_bytes} bytes, got {len(output_bytes)}."
+            )
+
+        if allow_exact_padding and target_bytes is not None and len(output_bytes) != target_bytes:
+            raise ValueError(
+                f"Exact target verification failed: expected {target_bytes} bytes, "
+                f"got {len(output_bytes)}."
             )
 
         download_name = (
@@ -2866,7 +3689,16 @@ def create_app() -> Any:
         response.headers["X-Output-DPI"] = str(dpi)
         response.headers["X-Output-Bytes"] = str(len(output_bytes))
         response.headers["X-Target-Bytes"] = str(target_bytes or "")
-        response.headers["X-Target-Matched"] = "true" if target_matched else "not-requested"
+        if target_bytes is None:
+            target_status = "not-requested"
+        elif allow_exact_padding and len(output_bytes) == target_bytes:
+            target_status = "exact"
+        elif target_matched and len(output_bytes) <= target_bytes:
+            target_status = "within-limit"
+        else:
+            target_status = "failed"
+        response.headers["X-Target-Matched"] = target_status
+        response.headers["X-Output-Padded"] = "true" if allow_exact_padding else "false"
         response.headers["X-Original-Width"] = str(original_image.width)
         response.headers["X-Original-Height"] = str(original_image.height)
         response.headers["Cache-Control"] = "no-store"
@@ -2920,6 +3752,17 @@ if __name__ == "__main__":
             "Then run: py project1.py"
         )
 
-    # debug=False public deployment safer hai. Code edit ke baad server manually restart karna hoga.
-    # restart karein; debug=True karne se auto-reload hoga but production me na karein.
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    # Local dev server explicitly threaded hai, so one slow request health/info
+    # endpoints ko completely freeze nahi karegi. Heavy semaphore phir bhi CPU
+    # conversions maximum two concurrent rakhta hai.
+    #
+    # IMPORTANT: Internet production ke liye Flask dev server use na karein.
+    # Gunicorn/Waitress + reverse-proxy request timeout/rate limit use karein,
+    # IMAGE_REDUCER_PRODUCTION=1 aur IMAGE_REDUCER_API_KEY configure karein.
+    app.run(
+        host="127.0.0.1",
+        port=5000,
+        debug=False,
+        threaded=True,
+        use_reloader=False,
+    )
