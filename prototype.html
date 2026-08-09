@@ -24,10 +24,11 @@
       server off ho to friendly “engine offline” message aayega; Python file
       delete/change nahi hogi.
 
-  THEME:
-      Reference pages ke same Aurora colors aur fonts preserve hain:
-      midnight navy, soft cyan, violet, muted copper aur warm cream paper.
-      Layout/UX bilkul naya “Paper Loop Desk” concept hai, reference UI copy nahi.
+  UPDATED SIMPLE THEME:
+      User feedback ke baad dark Aurora presentation ko calm, warm aur readable
+      light interface me simplify kiya gaya hai. Ab ek main blue action color,
+      warm neutral background aur high-contrast text use hota hai. Dark mode
+      optional hai, lekin first visit par simple light theme khulti hai.
 
   IMPORTANT BACKEND START:
       Pehle terminal me updated Python file run karo. Default backend URL neeche
@@ -35,7 +36,7 @@
       update karna hai.
   ============================================================================
 -->
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <!-- UTF-8 Hinglish, arrows aur symbols ko correct render karta hai. -->
   <meta charset="utf-8">
@@ -44,10 +45,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
 
   <!-- Browser tab ka naam; backend conversion par iska koi effect nahi. -->
-  <title>Paper Loop — PDF & Photos Converter</title>
+  <title>EasyConvert — PDF & Image Converter</title>
 
   <!-- Search/browser description; sirf frontend metadata hai. -->
-  <meta name="description" content="Turn PDF pages into photos, or combine photos into one PDF, with a calm and easy step-by-step interface.">
+  <meta name="description" content="A simple tool to turn PDF pages into images or join images into one PDF.">
 
   <!--
     KYA: Browser first paint se pehle saved theme read karta hai.
@@ -58,10 +59,10 @@
   -->
   <script id="theme-bootstrap">
     try {
-      document.documentElement.dataset.theme = localStorage.getItem("imageReducerTheme") || "dark";
+      document.documentElement.dataset.theme = localStorage.getItem("imageReducerTheme") || "light";
     } catch (error) {
-      /* Restricted/private storage me read fail ho to stable dark theme fallback. */
-      document.documentElement.dataset.theme = "dark";
+      /* Restricted/private storage me read fail ho to readable light theme fallback. */
+      document.documentElement.dataset.theme = "light";
     }
   </script>
 
@@ -1229,27 +1230,674 @@
         transition-duration: .01ms !important;
       }
     }
+
+    /*
+      ========================================================================
+      14 // SIMPLE UI REVISION — USER FEEDBACK UPDATE
+      ========================================================================
+
+      KYA BADLA:
+          Neeche ke rules purane working layout ke upar ek simple visual layer
+          lagate hain. Backend IDs, form fields, routes aur JavaScript ko touch
+          nahi kiya gaya, isliye Python conversion working same rahegi.
+
+      KYUN BADLA:
+          Pehle cyan, violet, copper aur large artwork ek saath attention maang
+          rahe the. Ab warm neutral page, dark readable text aur sirf ek blue
+          action color hai. Green success, red error aur amber warning ke liye
+          reserve hain — decoration ke liye nahi.
+
+      FUTURE CHANGE:
+          Main blue badalna ho to --cyan aur --violet dono ko same new color do.
+          Background badalna ho to --night edit karo. Contrast kam mat karna,
+          warna light background par labels padhna mushkil ho sakta hai.
+      ========================================================================
+    */
+    :root,
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --night: #f7f5f1;
+      --surface: #ffffff;
+      --surface-deep: #f1f3f5;
+      --surface-soft: #ffffff;
+      --surface-softer: #f5f7fa;
+      --text: #182230;
+      --muted: #526173;
+      --line: #d7dde5;
+      --line-strong: #aeb9c7;
+      --cyan: #2563eb;
+      --violet: #2563eb;
+      --copper: #2563eb;
+      --paper: #ffffff;
+      --paper-ink: #182230;
+      --danger: #b42318;
+      --success: #067647;
+      --shadow-cyan: rgba(37,99,235,.12);
+      --shadow-violet: rgba(37,99,235,.08);
+      --shadow-copper: rgba(37,99,235,.08);
+      --page-width: 1040px;
+    }
+
+    /*
+      Optional dark mode high-contrast neutral colors use karta hai.
+      User agar moon button dabaye tabhi yeh palette active hogi.
+      Is block ko remove karoge to theme button useful nahi rahega.
+    */
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --night: #111827;
+      --surface: #182233;
+      --surface-deep: #111b2a;
+      --surface-soft: #182233;
+      --surface-softer: #202c3e;
+      --text: #f8fafc;
+      --muted: #c3ccda;
+      --line: #3d4a5d;
+      --line-strong: #66758a;
+      --cyan: #7cb2ff;
+      --violet: #7cb2ff;
+      --copper: #7cb2ff;
+      --paper: #182233;
+      --paper-ink: #f8fafc;
+      --danger: #ffb4ab;
+      --success: #75e0b5;
+    }
+
+    /*
+      Body par decorative color clouds remove kiye gaye hain.
+      Solid warm background page ko calmer aur text ko clearer banata hai.
+    */
+    body,
+    :root[data-theme="light"] body,
+    :root[data-theme="dark"] body {
+      background: var(--night);
+      font-family: Manrope, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    /*
+      Header ab floating decorative card nahi, ek simple navigation bar hai.
+      Sticky position user ko server status aur theme control hamesha deta hai.
+    */
+    .site-header,
+    :root[data-theme="light"] .site-header {
+      top: 0;
+      width: 100%;
+      margin: 0;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+      background: color-mix(in srgb, var(--surface) 96%, transparent);
+      box-shadow: none;
+      backdrop-filter: blur(14px);
+    }
+
+    /* Header contents converter width ke saath align rehte hain. */
+    .header-inner {
+      width: min(var(--page-width), calc(100% - 34px));
+      min-height: 72px;
+      margin-inline: auto;
+      padding: 10px 0;
+    }
+
+    /* Logo mark simple arrow hai; iska conversion logic par koi effect nahi. */
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border: 1px solid #b9cffb;
+      border-radius: 12px;
+      color: var(--cyan);
+      background: #eef4ff;
+      box-shadow: none;
+      transform: none;
+      font: 700 19px/1 Manrope, Arial, sans-serif;
+    }
+
+    :root[data-theme="dark"] .brand-mark {
+      border-color: var(--line);
+      background: var(--surface-softer);
+    }
+
+    .brand-copy b {
+      color: var(--text);
+      font: 700 20px/1.2 Manrope, Arial, sans-serif;
+      letter-spacing: -.02em;
+    }
+
+    .brand-copy small {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .04em;
+    }
+
+    /* Header sentence short aur normal case me hai; all-caps reading load hata diya. */
+    .header-promise {
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .engine-chip {
+      border-color: var(--line);
+      color: var(--muted);
+      background: var(--surface-softer);
+      font-size: 11px;
+      letter-spacing: 0;
+    }
+
+    .engine-chip.is-online { color: var(--success); }
+
+    .theme-button {
+      width: 40px;
+      height: 40px;
+      border-color: var(--line);
+      border-radius: 10px;
+      color: var(--text);
+      background: var(--surface);
+      box-shadow: none;
+    }
+
+    .theme-button:hover { border-color: var(--cyan); transform: none; }
+
+    /*
+      Hero sirf direct outcome batata hai. Large artistic illustration aur extra
+      links hide hain, taaki first screen par upload tool jaldi dikhe.
+    */
+    .hero { padding: 54px 0 26px; }
+
+    .hero-grid {
+      display: block;
+      max-width: 820px;
+    }
+
+    .hero-visual,
+    .hero-actions { display: none; }
+
+    .eyebrow {
+      gap: 8px;
+      margin-bottom: 14px;
+      color: var(--cyan);
+      font-size: 12px;
+      letter-spacing: .04em;
+    }
+
+    .eyebrow i { background: var(--cyan); box-shadow: none; }
+
+    .hero h1 {
+      max-width: 780px;
+      margin: 0;
+      color: var(--text);
+      font: 700 clamp(34px, 5vw, 50px)/1.12 Manrope, Arial, sans-serif;
+      letter-spacing: -.045em;
+    }
+
+    .hero h1 span {
+      display: inline;
+      color: var(--text);
+      font-style: normal;
+    }
+
+    .hero-copy > p {
+      max-width: 700px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.65;
+    }
+
+    /* Converter hero ke immediately baad start hota hai; unnecessary gap removed. */
+    .converter-section { padding: 12px 0 64px; }
+
+    .section-heading {
+      display: block;
+      max-width: 760px;
+      margin-bottom: 18px;
+    }
+
+    .section-heading small,
+    .panel-kicker {
+      color: var(--cyan);
+      font-size: 11px;
+      letter-spacing: .06em;
+    }
+
+    .section-heading h2 {
+      margin: 5px 0 0;
+      color: var(--text);
+      font: 700 clamp(25px, 4vw, 32px)/1.25 Manrope, Arial, sans-serif;
+      letter-spacing: -.03em;
+    }
+
+    .section-heading p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+      text-align: left;
+    }
+
+    /* One calm desk surface replaces multiple competing visual cards. */
+    .converter-desk {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--surface);
+      box-shadow: 0 18px 48px rgba(28,39,56,.08);
+    }
+
+    :root[data-theme="dark"] .converter-desk { box-shadow: 0 18px 48px rgba(0,0,0,.24); }
+
+    /*
+      Direction buttons ek familiar two-option switch jaise dikhte hain.
+      Same blue active border + words dono selection communicate karte hain.
+    */
+    .direction-rail {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-softer);
+    }
+
+    .direction-swap { display: none; }
+
+    .direction-button {
+      min-height: 72px;
+      padding: 12px 14px;
+      border-color: transparent;
+      border-radius: 12px;
+      color: var(--text);
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .direction-button:hover { border-color: var(--line-strong); transform: none; }
+
+    .direction-button[aria-pressed="true"] {
+      border-color: var(--cyan);
+      background: var(--surface);
+      box-shadow: 0 3px 12px rgba(28,39,56,.07);
+    }
+
+    .direction-icon,
+    .direction-button[aria-pressed="true"] .direction-icon {
+      width: 42px;
+      height: 42px;
+      border: 1px solid #b9cffb;
+      border-radius: 10px;
+      color: var(--cyan);
+      background: #eef4ff;
+      box-shadow: none;
+    }
+
+    :root[data-theme="dark"] .direction-icon,
+    :root[data-theme="dark"] .direction-button[aria-pressed="true"] .direction-icon {
+      border-color: var(--line);
+      background: var(--surface-softer);
+    }
+
+    .direction-button b { font-size: 15px; }
+    .direction-button small { margin-top: 2px; color: var(--muted); font-size: 12px; }
+
+    /*
+      Three-step strip user ko poori journey ek nazar me batata hai.
+      Numbers neutral hain; blue sirf current action buttons ke liye bachta hai.
+    */
+    .simple-steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      margin: 0;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--line);
+      list-style: none;
+      background: var(--surface);
+    }
+
+    .simple-steps li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .simple-steps li + li::before {
+      content: "→";
+      margin-right: clamp(4px, 2vw, 20px);
+      color: var(--line-strong);
+    }
+
+    .simple-steps span {
+      display: inline-grid;
+      flex: 0 0 28px;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      color: var(--text);
+      background: var(--surface-softer);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .simple-steps b { color: var(--text); font-size: 13px; }
+
+    /* One-column work area means eyes move naturally from file to button. */
+    .desk-body { grid-template-columns: minmax(0, 1fr); }
+
+    .work-panel { padding: clamp(24px, 5vw, 48px); }
+
+    .side-guide { display: none; }
+
+    .panel-title {
+      margin-top: 5px;
+      color: var(--text);
+      font: 700 clamp(23px, 3vw, 29px)/1.25 Manrope, Arial, sans-serif;
+      letter-spacing: -.025em;
+    }
+
+    .panel-intro {
+      max-width: 690px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    /*
+      Upload area is the largest control because choosing a file is the main job.
+      Dotted border drag/drop suggest karta hai; text tap/click option bhi bolta hai.
+    */
+    .upload-zone {
+      min-height: 184px;
+      margin-top: 22px;
+      padding: 28px 20px;
+      border: 2px dashed var(--line-strong);
+      border-radius: 16px;
+      color: var(--text);
+      background: var(--surface-softer);
+      box-shadow: none;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.is-dragging {
+      border-color: var(--cyan);
+      background: color-mix(in srgb, var(--cyan) 6%, var(--surface));
+      transform: none;
+    }
+
+    .upload-symbol {
+      width: 58px;
+      height: 46px;
+      border: 1px solid #b9cffb;
+      border-radius: 11px;
+      color: var(--cyan);
+      background: #eef4ff;
+      box-shadow: none;
+      transform: none;
+    }
+
+    :root[data-theme="dark"] .upload-symbol {
+      border-color: var(--line);
+      background: var(--surface);
+    }
+
+    .upload-zone b { font-size: 17px; }
+    .upload-zone span { color: var(--muted); font-size: 13px; }
+    .upload-zone em { color: var(--cyan); font-weight: 700; }
+
+    /* Trust note upload ke paas rakhi hai, jahan user ko safety doubt hota hai. */
+    .quick-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin: 14px 0 0;
+      padding: 0;
+      color: var(--muted);
+      font-size: 12px;
+      list-style: none;
+    }
+
+    .quick-facts li::before {
+      content: "✓";
+      margin-right: 6px;
+      color: var(--success);
+      font-weight: 700;
+    }
+
+    /* Selected file summary is readable and compact, without decorative gradients. */
+    .file-summary {
+      border-color: var(--line);
+      border-radius: 12px;
+      background: var(--surface-softer);
+    }
+
+    .file-summary-icon {
+      border-radius: 9px;
+      color: var(--cyan);
+      background: #eef4ff;
+      box-shadow: none;
+    }
+
+    :root[data-theme="dark"] .file-summary-icon { background: var(--surface); }
+    .file-summary b { font-size: 14px; }
+    .file-summary small { color: var(--muted); font-size: 12px; }
+
+    /*
+      Advanced settings closed by default hain. New user ko sirf upload aur
+      create button dikhte hain; experienced user summary khol sakta hai.
+    */
+    .advanced-settings {
+      margin-top: 20px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .advanced-settings summary {
+      padding: 15px 2px;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .advanced-settings summary small {
+      margin-left: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .advanced-settings[open] { padding-bottom: 18px; }
+
+    .settings-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 4px;
+    }
+
+    .field-group {
+      border-color: var(--line);
+      border-radius: 12px;
+      background: var(--surface-softer);
+    }
+
+    .field-group label,
+    .field-group legend { color: var(--text); font-size: 13px; letter-spacing: 0; }
+    .field-group small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+    .control,
+    .select-control {
+      border-color: var(--line-strong);
+      border-radius: 9px;
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    .dpi-choice label { border-color: var(--line); background: var(--surface); }
+    .dpi-choice input:checked + label { border-color: var(--cyan); color: var(--cyan); background: color-mix(in srgb, var(--cyan) 7%, var(--surface)); }
+    .dpi-choice label b { color: var(--text); font-size: 11px; }
+    .dpi-choice label span { color: var(--muted); font-size: 10px; }
+    .range-row output { color: var(--text); }
+
+    /*
+      One solid blue main button creates a clear next step.
+      Reset button lower emphasis me rehta hai to accidental reset kam hoga.
+    */
+    .action-row {
+      margin-top: 22px;
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .convert-button,
+    .download-button,
+    .secondary-button {
+      min-height: 48px;
+      border-radius: 11px;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .convert-button {
+      color: #ffffff;
+      background: var(--cyan);
+      box-shadow: none;
+    }
+
+    .convert-button:hover:not(:disabled) { filter: brightness(.94); transform: none; }
+
+    .secondary-button {
+      border-color: var(--line);
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    .secondary-button:hover:not(:disabled) { border-color: var(--line-strong); }
+
+    /* Photo order cards remain functional but use neutral structure. */
+    .queue-head { border-color: var(--line); background: var(--surface-softer); }
+    .queue-head b { font-size: 14px; }
+    .queue-count { color: var(--muted); }
+    .photo-item { border-color: var(--line); border-radius: 12px; background: var(--surface); }
+    .photo-number { color: #ffffff; background: var(--cyan); }
+    .photo-info b { font-size: 12px; }
+    .photo-info small { color: var(--muted); font-size: 10px; }
+    .photo-actions button { border-color: var(--line); color: var(--text); background: var(--surface-softer); }
+
+    /* Status sits directly after the working panel with semantic colors only. */
+    .status-panel {
+      border-color: var(--line);
+      border-radius: 12px;
+      color: var(--muted);
+      background: var(--surface-softer);
+    }
+
+    .status-panel b { color: var(--text); font-size: 13px; }
+    .status-panel p { color: var(--muted); font-size: 12px; }
+
+    .result-panel {
+      border-color: color-mix(in srgb, var(--success) 45%, var(--line));
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--success) 7%, var(--surface));
+      box-shadow: none;
+    }
+
+    .result-panel b { color: var(--success); font-size: 14px; }
+    .result-panel p { color: var(--muted); font-size: 12px; }
+
+    .download-button { color: #ffffff; background: var(--success); box-shadow: none; }
+    .download-button:hover { filter: brightness(.94); transform: none; }
+
+    /* Bottom facts become one quiet information row, not three equal hero cards. */
+    .trust-strip {
+      gap: 0;
+      margin-top: 0;
+      padding: 0 0 58px;
+      border-top: 0;
+    }
+
+    .trust-item {
+      min-height: auto;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-right: 0;
+      background: var(--surface);
+    }
+
+    .trust-item:first-child { border-radius: 14px 0 0 14px; }
+    .trust-item:last-child { border-right: 1px solid var(--line); border-radius: 0 14px 14px 0; }
+    .trust-item span { color: var(--muted); font: 700 14px/1 Manrope, Arial, sans-serif; }
+    .trust-item b { margin-top: 8px; font-size: 13px; }
+    .trust-item p { color: var(--muted); font-size: 12px; line-height: 1.55; }
+
+    .site-footer { border-color: var(--line); background: var(--surface); }
+    .footer-inner b { color: var(--text); font: 700 16px/1.2 Manrope, Arial, sans-serif; }
+    .footer-inner span { color: var(--muted); font-size: 12px; }
+
+    /*
+      Tablet: settings one column, directions still side-by-side for quick choice.
+      Small screens: buttons and steps stack so text never clips.
+    */
+    @media (max-width: 760px) {
+      .header-promise { display: none; }
+      .hero { padding: 38px 0 20px; }
+      .settings-grid { grid-template-columns: 1fr; }
+      .simple-steps { padding-inline: 18px; }
+      .simple-steps li + li::before { margin-right: 8px; }
+      .trust-strip { grid-template-columns: 1fr; gap: 10px; }
+      .trust-item,
+      .trust-item:first-child,
+      .trust-item:last-child { border: 1px solid var(--line); border-radius: 12px; }
+    }
+
+    @media (max-width: 560px) {
+      .site-header { top: 0; width: 100%; margin-top: 0; border-radius: 0; }
+      .header-inner { width: calc(100% - 28px); min-height: 64px; padding: 8px 0; }
+      .brand-mark { width: 38px; height: 38px; }
+      .brand-copy b { font-size: 17px; }
+      .brand-copy small { display: block; font-size: 9px; }
+      .engine-chip { display: none; }
+      .hero h1 { font-size: 34px; letter-spacing: -.04em; }
+      .hero-copy > p { font-size: 15px; }
+      .direction-rail { grid-template-columns: 1fr; }
+      .direction-button { min-height: 64px; }
+      .simple-steps { grid-template-columns: 1fr; gap: 10px; }
+      .simple-steps li + li::before { content: none; }
+      .work-panel { padding: 24px 18px; }
+      .panel-title { font-size: 23px; }
+      .upload-zone { min-height: 168px; padding: 24px 15px; }
+      .action-row { grid-template-columns: 1fr; }
+      .convert-button,
+      .secondary-button { width: 100%; }
+      .quick-facts { display: grid; gap: 5px; }
+    }
   </style>
 </head>
 
 <body>
   <!-- Header current backend health batata hai; logo click top par le jaata hai. -->
-  <header class="site-header" aria-label="Paper Loop header">
+  <header class="site-header" aria-label="EasyConvert header">
     <div class="header-inner">
-      <a class="brand" href="#top" aria-label="Paper Loop home">
-        <span class="brand-mark" aria-hidden="true">15</span>
+      <a class="brand" href="#top" aria-label="EasyConvert home">
+        <span class="brand-mark" aria-hidden="true">↔</span>
         <span class="brand-copy">
-          <b>Paper Loop</b>
-          <small>IMAGE REDUCER · PDF DESK</small>
+          <b>EasyConvert</b>
+          <small>PDF & IMAGE TOOL</small>
         </span>
       </a>
 
-      <p class="header-promise">One page in, one photo out. One photo in, one PDF page out.</p>
+      <p class="header-promise">Choose a file. Convert it. Download the result.</p>
 
       <div class="header-actions">
         <span class="engine-chip" id="engineChip" aria-live="polite">
           <i aria-hidden="true"></i>
-          <span id="engineText">CHECKING ENGINE</span>
+          <span id="engineText">Checking server</span>
         </span>
         <button class="theme-button" id="themeButton" type="button" aria-label="Switch to light theme">
           <span id="themeIcon" aria-hidden="true">☼</span>
@@ -1259,46 +1907,19 @@
   </header>
 
   <main id="top">
-    <!-- Hero copy simple purpose aur pure HTML/CSS visual show karta hai. -->
+    <!--
+      Simple hero direct kaam batata hai. Decorative artwork intentionally hidden
+      hai, taaki user ka focus file choose karne par rahe. Python par zero effect.
+    -->
     <section class="hero">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <span class="eyebrow"><i aria-hidden="true"></i>PDF & PHOTOS · TWO EASY DIRECTIONS</span>
-          <h1>Turn pages into pictures. <span>Bring pictures back together.</span></h1>
+          <span class="eyebrow"><i aria-hidden="true"></i>SIMPLE PDF & IMAGE CONVERTER</span>
+          <h1>PDF ko images mein badlein — <span>ya images ko PDF mein jodein.</span></h1>
           <p>
-            Choose what you have, and Paper Loop will show only the controls you need.
-            Your original files stay untouched; a fresh ZIP or PDF is prepared for download.
+            File choose karein, blue button dabayein, phir download karein.
+            Maximum 30 PDF pages ya 30 images. Aapki original file change nahi hogi.
           </p>
-          <div class="hero-actions">
-            <a class="primary-link" href="#converter">START WITH A FILE ↓</a>
-            <a class="quiet-link" href="#simple-guide">SEE THE 3 STEPS</a>
-          </div>
-        </div>
-
-        <div class="hero-visual" role="img" aria-label="PDF pages and photographs moving in both directions with the same item count">
-          <!--
-            KYA: Neeche ka illustration sirf div/span aur CSS se bana hai.
-            KYUN: Koi image asset nahi, so HTML ek hi portable file rehti hai.
-            PYTHON EFFECT: Zero; yeh visual kabhi conversion API ko upload nahi hota.
-          -->
-          <div class="journey-scene" aria-hidden="true">
-            <div class="paper-stack">
-              <span class="paper-sheet"></span>
-              <span class="paper-sheet"></span>
-              <span class="paper-sheet"><i class="paper-lines"></i></span>
-            </div>
-
-            <span class="journey-arrow is-forward">→</span>
-            <span class="journey-arrow is-back">→</span>
-            <span class="same-count-badge">SAME COUNT</span>
-
-            <div class="photo-stack-visual">
-              <span class="photo-card-visual"></span>
-              <span class="photo-card-visual"></span>
-              <span class="photo-card-visual"></span>
-            </div>
-          </div>
-          <p class="hero-visual-note">PDF pages become separate photos. Your chosen photos return as the same number of PDF pages.</p>
         </div>
       </div>
     </section>
@@ -1308,10 +1929,10 @@
       <div class="wrap">
         <div class="section-heading">
           <div>
-            <small>01 / CHOOSE YOUR DIRECTION</small>
-            <h2>What do you have today?</h2>
+            <small>STEP 1</small>
+            <h2>Aap kya convert karna chahte hain?</h2>
           </div>
-          <p>No technical setup inside this page. Start the Python server once, then choose a file below.</p>
+          <p>Bas ek option choose karein. Neeche sirf usi ka simple form dikhega.</p>
         </div>
 
         <div class="converter-desk">
@@ -1320,8 +1941,8 @@
             <button class="direction-button" id="pdfModeButton" type="button" aria-pressed="true">
               <span class="direction-icon" aria-hidden="true">PDF</span>
               <span>
-                <b>I have a PDF</b>
-                <small>Make one photo from every page</small>
+                <b>PDF → Images</b>
+                <small>Har page ki ek image</small>
               </span>
             </button>
 
@@ -1330,27 +1951,45 @@
             <button class="direction-button" id="photosModeButton" type="button" aria-pressed="false">
               <span class="direction-icon" aria-hidden="true">IMG</span>
               <span>
-                <b>I have photos</b>
-                <small>Put them together in one PDF</small>
+                <b>Images → PDF</b>
+                <small>Sab images ek PDF mein</small>
               </span>
             </button>
           </div>
 
+          <!--
+            KYA: Common three-step path dono directions ke liye same hai.
+            KYUN: User ko shuru karne se pehle poora process ek line me samajh aata hai.
+            CHANGE EFFECT: Sirf words badalne se guidance badlegi; API working same rahegi.
+          -->
+          <ol class="simple-steps" aria-label="Three simple steps">
+            <li><span>1</span><b>File choose karein</b></li>
+            <li><span>2</span><b>Convert dabayein</b></li>
+            <li><span>3</span><b>Download karein</b></li>
+          </ol>
+
           <div class="desk-body">
             <!-- PDF → PHOTOS PANEL. It remains in DOM but hidden when reverse mode is selected. -->
             <section class="work-panel" id="pdfPanel" aria-labelledby="pdfPanelTitle">
-              <p class="panel-kicker">02 / CHOOSE YOUR PDF</p>
-              <h3 class="panel-title" id="pdfPanelTitle">Every page becomes one photo.</h3>
-              <p class="panel-intro">A 10-page PDF always creates 10 images. Maximum 30 pages. Your images arrive together in one ZIP folder.</p>
+              <p class="panel-kicker">STEP 2 · ADD PDF</p>
+              <h3 class="panel-title" id="pdfPanelTitle">Apni PDF yahan add karein</h3>
+              <p class="panel-intro">10-page PDF se 10 images banengi. Sab images ek ZIP folder mein download hongi.</p>
 
               <!-- Label is the large clickable area; real input is visually hidden. -->
               <label class="upload-zone" id="pdfDropZone" for="pdfInput">
                 <span class="upload-symbol" aria-hidden="true">PDF</span>
-                <b>Drop your PDF here</b>
-                <span>or <em>tap to choose a file</em></span>
-                <span>Maximum 30 pages · each file up to 25 MB</span>
+                <b>PDF yahan drop karein</b>
+                <span>ya <em>Choose PDF</em> par tap karein</span>
+                <span>Maximum 30 pages · Maximum 25 MB</span>
               </label>
               <input class="file-input-hidden" id="pdfInput" type="file" accept="application/pdf,.pdf">
+
+              <!-- Safety facts file button ke paas hain, jahan user ko inki zaroorat hoti hai. -->
+              <ul class="quick-facts" aria-label="PDF conversion facts">
+                <li>No sign-up</li>
+                <li>Original file safe</li>
+                <li>1 page = 1 image</li>
+              </ul>
 
               <!-- Selected file details are populated by JavaScript after validation/inspection. -->
               <div class="file-summary" id="pdfSummary" hidden>
@@ -1362,24 +2001,29 @@
                 <button class="icon-button" id="removePdfButton" type="button" aria-label="Remove selected PDF">✕</button>
               </div>
 
-              <!-- Format and quality settings map directly to Python form field names. -->
-              <div class="settings-grid">
+              <!--
+                Optional settings default me band rehti hain. Beginner ko technical
+                DPI/quality decide nahi karni; balanced defaults automatically work.
+              -->
+              <details class="advanced-settings">
+                <summary>Image settings <small>Optional — defaults are ready</small></summary>
+                <div class="settings-grid">
                 <div class="field-group">
-                  <label for="imageFormat">Photo format</label>
+                  <label for="imageFormat">Image format</label>
                   <select class="select-control" id="imageFormat">
-                    <option value="PNG" selected>PNG — clearest text</option>
-                    <option value="JPG">JPG — small and common</option>
-                    <option value="JPEG">JPEG — same photo codec</option>
-                    <option value="WEBP">WEBP — modern and small</option>
-                    <option value="TIF">TIF — print/work files</option>
-                    <option value="GIF">GIF — simple 256 colors</option>
-                    <option value="BMP">BMP — large, uncompressed</option>
+                    <option value="PNG" selected>PNG — best for text</option>
+                    <option value="JPG">JPG — smaller file</option>
+                    <option value="JPEG">JPEG — smaller file</option>
+                    <option value="WEBP">WEBP — modern small file</option>
+                    <option value="TIF">TIF — for print</option>
+                    <option value="GIF">GIF — basic colors</option>
+                    <option value="BMP">BMP — very large file</option>
                   </select>
-                  <small>PNG is safest for documents with small writing.</small>
+                  <small>Not sure? Keep PNG selected.</small>
                 </div>
 
                 <fieldset class="field-group">
-                  <legend>Photo sharpness</legend>
+                  <legend>Image clarity</legend>
                   <div class="dpi-choices">
                     <span class="dpi-choice">
                       <input id="pdfDpi72" name="pdfDpi" type="radio" value="72">
@@ -1387,57 +2031,68 @@
                     </span>
                     <span class="dpi-choice">
                       <input id="pdfDpi144" name="pdfDpi" type="radio" value="144" checked>
-                      <label for="pdfDpi144"><b>Balanced</b><span>144 DPI</span></label>
+                      <label for="pdfDpi144"><b>Recommended</b><span>144 DPI</span></label>
                     </span>
                     <span class="dpi-choice">
                       <input id="pdfDpi200" name="pdfDpi" type="radio" value="200">
                       <label for="pdfDpi200"><b>Sharp</b><span>200 DPI</span></label>
                     </span>
                   </div>
-                  <small>Higher DPI makes bigger image files and uses more memory.</small>
+                  <small>Sharp makes larger files. Recommended works for most PDFs.</small>
                 </fieldset>
 
                 <div class="field-group" id="qualityGroup">
-                  <label for="imageQuality">Photo quality</label>
+                  <label for="imageQuality">JPG / WEBP quality</label>
                   <div class="range-row">
                     <input class="range-control" id="imageQuality" type="range" min="1" max="100" value="92">
                     <output id="qualityOutput" for="imageQuality">92%</output>
                   </div>
                   <small id="qualityHelp">Used mainly by JPG, JPEG and WEBP.</small>
                 </div>
-              </div>
+                </div>
+              </details>
 
               <div class="action-row">
-                <button class="convert-button" id="convertPdfButton" type="button">CREATE MY PHOTOS →</button>
-                <button class="secondary-button" id="resetPdfButton" type="button">START AGAIN</button>
+                <button class="convert-button" id="convertPdfButton" type="button">Create images</button>
+                <button class="secondary-button" id="resetPdfButton" type="button">Clear</button>
               </div>
             </section>
 
             <!-- PHOTOS → PDF PANEL. Default hidden; JS direction switch makes it visible. -->
             <section class="work-panel" id="photosPanel" aria-labelledby="photosPanelTitle" hidden>
-              <p class="panel-kicker">02 / CHOOSE YOUR PHOTOS</p>
-              <h3 class="panel-title" id="photosPanelTitle">Put photos in the order you want.</h3>
-              <p class="panel-intro">One uploaded image becomes one PDF page. Add up to 30 images, then use arrows to change page order.</p>
+              <p class="panel-kicker">STEP 2 · ADD IMAGES</p>
+              <h3 class="panel-title" id="photosPanelTitle">Apni images yahan add karein</h3>
+              <p class="panel-intro">10 images se 10-page PDF banegi. Images ka order hi PDF ka page order hoga.</p>
 
               <label class="upload-zone" id="photosDropZone" for="photosInput">
                 <span class="upload-symbol" aria-hidden="true">IMG</span>
-                <b>Drop your photos here</b>
-                <span>or <em>tap to choose one or many</em></span>
-                <span>Maximum 30 photos · PDF follows the order shown below</span>
+                <b>Images yahan drop karein</b>
+                <span>ya <em>Choose images</em> par tap karein</span>
+                <span>Maximum 30 images · ek saath select kar sakte hain</span>
               </label>
               <input class="file-input-hidden" id="photosInput" type="file" accept="image/*,.svg" multiple>
 
+              <!-- Reverse conversion ke short facts; input ki file order preserve hoti hai. -->
+              <ul class="quick-facts" aria-label="Image to PDF facts">
+                <li>No sign-up</li>
+                <li>Original images safe</li>
+                <li>1 image = 1 PDF page</li>
+              </ul>
+
               <div class="queue-head" id="queueHead" hidden>
-                <b>Your PDF page order</b>
-                <span class="queue-count" id="queueCount">0 / 30 photos</span>
+                <b>PDF page order</b>
+                <span class="queue-count" id="queueCount">0 / 30 images</span>
               </div>
               <div class="photo-queue" id="photoQueue" aria-live="polite"></div>
 
-              <div class="settings-grid">
+              <!-- File name/detail technical choices optional section me rakhe gaye hain. -->
+              <details class="advanced-settings">
+                <summary>PDF settings <small>Optional — defaults are ready</small></summary>
+                <div class="settings-grid">
                 <div class="field-group">
-                  <label for="pdfOutputName">PDF file name</label>
+                  <label for="pdfOutputName">PDF name</label>
                   <input class="control" id="pdfOutputName" type="text" value="my_photos" maxlength="80" autocomplete="off">
-                  <small>“.pdf” is added automatically. Special symbols are safely cleaned by Python.</small>
+                  <small>“.pdf” automatically add ho jayega.</small>
                 </div>
 
                 <fieldset class="field-group">
@@ -1449,20 +2104,21 @@
                     </span>
                     <span class="dpi-choice">
                       <input id="photoDpi144" name="photoDpi" type="radio" value="144" checked>
-                      <label for="photoDpi144"><b>Balanced</b><span>144 DPI</span></label>
+                      <label for="photoDpi144"><b>Recommended</b><span>144 DPI</span></label>
                     </span>
                     <span class="dpi-choice">
                       <input id="photoDpi200" name="photoDpi" type="radio" value="200">
                       <label for="photoDpi200"><b>Sharp</b><span>200 DPI</span></label>
                     </span>
                   </div>
-                  <small>This changes PDF resolution metadata, not the number of pages.</small>
+                  <small>Not sure? Keep Recommended selected.</small>
                 </fieldset>
-              </div>
+                </div>
+              </details>
 
               <div class="action-row">
-                <button class="convert-button" id="convertPhotosButton" type="button">CREATE MY PDF →</button>
-                <button class="secondary-button" id="resetPhotosButton" type="button">START AGAIN</button>
+                <button class="convert-button" id="convertPhotosButton" type="button">Create PDF</button>
+                <button class="secondary-button" id="resetPhotosButton" type="button">Clear</button>
               </div>
             </section>
 
@@ -1498,17 +2154,17 @@
             <div class="status-panel" id="statusPanel" role="status" aria-live="polite">
               <span class="status-dot" aria-hidden="true"></span>
               <span>
-                <b id="statusTitle">READY WHEN YOU ARE</b>
-                <p id="statusMessage">Choose a direction and add your file. Nothing uploads until you press create.</p>
+                <b id="statusTitle">Ready</b>
+                <p id="statusMessage">Upar file choose karein. Convert tabhi start hoga jab aap blue button dabayenge.</p>
               </span>
             </div>
 
             <div class="result-panel" id="resultPanel" hidden>
               <span>
-                <b id="resultTitle">YOUR DOWNLOAD IS READY</b>
-                <p id="resultMessage">The new file is waiting for your click.</p>
+                <b id="resultTitle">Download ready</b>
+                <p id="resultMessage">Nayi file download karne ke liye green button dabayein.</p>
               </span>
-              <button class="download-button" id="downloadButton" type="button">DOWNLOAD ↓</button>
+              <button class="download-button" id="downloadButton" type="button">Download</button>
             </div>
           </div>
         </div>
@@ -1519,26 +2175,26 @@
     <section class="wrap trust-strip" aria-label="Important converter facts">
       <article class="trust-item">
         <span aria-hidden="true">01</span>
-        <b>Your original stays safe</b>
-        <p>The browser sends a copy for processing. The source file on your device is never overwritten.</p>
+        <b>Original file safe</b>
+        <p>Aapke device wali original file overwrite nahi hoti.</p>
       </article>
       <article class="trust-item">
         <span aria-hidden="true">02</span>
-        <b>Counts stay honest</b>
-        <p>10 PDF pages create 10 photos. 10 chosen photos create a 10-page PDF.</p>
+        <b>Same page count</b>
+        <p>10 PDF pages = 10 images. 10 images = 10 PDF pages.</p>
       </article>
       <article class="trust-item">
         <span aria-hidden="true">03</span>
-        <b>Clear limits before work</b>
-        <p>Maximum 30 pages or 30 photos. Errors explain what to fix instead of silently failing.</p>
+        <b>Clear limit</b>
+        <p>Maximum 30 pages ya 30 images. Problem aaye to clear message milega.</p>
       </article>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="wrap footer-inner">
-      <b>Paper Loop</b>
-      <span>Frontend for the local ImageReducer Python engine · originals are not changed</span>
+      <b>EasyConvert</b>
+      <span>Works with your local Python converter · original files are not changed</span>
     </div>
   </footer>
 
@@ -1687,7 +2343,7 @@
     /** Backend online/offline label update karta; conversion ko silently block nahi karta. */
     function setEngineOnline(isOnline) {
       dom.engineChip.classList.toggle("is-online", isOnline);
-      dom.engineText.textContent = isOnline ? "ENGINE ONLINE" : "ENGINE OFFLINE";
+      dom.engineText.textContent = isOnline ? "Server ready" : "Server offline";
     }
 
     /** Busy state double-click requests rokta aur correct button text dikhata hai. */
@@ -1699,11 +2355,11 @@
       dom.resetPhotosButton.disabled = isBusy;
 
       if (isBusy) {
-        dom.convertPdfButton.textContent = "WORKING…";
-        dom.convertPhotosButton.textContent = "WORKING…";
+        dom.convertPdfButton.textContent = "Please wait…";
+        dom.convertPhotosButton.textContent = "Please wait…";
       } else {
-        dom.convertPdfButton.textContent = "CREATE MY PHOTOS →";
-        dom.convertPhotosButton.textContent = "CREATE MY PDF →";
+        dom.convertPdfButton.textContent = "Create images";
+        dom.convertPhotosButton.textContent = "Create PDF";
       }
     }
 
@@ -1743,7 +2399,7 @@
     /** Fetch network errors me user ko Python start karne ka exact next step deta hai. */
     function friendlyNetworkError(error) {
       const detail = error && error.message ? " " + error.message : "";
-      return "Python engine was not reached. Start the updated Python file on port 5000, then try again." + detail;
+      return "Python server nahi mila. Python file port 5000 par start karke dobara try karein." + detail;
     }
 
     /*
@@ -1776,7 +2432,7 @@
     /** Direction choose karte hi one panel, guide copy aur button states update hote hain. */
     function chooseMode(nextMode) {
       if (state.busy) {
-        setStatus("PLEASE WAIT", "Current conversion finish hone ke baad direction change karein.", "working");
+        setStatus("Please wait", "Conversion complete hone ke baad option change karein.", "working");
         return;
       }
 
@@ -1797,7 +2453,7 @@
         dom.guideStepThreeTitle.textContent = "Create and download";
         dom.guideStepThreeText.textContent = "All page images arrive together inside one ZIP.";
         dom.limitNote.innerHTML = "<b>30-page safety limit.</b><br>A 10-page PDF makes exactly 10 photos. Page count cannot be increased or reduced.";
-        setStatus("PDF TO PHOTOS", "Choose one PDF. We will show its page count before conversion.", "neutral");
+        setStatus("PDF to images", "Ek PDF choose karein. Pehle page count check hoga.", "neutral");
       } else {
         dom.guideTitle.textContent = "From photos to PDF";
         dom.guideStepOneTitle.textContent = "Choose your photos";
@@ -1807,7 +2463,7 @@
         dom.guideStepThreeTitle.textContent = "Create and download";
         dom.guideStepThreeText.textContent = "One new PDF contains every photo in the shown order.";
         dom.limitNote.innerHTML = "<b>30-photo safety limit.</b><br>10 chosen photos make exactly a 10-page PDF. No photo is silently dropped.";
-        setStatus("PHOTOS TO PDF", "Add photos, check their order, then create one PDF.", "neutral");
+        setStatus("Images to PDF", "Images add karein, order dekhein, phir PDF banayein.", "neutral");
       }
     }
 
@@ -1838,7 +2494,7 @@
     async function inspectPdf(file) {
       const formData = new FormData();
       formData.append("document", file, file.name);
-      setStatus("CHECKING YOUR PDF", "Pages count ho rahe hain. Abhi conversion start nahi hui.", "working");
+      setStatus("PDF check ho rahi hai", "Pages count ho rahe hain. Thoda wait karein.", "working");
 
       try {
         const response = await fetch(API_BASE + ROUTE_INSPECT_DOCUMENT, {
@@ -1855,14 +2511,14 @@
         dom.pdfFileMeta.textContent = state.pdfPages + " page" + (state.pdfPages === 1 ? "" : "s") + " → " + state.pdfPages + " photo" + (state.pdfPages === 1 ? "" : "s") + " · " + humanFileSize(file.size);
         setEngineOnline(true);
         setStatus(
-          "PDF READY",
-          state.pdfPages + " page" + (state.pdfPages === 1 ? "" : "s") + " found. Exactly " + state.pdfPages + " image" + (state.pdfPages === 1 ? "" : "s") + " will be created.",
+          "PDF ready",
+          state.pdfPages + " page mile. Isse " + state.pdfPages + " image banengi.",
           "success"
         );
       } catch (error) {
         state.pdfPages = null;
         dom.pdfFileMeta.textContent = "Could not verify pages · " + humanFileSize(file.size);
-        setStatus("PDF CHECK FAILED", error.message || friendlyNetworkError(error), "error");
+        setStatus("PDF check nahi hui", error.message || friendlyNetworkError(error), "error");
       }
     }
 
@@ -1874,7 +2530,7 @@
 
       if (!looksLikePdf(file)) {
         resetPdfSelection();
-        setStatus("PLEASE CHOOSE A PDF", "This file does not look like a .pdf document.", "error");
+        setStatus("PDF choose karein", "Yeh file PDF nahi lag rahi. .pdf file select karein.", "error");
         return;
       }
 
@@ -1911,7 +2567,7 @@
       revokePhotoPreviewUrls();
       dom.photoQueue.replaceChildren();
       dom.queueHead.hidden = state.photoFiles.length === 0;
-      dom.queueCount.textContent = state.photoFiles.length + " / " + MAX_PHOTOS + " photos";
+      dom.queueCount.textContent = state.photoFiles.length + " / " + MAX_PHOTOS + " images";
 
       state.photoFiles.forEach(function (file, index) {
         const article = document.createElement("article");
@@ -1989,7 +2645,7 @@
       state.photoFiles[targetIndex] = temporary;
       clearResult();
       renderPhotoQueue();
-      setStatus("PAGE ORDER UPDATED", "Photo " + (targetIndex + 1) + " is now " + state.photoFiles[targetIndex].name + ".", "success");
+      setStatus("Order changed", "Page " + (targetIndex + 1) + " par ab " + state.photoFiles[targetIndex].name + " hai.", "success");
     }
 
     /** Exact index photo remove karta aur remaining page numbers automatically rebuild hote hain. */
@@ -1999,9 +2655,9 @@
       renderPhotoQueue();
 
       if (state.photoFiles.length === 0) {
-        setStatus("ADD YOUR PHOTOS", "Queue is empty. Choose up to 30 photos.", "neutral");
+        setStatus("Images add karein", "Abhi koi image nahi hai. Maximum 30 images choose karein.", "neutral");
       } else {
-        setStatus("PHOTO REMOVED", removed.name + " removed. PDF will now have " + state.photoFiles.length + " page" + (state.photoFiles.length === 1 ? "" : "s") + ".", "success");
+        setStatus("Image removed", removed.name + " hata di. PDF mein ab " + state.photoFiles.length + " page honge.", "success");
       }
     }
 
@@ -2018,7 +2674,7 @@
       const availableSlots = MAX_PHOTOS - state.photoFiles.length;
 
       if (availableSlots <= 0) {
-        setStatus("30-PHOTO LIMIT REACHED", "Remove a photo before adding another one.", "error");
+        setStatus("30-image limit", "Nayi image add karne se pehle ek image remove karein.", "error");
         return;
       }
 
@@ -2029,13 +2685,13 @@
       renderPhotoQueue();
 
       if (accepted.length === 0) {
-        setStatus("NO READABLE IMAGE CHOSEN", "Please choose image files such as JPG, PNG, WEBP, TIFF, BMP or SVG.", "error");
+        setStatus("Image nahi mili", "JPG, PNG, WEBP, TIFF, BMP ya SVG image choose karein.", "error");
       } else if (validImages.length > availableSlots) {
-        setStatus("ONLY FIRST " + availableSlots + " ADDED", "The 30-photo limit was reached. Extra files were not added.", "error");
+        setStatus("Sirf " + availableSlots + " images add hui", "30-image limit ke baad extra files add nahi hui.", "error");
       } else if (rejectedCount > 0) {
-        setStatus("PHOTOS ADDED", accepted.length + " image file(s) added. " + rejectedCount + " non-image file(s) were skipped.", "success");
+        setStatus("Images ready", accepted.length + " image add hui. " + rejectedCount + " doosri file skip hui.", "success");
       } else {
-        setStatus("PHOTOS READY", state.photoFiles.length + " photo" + (state.photoFiles.length === 1 ? "" : "s") + " will create the same number of PDF pages.", "success");
+        setStatus("Images ready", state.photoFiles.length + " images se " + state.photoFiles.length + "-page PDF banegi.", "success");
       }
     }
 
@@ -2046,7 +2702,7 @@
       dom.photosInput.value = "";
       dom.photoQueue.replaceChildren();
       dom.queueHead.hidden = true;
-      dom.queueCount.textContent = "0 / " + MAX_PHOTOS + " photos";
+      dom.queueCount.textContent = "0 / " + MAX_PHOTOS + " images";
       dom.pdfOutputName.value = "my_photos";
       clearResult();
     }
@@ -2064,18 +2720,18 @@
       }
 
       if (!state.pdfFile) {
-        setStatus("PDF NEEDED", "Choose one PDF before pressing create.", "error");
+        setStatus("PDF needed", "Create images se pehle ek PDF choose karein.", "error");
         return;
       }
 
       if (state.pdfPages !== null && state.pdfPages > MAX_PDF_PAGES) {
-        setStatus("TOO MANY PAGES", "Maximum allowed is " + MAX_PDF_PAGES + " pages.", "error");
+        setStatus("Too many pages", "Maximum " + MAX_PDF_PAGES + " pages allowed hain.", "error");
         return;
       }
 
       clearResult();
       setBusy(true);
-      setStatus("CREATING YOUR PHOTOS", "Please wait. Every PDF page is being rendered and packed into one ZIP.", "working");
+      setStatus("Images ban rahi hain", "Har PDF page ki image ban kar ek ZIP mein add ho rahi hai.", "working");
 
       const outputFormat = dom.imageFormat.value;
       const formData = new FormData();
@@ -2099,9 +2755,9 @@
         const filename = baseName(state.pdfFile.name) + "_" + outputFormat.toLowerCase() + "_images.zip";
         showResult(blob, filename, countText + " are inside this ZIP · " + humanFileSize(blob.size));
         setEngineOnline(true);
-        setStatus("PHOTOS READY", "Your original PDF was not changed. Press download to save the new ZIP.", "success");
+        setStatus("Images ready", "Original PDF safe hai. Green Download button dabayein.", "success");
       } catch (error) {
-        setStatus("CONVERSION FAILED", error.message || friendlyNetworkError(error), "error");
+        setStatus("Conversion failed", error.message || friendlyNetworkError(error), "error");
       } finally {
         setBusy(false);
       }
@@ -2120,18 +2776,18 @@
       }
 
       if (state.photoFiles.length === 0) {
-        setStatus("PHOTOS NEEDED", "Choose at least one photo before pressing create.", "error");
+        setStatus("Images needed", "Create PDF se pehle kam se kam ek image choose karein.", "error");
         return;
       }
 
       if (state.photoFiles.length > MAX_PHOTOS) {
-        setStatus("TOO MANY PHOTOS", "Maximum allowed is " + MAX_PHOTOS + " photos.", "error");
+        setStatus("Too many images", "Maximum " + MAX_PHOTOS + " images allowed hain.", "error");
         return;
       }
 
       clearResult();
       setBusy(true);
-      setStatus("CREATING YOUR PDF", "Please wait. Photos are being placed into PDF pages in the order shown.", "working");
+      setStatus("PDF ban rahi hai", "Images shown order mein PDF pages par add ho rahi hain.", "working");
 
       const formData = new FormData();
       state.photoFiles.forEach(function (file) {
@@ -2155,9 +2811,9 @@
         const filename = cleanedName + ".pdf";
         showResult(blob, filename, state.photoFiles.length + " photo" + (state.photoFiles.length === 1 ? "" : "s") + " → " + state.photoFiles.length + " PDF page" + (state.photoFiles.length === 1 ? "" : "s") + " · " + humanFileSize(blob.size));
         setEngineOnline(true);
-        setStatus("PDF READY", "Page order matches the photo cards above. Press download to save it.", "success");
+        setStatus("PDF ready", "Page order upar wali images jaisa hai. Green Download button dabayein.", "success");
       } catch (error) {
-        setStatus("PDF CREATION FAILED", error.message || friendlyNetworkError(error), "error");
+        setStatus("PDF nahi bani", error.message || friendlyNetworkError(error), "error");
       } finally {
         setBusy(false);
       }
@@ -2172,7 +2828,7 @@
     /** Result blob temporary object URL se browser downloads folder me bhejta hai. */
     function downloadResult() {
       if (!state.resultBlob) {
-        setStatus("NO RESULT YET", "Create a ZIP or PDF before downloading.", "error");
+        setStatus("Nothing to download", "Pehle images ya PDF create karein.", "error");
         return;
       }
 
@@ -2189,7 +2845,7 @@
         URL.revokeObjectURL(objectUrl);
       }, 1000);
 
-      setStatus("DOWNLOAD STARTED", "Look in your browser downloads folder for " + link.download + ".", "success");
+      setStatus("Download started", "Browser ke Downloads folder mein " + link.download + " milegi.", "success");
     }
 
     /** Small GET request backend availability/route registration check karta hai. */
@@ -2270,17 +2926,17 @@
 
       dom.removePdfButton.addEventListener("click", function () {
         resetPdfSelection();
-        setStatus("PDF REMOVED", "Choose another PDF when ready.", "neutral");
+        setStatus("PDF removed", "Ab doosri PDF choose kar sakte hain.", "neutral");
       });
 
       dom.resetPdfButton.addEventListener("click", function () {
         resetPdfSelection();
-        setStatus("STARTED AGAIN", "PDF choices cleared. Your original file was never changed.", "neutral");
+        setStatus("Cleared", "PDF selection clear ho gayi. Original file safe hai.", "neutral");
       });
 
       dom.resetPhotosButton.addEventListener("click", function () {
         resetPhotoSelection();
-        setStatus("STARTED AGAIN", "Photo queue cleared. Choose new photos when ready.", "neutral");
+        setStatus("Cleared", "Image list clear ho gayi. Nayi images choose karein.", "neutral");
       });
 
       dom.imageQuality.addEventListener("input", function () {
