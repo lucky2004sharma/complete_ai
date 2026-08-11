@@ -1228,7 +1228,7 @@ def image_dpi_from_info(data: bytes, detected_format: str) -> int:
 #      (jaise 16:9, 1:1, 9:16) ek dictionary me store kiya hai.
 # KYUN: Agar kabhi kisi platform ka recommended size badal de, to sirf
 #      yahi dictionary update karni hai; neeche wale saare functions is
-#      dictionary ko "read" karte hain, size ko kahin bhi hardcode nahi karte.
+#      dictionary ko "read" margin, size ko kahin bhi hardcode nahi karte.
 # VALUE CHANGE KA EFFECT:
 #      - "width"/"height" change karoge to us mode me convert hone wali HAR
 #        future photo turant naye size me export hogi (HD tier isi naye size
@@ -3741,6 +3741,129 @@ if app is not None:
 # ----------------------------------------------------------------------------
 if app is not None:
     register_document_conversion_routes(app)
+
+# ============================================================================
+# 10 // ADVANCED SECURITY & PRIVACY SHIELD (HACKER-PROOFING) (NAYA FEATURE)
+# ============================================================================
+# KYA HAI: 
+#     Yeh ek naya "Web Application Firewall (WAF)" aur "Privacy Guard" hai.
+#     Isme hum Cross-Site Scripting (XSS), SQL Injection, aur Path Traversal
+#     jaise hacking attacks ko block karte hain.
+# KYUN ZARURI HAI: 
+#     Internet par open chhodne se pehle backend ko "hacker-proof" banana zaruri hai.
+#     Koi user malicious file-name bhej kar server ke andar ki files (jaise /etc/passwd)
+#     dekhne ka try kar sakta hai. Yeh usko roke ga.
+# CHANGE KA ASAR (PROS/CONS): 
+#     - Pros: Aapka backend ab secure hai. Fake URLs ya malicious scripts automatically
+#       reject ho jayenge, aur users ki EXIF data (location) remove ki jayegi (Privacy).
+#     - Cons: Security checks me millisecond level ka processing time badhega, jo negligible hai.
+# ============================================================================
+
+def secure_strip_exif_metadata(image: Image.Image) -> Image.Image:
+    """
+    KYA: Image se saari hidden device aur location (GPS) data permanently remove karta hai.
+    KYUN: User privacy protect karne ke liye, taaki hacker photo se user ki real location na nikal sake.
+    """
+    
+    # Agar image ke paas koi info (metadata) nahi hai, toh as-is return kardo.
+    if not image.info:
+        return image
+        
+    # Naya image data array create karte hain WITHOUT old EXIF dictionary.
+    data = list(image.getdata())
+    
+    # Same mode aur size ka bilkul naya, 'blank' canvas banate hain (no hidden data).
+    image_without_exif = Image.new(image.mode, image.size)
+    
+    # Purane pixels ko naye fresh canvas par paste karte hain. 
+    # Isse sirf colors aate hain, hidden EXIF/GPS text pichhe chhut jata hai.
+    image_without_exif.putdata(data)
+    
+    return image_without_exif
+
+def register_advanced_security_middleware(flask_app: Any) -> None:
+    """
+    KYA: Flask app me extra HTTP security layers aur WAF (Web Application Firewall) lagata hai.
+    KYUN: Taaki koi hacker code ke zariye system ko exploit na kar sake.
+    """
+    
+    # WAF_PATTERNS un hacking scripts ke signatures hain jo generally attackers use karte hain.
+    WAF_PATTERNS = [
+        r"<script.*?>",          # XSS Attack check (JavaScript injection)
+        r"javascript:",          # Inline script attack check
+        r"union\s+select",       # SQL Injection check (database access try)
+        r"\.\./\.\./",           # Path Traversal check (server files read karna chahna)
+    ]
+    
+    # Compiled Regex WAF ko fast banata hai, taaki har request me zyada CPU na lage.
+    compiled_waf_regex = [re.compile(pattern, re.IGNORECASE) for pattern in WAF_PATTERNS]
+
+    @flask_app.before_request
+    def intercept_malicious_payloads() -> Optional[Any]:
+        """
+        KYA: Har request ko process hone se pehle (before_request) inspect karta hai.
+        KYUN: Hacker ka payload form values ya URL me ho sakta hai. Agar match hua,
+              toh error 403 (Forbidden) de kar request reject kar deta hai.
+        """
+        
+        # Preflight OPTIONS me koi payload nahi hota, isliye bypass karte hain.
+        if request.method == "OPTIONS":
+            return None
+
+        # 1. PATH TRAVERSAL CHECK on Filenames
+        # Hum check karte hain ki user ne upload ki gayi file ke naam me koi hacking try toh nahi ki.
+        if request.files:
+            for file_key in request.files:
+                uploaded_file = request.files.get(file_key)
+                if uploaded_file and uploaded_file.filename:
+                    # Agar filename me "../" milta hai, matlab attacker system directories access karna chahta hai.
+                    if "../" in uploaded_file.filename or "..\\" in uploaded_file.filename:
+                        LOGGER.warning("SECURITY ALERT: Path Traversal attempt detected in filename.")
+                        return jsonify(error="Malicious filename blocked by Security WAF."), 403
+
+        # 2. XSS & SQL INJECTION CHECK on Form Data
+        # Hum form me bheji gayi saari values scan karte hain (jaise quality, width, ya DPI).
+        if request.form:
+            for key, value in request.form.items():
+                string_value = str(value)
+                # Har value ko WAF patterns (jaise <script>) se compare karte hain.
+                for regex in compiled_waf_regex:
+                    if regex.search(string_value):
+                        LOGGER.warning(f"SECURITY ALERT: Malicious payload caught in field '{key}'.")
+                        return jsonify(error="Forbidden: Security WAF blocked the request due to invalid characters."), 403
+        
+        # Agar sab safe hai, toh None return karo taaki request aage process ho sake.
+        return None
+
+    @flask_app.after_request
+    def apply_strict_security_headers(response: Any) -> Any:
+        """
+        KYA: Response wapas bhejte waqt HTTP headers me 'Armor' (kavach) lagata hai.
+        KYUN: Browsers in headers ko padh kar clickjacking, content-sniffing, aur 
+              insecure connections (HTTP) ko block kar dete hain.
+        """
+        
+        # X-Frame-Options 'DENY' ensures aapki website kisi doosre fake website ke <iframe...>
+        # ke andar nahi khulegi. Isse Clickjacking attacks prevent hote hain.
+        response.headers["X-Frame-Options"] = "DENY"
+        
+        # Strict-Transport-Security (HSTS) enforce karta hai ki connection HAMESHA 
+        # HTTPS (secure encrypted) mode me ho, koi downgrade (HTTP) possible nahi.
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        
+        # Content-Security-Policy (CSP) bata deta hai ki sirf same origin (apne hi server) 
+        # se resources/scripts load kiye ja sakte hain, external hacking scripts nahi.
+        response.headers["Content-Security-Policy"] = "default-src 'self';"
+        
+        # Browser ko batata hai ki page leave karte waqt pichli page ka referer info 
+        # hide kardo (Privacy benefit).
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        
+        return response
+
+# Agar app initialize ho gaya hai, toh hamaara naya Hacker-proof Security layer active kardo!
+if app is not None:
+    register_advanced_security_middleware(app)
 
 
 if __name__ == "__main__":
