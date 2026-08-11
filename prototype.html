@@ -1887,6 +1887,403 @@
       .secondary-button { width: 100%; }
       .quick-facts { display: grid; gap: 5px; }
     }
+
+    /*
+      ========================================================================
+      15 // CALM, EASY MODE — AUGUST 2026 UX REFRESH
+      ========================================================================
+
+      The original midnight/cyan/violet/copper theme is intentionally kept.
+      This last layer removes novelty shapes, offset shadows and repeated cards,
+      then adds a clearer reading order and beginner-friendly help controls.
+      Backend routes, field IDs and conversion behavior remain unchanged.
+      ========================================================================
+    */
+    :root {
+      --page-width: 1080px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 14% 0%, rgba(100,228,244,.11), transparent 30%),
+        radial-gradient(circle at 88% 8%, rgba(159,131,255,.13), transparent 28%),
+        var(--night);
+    }
+
+    .wrap { width: min(var(--page-width), calc(100% - 40px)); }
+
+    .site-header,
+    :root[data-theme="dark"] .site-header,
+    :root[data-theme="light"] .site-header {
+      position: relative;
+      top: auto;
+      width: min(var(--page-width), calc(100% - 40px));
+      margin: 20px auto 0;
+      border-radius: var(--radius-md);
+      box-shadow: 0 12px 36px rgba(0,0,0,.16);
+    }
+
+    .header-inner {
+      width: auto;
+      min-height: 68px;
+      padding: 10px 14px;
+      gap: 16px;
+    }
+
+    .brand { gap: 10px; }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      box-shadow: none;
+      transform: none;
+      font: 700 13px/1 Manrope, Arial, sans-serif;
+    }
+
+    .brand-copy b { font: 600 19px/1.1 Manrope, Arial, sans-serif; }
+    .brand-copy small { margin-top: 3px; font-size: 10px; letter-spacing: .08em; }
+    .header-promise { font-size: 12px; }
+    .header-actions { gap: 8px; }
+
+    .engine-chip {
+      min-height: 38px;
+      padding: 0 11px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+    .accessibility-button,
+    .theme-button {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--text);
+      background: var(--surface-softer);
+      box-shadow: none;
+    }
+
+    .accessibility-button {
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .accessibility-button:hover,
+    .theme-button:hover { border-color: var(--cyan); transform: none; }
+
+    .accessibility-button[aria-pressed="true"] {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      background: color-mix(in srgb, var(--cyan) 8%, transparent);
+    }
+
+    .hero { padding: 64px 0 30px; }
+    .hero-grid { max-width: 800px; }
+    .eyebrow { margin-bottom: 12px; font-size: 11px; }
+    .eyebrow i { width: 7px; height: 7px; }
+
+    .hero h1 {
+      max-width: 760px;
+      font: 600 clamp(36px, 5.2vw, 54px)/1.08 Manrope, Arial, sans-serif;
+      letter-spacing: -.045em;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(105deg, var(--cyan), var(--violet) 58%, var(--copper));
+      background-clip: text;
+      -webkit-background-clip: text;
+    }
+
+    .hero-copy > p {
+      max-width: 680px;
+      margin-top: 16px;
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .converter-section { padding: 4px 0 46px; }
+    .section-heading { margin-bottom: 16px; }
+    .section-heading small,
+    .panel-kicker { font-size: 11px; letter-spacing: .08em; }
+
+    .section-heading h2 {
+      margin-top: 4px;
+      font: 600 clamp(25px, 4vw, 32px)/1.25 Manrope, Arial, sans-serif;
+      letter-spacing: -.025em;
+    }
+
+    .section-heading p { margin-top: 6px; font-size: 14px; }
+
+    .converter-desk,
+    :root[data-theme="light"] .converter-desk {
+      border-radius: var(--radius-lg);
+      background: color-mix(in srgb, var(--surface-deep) 94%, transparent);
+      box-shadow: 0 24px 64px rgba(0,0,0,.22);
+    }
+
+    .direction-rail {
+      gap: 10px;
+      padding: 14px;
+      background: transparent;
+    }
+
+    .direction-button {
+      min-height: 82px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface-softer);
+    }
+
+    .direction-button:hover { border-color: var(--line-strong); background: color-mix(in srgb, var(--surface) 72%, transparent); }
+
+    .direction-button[aria-pressed="true"] {
+      border-color: var(--cyan);
+      background: color-mix(in srgb, var(--cyan) 8%, var(--surface-deep));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--cyan) 28%, transparent);
+    }
+
+    .direction-icon,
+    .direction-button[aria-pressed="true"] .direction-icon {
+      width: 44px;
+      height: 44px;
+      border: 0;
+      border-radius: 11px;
+      color: var(--paper-ink);
+      background: var(--paper);
+      box-shadow: none;
+    }
+
+    .direction-button[aria-pressed="true"] .direction-icon { background: var(--cyan); }
+    .direction-button b { font-size: 15px; }
+    .direction-button small { margin-top: 3px; font-size: 12px; line-height: 1.45; }
+
+    .choice-help {
+      margin: 0 14px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface-softer);
+    }
+
+    .choice-help summary {
+      padding: 13px 15px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .example-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 0 12px 12px;
+    }
+
+    .example-choice {
+      min-height: 82px;
+      padding: 12px;
+      display: grid;
+      gap: 3px;
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      background: var(--surface-deep);
+    }
+
+    .example-choice:hover { border-color: var(--cyan); }
+    .example-choice b { font-size: 12px; }
+    .example-choice span { color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .example-choice em { margin-top: 3px; color: var(--cyan); font-size: 11px; font-style: normal; font-weight: 700; }
+
+    .hinglish-tip {
+      margin: 0;
+      padding: 0 14px 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .simple-steps {
+      padding: 12px 20px;
+      background: var(--surface-softer);
+    }
+
+    .simple-steps li { gap: 8px; font-size: 12px; }
+    .simple-steps span { flex-basis: 24px; width: 24px; height: 24px; font-size: 11px; }
+    .simple-steps li:first-child span { border-color: var(--cyan); color: var(--cyan); }
+    .simple-steps b { font-size: 12px; }
+
+    .work-panel { padding: clamp(24px, 5vw, 44px); }
+    .panel-title { font: 600 clamp(24px, 3vw, 29px)/1.25 Manrope, Arial, sans-serif; }
+    .panel-intro { max-width: 720px; margin-top: 8px; font-size: 14px; }
+
+    .upload-zone {
+      min-height: 172px;
+      margin-top: 20px;
+      border: 1.5px dashed var(--line-strong);
+      border-radius: var(--radius-md);
+      background: color-mix(in srgb, var(--surface) 64%, transparent);
+    }
+
+    .upload-zone:hover,
+    .upload-zone.is-dragging {
+      border-color: var(--cyan);
+      background: color-mix(in srgb, var(--cyan) 6%, var(--surface-deep));
+    }
+
+    .upload-symbol {
+      width: 54px;
+      height: 42px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--paper);
+      box-shadow: none;
+      transform: none;
+    }
+
+    .upload-zone b { font-size: 16px; }
+    .upload-zone span { font-size: 12px; }
+    .quick-facts { margin-top: 12px; }
+
+    .outcome-preview {
+      margin-top: 18px;
+      padding: 14px 15px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 10px 14px;
+      border-left: 3px solid var(--violet);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      color: var(--text);
+      background: color-mix(in srgb, var(--violet) 8%, var(--surface));
+    }
+
+    .outcome-preview span {
+      color: var(--violet);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+
+    .outcome-preview b { font-size: 13px; font-weight: 600; }
+
+    .advanced-settings {
+      margin-top: 18px;
+      border-top: 1px solid var(--line);
+      border-bottom: 0;
+    }
+
+    .advanced-settings summary { padding: 14px 0; font-size: 13px; }
+    .advanced-settings summary small { font-size: 11px; }
+
+    .field-group {
+      padding: 14px;
+      border: 1px solid var(--line);
+      background: transparent;
+    }
+
+    .action-row {
+      grid-template-columns: minmax(180px, 1fr) auto;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .convert-button,
+    .download-button {
+      color: var(--paper-ink);
+      background: var(--cyan);
+      box-shadow: none;
+    }
+
+    .convert-button:hover:not(:disabled),
+    .download-button:hover { filter: brightness(1.05); transform: none; }
+    .secondary-button { padding-inline: 20px; background: transparent; }
+
+    .feedback-panel {
+      padding-top: 0;
+      border-top: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 40%, transparent);
+    }
+
+    .status-panel {
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: transparent;
+    }
+
+    .result-panel { margin-top: 10px; }
+
+    .trust-strip {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding-bottom: 40px;
+    }
+
+    .trust-item,
+    .trust-item:first-child,
+    .trust-item:last-child {
+      padding: 4px 14px;
+      border: 0;
+      border-left: 1px solid var(--line);
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .trust-item span { display: none; }
+    .trust-item b { margin: 0; font-size: 12px; }
+    .trust-item p { margin-top: 4px; font-size: 11px; }
+
+    .site-footer { background: transparent; }
+
+    @media (max-width: 760px) {
+      .wrap { width: min(var(--page-width), calc(100% - 28px)); }
+      .site-header,
+      :root[data-theme="dark"] .site-header,
+      :root[data-theme="light"] .site-header { width: calc(100% - 28px); margin-top: 14px; }
+      .header-inner { grid-template-columns: 1fr auto; }
+      .header-promise { display: none; }
+      .engine-chip { display: none; }
+      .hero { padding: 44px 0 24px; }
+      .example-grid { grid-template-columns: 1fr; }
+      .trust-strip { grid-template-columns: 1fr; gap: 12px; }
+      .trust-item,
+      .trust-item:first-child,
+      .trust-item:last-child { border-left: 2px solid var(--line); }
+    }
+
+    @media (max-width: 560px) {
+      .site-header,
+      :root[data-theme="dark"] .site-header,
+      :root[data-theme="light"] .site-header { top: auto; border-radius: 12px; }
+      .header-inner { width: auto; min-height: 60px; padding: 8px 10px; }
+      .brand-copy small { display: none; }
+      .accessibility-button { padding: 0 10px; }
+      .accessibility-button span { display: none; }
+      .theme-button { width: 38px; height: 38px; }
+      .hero h1 { font-size: 34px; }
+      .hero-copy > p { font-size: 14px; }
+      .direction-rail { grid-template-columns: 1fr; }
+      .direction-button { min-height: 72px; }
+      .simple-steps { grid-template-columns: repeat(3, 1fr); padding: 10px 12px; }
+      .simple-steps li { display: grid; justify-items: center; gap: 4px; text-align: center; }
+      .simple-steps li + li::before { content: none; }
+      .simple-steps b { font-size: 10px; }
+      .work-panel { padding: 22px 16px; }
+      .upload-zone { min-height: 158px; }
+      .outcome-preview { grid-template-columns: 1fr; gap: 4px; }
+      .action-row { grid-template-columns: 1fr; }
+      .secondary-button { width: 100%; }
+      .advanced-settings summary small { display: block; margin: 3px 0 0; }
+    }
   </style>
 </head>
 
@@ -1895,20 +2292,23 @@
   <header class="site-header" aria-label="Paper Loop header">
     <div class="header-inner">
       <a class="brand" href="#top" aria-label="Paper Loop home">
-        <span class="brand-mark" aria-hidden="true">15</span>
+        <span class="brand-mark" aria-hidden="true">PL</span>
         <span class="brand-copy">
           <b>Paper Loop</b>
-          <small>PDF & IMAGE TOOL</small>
+          <small>SIMPLE FILE CONVERTER</small>
         </span>
       </a>
 
-      <p class="header-promise">Choose a file. Convert it. Download the result.</p>
+      <p class="header-promise">Private, local conversion in three clear steps.</p>
 
       <div class="header-actions">
         <span class="engine-chip" id="engineChip" aria-live="polite">
           <i aria-hidden="true"></i>
           <span id="engineText">Checking server</span>
         </span>
+        <button class="accessibility-button" id="readPageButton" type="button" aria-pressed="false">
+          Listen
+        </button>
         <button class="theme-button" id="themeButton" type="button" aria-label="Switch to light theme">
           <span id="themeIcon" aria-hidden="true">☼</span>
         </button>
@@ -1924,11 +2324,11 @@
     <section class="hero">
       <div class="wrap hero-grid">
         <div class="hero-copy">
-          <span class="eyebrow"><i aria-hidden="true"></i>PDF & IMAGE CONVERTER</span>
-          <h1>Convert PDF pages to images — <span>or combine images into one PDF.</span></h1>
+          <span class="eyebrow"><i aria-hidden="true"></i>EASY MODE · NO SIGN-UP</span>
+          <h1>Turn your files into <span>exactly what you need.</span></h1>
           <p>
-            Choose a direction, add your files, and download the result.
-            You can use up to 30 PDF pages or 30 images. Originals are never changed.
+            Have a PDF? Make one image per page. Have photos? Put them into one PDF.
+            Choose what you have below—we will show only the next step you need.
           </p>
         </div>
       </div>
@@ -1939,10 +2339,10 @@
       <div class="wrap">
         <div class="section-heading">
           <div>
-            <small>STEP 1</small>
-            <h2>What would you like to create?</h2>
+            <small>1 OF 3 · CHOOSE</small>
+            <h2>What do you have right now?</h2>
           </div>
-          <p>Choose one option. Only the controls you need will appear.</p>
+          <p>Pick the file type already saved on your device.</p>
         </div>
 
         <div class="converter-desk">
@@ -1951,8 +2351,8 @@
             <button class="direction-button" id="pdfModeButton" type="button" aria-pressed="true">
               <span class="direction-icon" aria-hidden="true">PDF</span>
               <span>
-                <b>PDF → Images</b>
-                <small>One image for each PDF page</small>
+                <b>I have a PDF</b>
+                <small>I want a separate image for every page</small>
               </span>
             </button>
 
@@ -1961,11 +2361,28 @@
             <button class="direction-button" id="photosModeButton" type="button" aria-pressed="false">
               <span class="direction-icon" aria-hidden="true">IMG</span>
               <span>
-                <b>Images → PDF</b>
-                <small>Combine images into one PDF</small>
+                <b>I have photos</b>
+                <small>I want one PDF containing all of them</small>
               </span>
             </button>
           </div>
+
+          <details class="choice-help">
+            <summary>Not sure which option to choose? See examples</summary>
+            <div class="example-grid">
+              <button class="example-choice" id="examplePdfChoice" type="button">
+                <b>PDF pages become images</b>
+                <span>Example: a 5-page PDF gives you 5 PNG images inside one ZIP.</span>
+                <em>Choose “I have a PDF”</em>
+              </button>
+              <button class="example-choice" id="examplePhotosChoice" type="button">
+                <b>Photos become one document</b>
+                <span>Example: 5 phone photos become one 5-page PDF.</span>
+                <em>Choose “I have photos”</em>
+              </button>
+            </div>
+            <p class="hinglish-tip" lang="hi-Latn">Easy check: PDF hai toh pehla option. Photos hain toh doosra option.</p>
+          </details>
 
           <!--
             KYA: Common three-step path dono directions ke liye same hai.
@@ -1973,32 +2390,31 @@
             CHANGE EFFECT: Sirf words badalne se guidance badlegi; API working same rahegi.
           -->
           <ol class="simple-steps" aria-label="Three simple steps">
-            <li><span>1</span><b>Choose files</b></li>
-            <li><span>2</span><b>Convert</b></li>
+            <li><span>1</span><b>Choose type</b></li>
+            <li><span>2</span><b>Add files</b></li>
             <li><span>3</span><b>Download</b></li>
           </ol>
 
           <div class="desk-body">
             <!-- PDF → PHOTOS PANEL. It remains in DOM but hidden when reverse mode is selected. -->
             <section class="work-panel" id="pdfPanel" aria-labelledby="pdfPanelTitle">
-              <p class="panel-kicker">STEP 2 · ADD PDF</p>
-              <h3 class="panel-title" id="pdfPanelTitle">Add your PDF</h3>
-              <p class="panel-intro">A 10-page PDF creates 10 images. You will receive them together in one ZIP file.</p>
+              <p class="panel-kicker">2 OF 3 · ADD YOUR FILE</p>
+              <h3 class="panel-title" id="pdfPanelTitle">Choose one PDF</h3>
+              <p class="panel-intro">We count the pages first, so you can check exactly how many images will be created.</p>
 
               <!-- Label is the large clickable area; real input is visually hidden. -->
               <label class="upload-zone" id="pdfDropZone" for="pdfInput">
                 <span class="upload-symbol" aria-hidden="true">PDF</span>
-                <b>Drop a PDF here</b>
-                <span>or <em>choose a PDF</em></span>
-                <span>Maximum 30 pages · Maximum 25 MB</span>
+                <b>Drag your PDF here</b>
+                <span>or <em>click to choose it</em></span>
+                <span>.PDF only · up to 30 pages · up to 25 MB</span>
               </label>
               <input class="file-input-hidden" id="pdfInput" type="file" accept="application/pdf,.pdf">
 
               <!-- Safety facts file button ke paas hain, jahan user ko inki zaroorat hoti hai. -->
               <ul class="quick-facts" aria-label="PDF conversion facts">
-                <li>No sign-up</li>
-                <li>Original is not changed</li>
-                <li>1 page = 1 image</li>
+                <li>Your original stays unchanged</li>
+                <li>1 page always makes 1 image</li>
               </ul>
 
               <!-- Selected file details are populated by JavaScript after validation/inspection. -->
@@ -2015,8 +2431,13 @@
                 Optional settings default me band rehti hain. Beginner ko technical
                 DPI/quality decide nahi karni; balanced defaults automatically work.
               -->
+              <div class="outcome-preview" aria-live="polite">
+                <span>Result check</span>
+                <b id="pdfOutcomePreview">Choose a PDF to see exactly what you will receive.</b>
+              </div>
+
               <details class="advanced-settings">
-                <summary>Image settings <small>Optional — defaults work for most files</small></summary>
+                <summary>Change format or clarity <small>Optional — recommended settings are already selected</small></summary>
                 <div class="settings-grid">
                 <div class="field-group">
                   <label for="imageFormat">Image format</label>
@@ -2063,30 +2484,29 @@
               </details>
 
               <div class="action-row">
-                <button class="convert-button" id="convertPdfButton" type="button">Create images</button>
-                <button class="secondary-button" id="resetPdfButton" type="button">Clear</button>
+                <button class="convert-button" id="convertPdfButton" type="button" disabled>Create images</button>
+                <button class="secondary-button" id="resetPdfButton" type="button">Remove file</button>
               </div>
             </section>
 
             <!-- PHOTOS → PDF PANEL. Default hidden; JS direction switch makes it visible. -->
             <section class="work-panel" id="photosPanel" aria-labelledby="photosPanelTitle" hidden>
-              <p class="panel-kicker">STEP 2 · ADD IMAGES</p>
-              <h3 class="panel-title" id="photosPanelTitle">Add your images</h3>
-              <p class="panel-intro">10 images create a 10-page PDF. The image order below becomes the PDF page order.</p>
+              <p class="panel-kicker">2 OF 3 · ADD YOUR FILES</p>
+              <h3 class="panel-title" id="photosPanelTitle">Choose your photos</h3>
+              <p class="panel-intro">You will see every photo and its page number before the PDF is created.</p>
 
               <label class="upload-zone" id="photosDropZone" for="photosInput">
                 <span class="upload-symbol" aria-hidden="true">IMG</span>
-                <b>Drop images here</b>
-                <span>or <em>choose one or more images</em></span>
-                <span>Maximum 30 images · multiple selection is supported</span>
+                <b>Drag your photos here</b>
+                <span>or <em>click to choose one or more</em></span>
+                <span>JPG, PNG, WEBP and more · up to 30 photos</span>
               </label>
               <input class="file-input-hidden" id="photosInput" type="file" accept="image/*,.svg" multiple>
 
               <!-- Reverse conversion ke short facts; input ki file order preserve hoti hai. -->
               <ul class="quick-facts" aria-label="Image to PDF facts">
-                <li>No sign-up</li>
-                <li>Originals are not changed</li>
-                <li>1 image = 1 PDF page</li>
+                <li>Your originals stay unchanged</li>
+                <li>1 photo always makes 1 PDF page</li>
               </ul>
 
               <div class="queue-head" id="queueHead" hidden>
@@ -2096,8 +2516,13 @@
               <div class="photo-queue" id="photoQueue" aria-live="polite"></div>
 
               <!-- File name/detail technical choices optional section me rakhe gaye hain. -->
+              <div class="outcome-preview" aria-live="polite">
+                <span>Result check</span>
+                <b id="photosOutcomePreview">Choose photos to see exactly how many PDF pages you will get.</b>
+              </div>
+
               <details class="advanced-settings">
-                <summary>PDF settings <small>Optional — defaults work for most files</small></summary>
+                <summary>Change PDF name or clarity <small>Optional — recommended settings are already selected</small></summary>
                 <div class="settings-grid">
                 <div class="field-group">
                   <label for="pdfOutputName">PDF name</label>
@@ -2127,8 +2552,8 @@
               </details>
 
               <div class="action-row">
-                <button class="convert-button" id="convertPhotosButton" type="button">Create PDF</button>
-                <button class="secondary-button" id="resetPhotosButton" type="button">Clear</button>
+                <button class="convert-button" id="convertPhotosButton" type="button" disabled>Create PDF</button>
+                <button class="secondary-button" id="resetPhotosButton" type="button">Remove all</button>
               </div>
             </section>
 
@@ -2160,7 +2585,7 @@
           </div>
 
           <!-- Shared status/result sits below both mode panels, so feedback stays in one place. -->
-          <div class="work-panel" style="padding-top:0">
+          <div class="work-panel feedback-panel">
             <div class="status-panel" id="statusPanel" role="status" aria-live="polite">
               <span class="status-dot" aria-hidden="true"></span>
               <span>
@@ -2174,7 +2599,7 @@
                 <b id="resultTitle">Download ready</b>
                 <p id="resultMessage">Your new file is ready to download.</p>
               </span>
-              <button class="download-button" id="downloadButton" type="button">Download</button>
+              <button class="download-button" id="downloadButton" type="button">Download file</button>
             </div>
           </div>
         </div>
@@ -2185,18 +2610,18 @@
     <section class="wrap trust-strip" aria-label="Important converter facts">
       <article class="trust-item">
         <span aria-hidden="true">01</span>
-        <b>Original file safe</b>
-        <p>The file on your device is never overwritten.</p>
+        <b>Originals stay safe</b>
+        <p>Your files are never overwritten.</p>
       </article>
       <article class="trust-item">
         <span aria-hidden="true">02</span>
-        <b>Same page count</b>
-        <p>10 PDF pages = 10 images. 10 images = 10 PDF pages.</p>
+        <b>You can check first</b>
+        <p>The exact result count appears before conversion.</p>
       </article>
       <article class="trust-item">
         <span aria-hidden="true">03</span>
-        <b>Clear limit</b>
-        <p>Maximum 30 pages or 30 images. Clear messages explain any problem.</p>
+        <b>Nothing technical required</b>
+        <p>Recommended settings are already selected.</p>
       </article>
     </section>
   </main>
@@ -2204,7 +2629,7 @@
   <footer class="site-footer">
     <div class="wrap footer-inner">
       <b>Paper Loop</b>
-      <span>Works with your local Python converter · original files are not changed</span>
+      <span>Simple PDF and image conversion · powered by your local converter</span>
     </div>
   </footer>
 
@@ -2257,8 +2682,11 @@
       engineText: document.getElementById("engineText"),
       themeButton: document.getElementById("themeButton"),
       themeIcon: document.getElementById("themeIcon"),
+      readPageButton: document.getElementById("readPageButton"),
       pdfModeButton: document.getElementById("pdfModeButton"),
       photosModeButton: document.getElementById("photosModeButton"),
+      examplePdfChoice: document.getElementById("examplePdfChoice"),
+      examplePhotosChoice: document.getElementById("examplePhotosChoice"),
       pdfPanel: document.getElementById("pdfPanel"),
       photosPanel: document.getElementById("photosPanel"),
       pdfInput: document.getElementById("pdfInput"),
@@ -2274,12 +2702,14 @@
       qualityOutput: document.getElementById("qualityOutput"),
       qualityGroup: document.getElementById("qualityGroup"),
       qualityHelp: document.getElementById("qualityHelp"),
+      pdfOutcomePreview: document.getElementById("pdfOutcomePreview"),
       convertPdfButton: document.getElementById("convertPdfButton"),
       resetPdfButton: document.getElementById("resetPdfButton"),
       queueHead: document.getElementById("queueHead"),
       queueCount: document.getElementById("queueCount"),
       photoQueue: document.getElementById("photoQueue"),
       pdfOutputName: document.getElementById("pdfOutputName"),
+      photosOutcomePreview: document.getElementById("photosOutcomePreview"),
       convertPhotosButton: document.getElementById("convertPhotosButton"),
       resetPhotosButton: document.getElementById("resetPhotosButton"),
       guideTitle: document.getElementById("guideTitle"),
@@ -2353,14 +2783,41 @@
     /** Backend online/offline label update karta; conversion ko silently block nahi karta. */
     function setEngineOnline(isOnline) {
       dom.engineChip.classList.toggle("is-online", isOnline);
-      dom.engineText.textContent = isOnline ? "SERVER READY" : "SERVER OFFLINE";
+      dom.engineText.textContent = isOnline ? "Converter ready" : "Converter offline";
+    }
+
+    /**
+     * A live, plain-language result check prevents surprises before conversion.
+     * It mirrors file/page state and never changes backend values.
+     */
+    function updateOutcomePreview() {
+      const format = dom.imageFormat.value;
+
+      if (!state.pdfFile) {
+        dom.pdfOutcomePreview.textContent = "Choose a PDF to see exactly what you will receive.";
+      } else if (state.pdfPages === null) {
+        dom.pdfOutcomePreview.textContent = "Checking the PDF page count before showing your result…";
+      } else {
+        dom.pdfOutcomePreview.textContent = "Checked: " + state.pdfPages + " PDF page" + (state.pdfPages === 1 ? "" : "s") + " will create " + state.pdfPages + " " + format + " image" + (state.pdfPages === 1 ? "" : "s") + " inside one ZIP.";
+      }
+
+      const photoCount = state.photoFiles.length;
+      dom.photosOutcomePreview.textContent = photoCount === 0
+        ? "Choose photos to see exactly how many PDF pages you will get."
+        : "Checked: " + photoCount + " photo" + (photoCount === 1 ? "" : "s") + " will create one PDF with " + photoCount + " page" + (photoCount === 1 ? "" : "s") + ".";
+
+      syncActionAvailability();
+    }
+
+    /** Keep the next button honest: it becomes available only after files exist. */
+    function syncActionAvailability() {
+      dom.convertPdfButton.disabled = state.busy || !state.pdfFile;
+      dom.convertPhotosButton.disabled = state.busy || state.photoFiles.length === 0;
     }
 
     /** Busy state double-click requests rokta aur correct button text dikhata hai. */
     function setBusy(isBusy) {
       state.busy = isBusy;
-      dom.convertPdfButton.disabled = isBusy;
-      dom.convertPhotosButton.disabled = isBusy;
       dom.resetPdfButton.disabled = isBusy;
       dom.resetPhotosButton.disabled = isBusy;
 
@@ -2371,6 +2828,8 @@
         dom.convertPdfButton.textContent = "Create images";
         dom.convertPhotosButton.textContent = "Create PDF";
       }
+
+      syncActionAvailability();
     }
 
     /** Previous result blob remove karta so old settings ka file accidentally download na ho. */
@@ -2386,6 +2845,7 @@
       state.resultFilename = filename;
       dom.resultMessage.textContent = message;
       dom.resultPanel.hidden = false;
+      dom.resultPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
     /** JSON backend error prefer karta; non-JSON response me safe text/status fallback. */
@@ -2409,7 +2869,7 @@
     /** Fetch network errors me user ko Python start karne ka exact next step deta hai. */
     function friendlyNetworkError(error) {
       const detail = error && error.message ? " " + error.message : "";
-      return "Python server was not found. Start the Python file on port 5000, then try again." + detail;
+      return "The converter is not running yet. Start the Python converter on port 5000, then press the button again." + detail;
     }
 
     /*
@@ -2439,6 +2899,38 @@
       updateThemeButton();
     }
 
+    /** Read the currently selected path aloud for users who prefer audio guidance. */
+    function readCurrentInstructions() {
+      if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
+        setStatus("Audio not available", "This browser cannot read instructions aloud. The same steps are written on screen.", "error");
+        return;
+      }
+
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        dom.readPageButton.textContent = "Listen";
+        dom.readPageButton.setAttribute("aria-pressed", "false");
+        return;
+      }
+
+      const isPdfMode = state.mode === "pdf-to-photos";
+      const instruction = isPdfMode
+        ? "You chose: I have a PDF. Add one PDF. We will count its pages. Then press Create images. One PDF page always becomes one image."
+        : "You chose: I have photos. Add your photos. Check their order. Then press Create PDF. One photo always becomes one PDF page.";
+      const resultCheck = isPdfMode ? dom.pdfOutcomePreview.textContent : dom.photosOutcomePreview.textContent;
+      const utterance = new SpeechSynthesisUtterance(instruction + " " + resultCheck);
+      utterance.rate = 0.94;
+      utterance.pitch = 1;
+      utterance.onend = function () {
+        dom.readPageButton.textContent = "Listen";
+        dom.readPageButton.setAttribute("aria-pressed", "false");
+      };
+      utterance.onerror = utterance.onend;
+      dom.readPageButton.textContent = "Stop audio";
+      dom.readPageButton.setAttribute("aria-pressed", "true");
+      window.speechSynthesis.speak(utterance);
+    }
+
     /** Direction choose karte hi one panel, guide copy aur button states update hote hain. */
     function chooseMode(nextMode) {
       if (state.busy) {
@@ -2453,6 +2945,7 @@
       dom.pdfPanel.hidden = !pdfSelected;
       dom.photosPanel.hidden = pdfSelected;
       clearResult();
+      updateOutcomePreview();
 
       if (pdfSelected) {
         dom.guideTitle.textContent = "From PDF to photos";
@@ -2492,6 +2985,7 @@
       dom.pdfFileName.textContent = "document.pdf";
       dom.pdfFileMeta.textContent = "Checking pages…";
       clearResult();
+      updateOutcomePreview();
     }
 
     /** Filename/MIME se basic PDF check; backend later real %PDF header verify karega. */
@@ -2525,10 +3019,12 @@
           state.pdfPages + " page" + (state.pdfPages === 1 ? "" : "s") + " found. " + state.pdfPages + " image" + (state.pdfPages === 1 ? "" : "s") + " will be created.",
           "success"
         );
+        updateOutcomePreview();
       } catch (error) {
         state.pdfPages = null;
         dom.pdfFileMeta.textContent = "Could not verify pages · " + humanFileSize(file.size);
         setStatus("PDF check failed", error.message || friendlyNetworkError(error), "error");
+        updateOutcomePreview();
       }
     }
 
@@ -2550,6 +3046,7 @@
       dom.pdfFileName.textContent = file.name;
       dom.pdfFileMeta.textContent = "Checking pages… · " + humanFileSize(file.size);
       clearResult();
+      updateOutcomePreview();
       inspectPdf(file);
     }
 
@@ -2578,6 +3075,7 @@
       dom.photoQueue.replaceChildren();
       dom.queueHead.hidden = state.photoFiles.length === 0;
       dom.queueCount.textContent = state.photoFiles.length + " / " + MAX_PHOTOS + " images";
+      updateOutcomePreview();
 
       state.photoFiles.forEach(function (file, index) {
         const article = document.createElement("article");
@@ -2715,6 +3213,7 @@
       dom.queueCount.textContent = "0 / " + MAX_PHOTOS + " images";
       dom.pdfOutputName.value = "my_photos";
       clearResult();
+      updateOutcomePreview();
     }
 
     /*
@@ -2924,8 +3423,21 @@
     /** All static handlers one place bind hote, future debugging easy rahe. */
     function bindEvents() {
       dom.themeButton.addEventListener("click", toggleTheme);
+      dom.readPageButton.addEventListener("click", readCurrentInstructions);
       dom.pdfModeButton.addEventListener("click", function () { chooseMode("pdf-to-photos"); });
       dom.photosModeButton.addEventListener("click", function () { chooseMode("photos-to-pdf"); });
+
+      dom.examplePdfChoice.addEventListener("click", function () {
+        chooseMode("pdf-to-photos");
+        dom.examplePdfChoice.closest("details").open = false;
+        dom.pdfPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+
+      dom.examplePhotosChoice.addEventListener("click", function () {
+        chooseMode("photos-to-pdf");
+        dom.examplePhotosChoice.closest("details").open = false;
+        dom.photosPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
 
       dom.pdfInput.addEventListener("change", function () {
         acceptPdfFile(dom.pdfInput.files[0]);
@@ -2956,6 +3468,7 @@
 
       dom.imageFormat.addEventListener("change", function () {
         updateQualityAvailability();
+        updateOutcomePreview();
         clearResult();
       });
 
@@ -2974,7 +3487,12 @@
       prepareDropZone(dom.photosDropZone, addPhotoFiles);
 
       /* Page close par photo preview URLs release; browser memory clean rehti hai. */
-      window.addEventListener("beforeunload", revokePhotoPreviewUrls);
+      window.addEventListener("beforeunload", function () {
+        revokePhotoPreviewUrls();
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
+      });
     }
 
     /*
@@ -2986,6 +3504,7 @@
     function initializePage() {
       updateThemeButton();
       updateQualityAvailability();
+      updateOutcomePreview();
       bindEvents();
       checkBackend();
       chooseMode("pdf-to-photos");
