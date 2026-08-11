@@ -1,11 +1,3517 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<!--
+  ============================================================================
+  PAPER LOOP // PDF ↔ PHOTOS FRONTEND
+  ============================================================================
+
+  KYA HAI:
+      Yeh ek NAYA standalone HTML page hai. Iske andar HTML structure, CSS design
+      aur JavaScript working — teeno isi ek file me hain. Yeh Python backend ke
+      naye document-converter routes ko call karta hai:
+
+        • PDF → PHOTOS:  POST /inspect-document aur POST /document-to-images
+        • PHOTOS → PDF:  POST /images-to-pdf
+        • ENGINE CHECK: GET  /document-converter-info
+
+  KYUN BANAYA:
+      Technical route names ko simple teen-step experience me badalne ke liye:
+      “Choose → Check → Download”. Bachcha ya non-technical user bhi direction,
+      file limit aur result ko bina code samjhe use kar sake.
+
+  PYTHON FILE PAR ASAR:
+      Zero direct effect. Yeh HTML Python source ko edit/import nahi karta.
+      JavaScript sirf http://127.0.0.1:5000 par HTTP request bhejta hai. Python
+      server off ho to friendly “engine offline” message aayega; Python file
+      delete/change nahi hogi.
+
+  ORIGINAL PROJECT THEME + SIMPLE UX:
+      Project ki midnight navy, cyan, violet, copper aur warm paper palette
+      preserve ki gayi hai. Navigation ko simple rakha gaya hai, lekin visual
+      identity, gradient accents aur dark first-view project ke same hain.
+
+  IMPORTANT BACKEND START:
+      Pehle terminal me updated Python file run karo. Default backend URL neeche
+      JavaScript constant API_BASE me hai. Port change ho to sirf wahi constant
+      update karna hai.
+  ============================================================================
+-->
+<html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <!-- UTF-8 Hinglish, arrows aur symbols ko correct render karta hai. -->
+  <meta charset="utf-8">
+
+  <!-- Mobile screen par actual device-width use hoti hai; desktop layout squeeze nahi hota. -->
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <!-- Browser tab ka naam; backend conversion par iska koi effect nahi. -->
+  <title>Paper Loop — PDF & Image Converter</title>
+
+  <!-- Search/browser description; sirf frontend metadata hai. -->
+  <meta name="description" content="A simple tool to turn PDF pages into images or join images into one PDF.">
+
+  <!--
+    KYA: Browser first paint se pehle saved theme read karta hai.
+    KYUN: Dark/light switch ke waqt page reload par unwanted white flash nahi hota.
+    CHANGE EFFECT: Storage key change karoge to reference pages ka shared theme
+                   preference is page par automatically reuse nahi hoga.
+    PYTHON EFFECT: Zero; localStorage browser ke andar rehta hai.
+  -->
+  <script id="theme-bootstrap">
+    try {
+      document.documentElement.dataset.theme = localStorage.getItem("imageReducerTheme") || "dark";
+    } catch (error) {
+      /* Restricted/private storage me read fail ho to original dark theme fallback. */
+      document.documentElement.dataset.theme = "dark";
+    }
+  </script>
+
+  <style>
+    /*
+      ========================================================================
+      01 // FONTS + THEME CONSTANTS
+      KYA: Repeated colors/sizes ko variables me rakhte hain.
+      KYUN: Future me theme tune karne ke liye hundreds CSS lines edit nahi karni.
+      CHANGE EFFECT: Ek variable badalne se us color ka poora visual family badlega.
+      PYTHON EFFECT: Zero; CSS sirf browser pixels control karta hai.
+      ========================================================================
+    */
+    @import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap");
+
+    :root {
+      color-scheme: dark;
+      --night: #080814;
+      --surface: #17172d;
+      --surface-deep: #101126;
+      --surface-soft: rgba(27,29,63,.76);
+      --surface-softer: rgba(255,255,255,.045);
+      --text: #f8f6f2;
+      --muted: #b7bdd6;
+      --line: rgba(255,255,255,.16);
+      --line-strong: rgba(255,255,255,.28);
+      --cyan: #64e4f4;
+      --violet: #9f83ff;
+      --copper: #d47d54;
+      --paper: #f5eee3;
+      --paper-ink: #17192b;
+      --danger: #ff9aa2;
+      --success: #6de1ba;
+      --shadow-cyan: rgba(100,228,244,.15);
+      --shadow-violet: rgba(159,131,255,.16);
+      --shadow-copper: rgba(212,125,84,.17);
+      --page-width: 1280px;
+    }
+
+    /*
+      Light mode same theme ko bright surfaces par translate karta hai.
+      Layout, API values, file limits aur conversion result bilkul nahi badalte.
+    */
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --night: #f5f2ea;
+      --surface: #ffffff;
+      --surface-deep: #f2f0f8;
+      --surface-soft: rgba(255,255,255,.9);
+      --surface-softer: rgba(23,25,43,.045);
+      --text: #17192b;
+      --muted: #586178;
+      --line: rgba(28,34,57,.18);
+      --line-strong: rgba(28,34,57,.31);
+      --cyan: #007d8f;
+      --violet: #684cc0;
+      --copper: #ad4827;
+      --paper: #ffffff;
+      --paper-ink: #17192b;
+      --danger: #b4232d;
+      --success: #087a5d;
+      --shadow-cyan: #d5e8ea;
+      --shadow-violet: #ddd6ef;
+      --shadow-copper: #ecd7ce;
+    }
+
+    /*
+      ========================================================================
+      02 // RESET + ACCESSIBILITY FOUNDATION
+      KYA: Browser defaults predictable aur keyboard navigation visible banata hai.
+      CHANGE EFFECT: box-sizing remove karne se padding widths me add hokar overflow karegi.
+      ========================================================================
+    */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 118px; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 16% 5%,rgba(100,228,244,.13),transparent 28%),
+        radial-gradient(circle at 86% 16%,rgba(159,131,255,.18),transparent 31%),
+        var(--night);
+      font-family: Manrope,Arial,sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Light theme me same radial composition lower contrast colors use karti hai. */
+    :root[data-theme="light"] body {
+      background:
+        radial-gradient(circle at 16% 5%,rgba(0,125,143,.10),transparent 28%),
+        radial-gradient(circle at 86% 16%,rgba(104,76,192,.10),transparent 31%),
+        var(--night);
+    }
+
+    button, input, select { font: inherit; }
+    button, label, a { -webkit-tap-highlight-color: transparent; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .48; }
+    a { color: inherit; }
+    img { max-width: 100%; }
+
+    /* Keyboard user ko selected control clearly dikhna chahiye; outline kabhi hide nahi. */
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    a:focus-visible,
+    [tabindex]:focus-visible,
+    label:focus-within {
+      outline: 3px solid var(--cyan);
+      outline-offset: 4px;
+    }
+
+    /* Screen-reader text visual layout me space nahi leta, par accessibility tree me present rehta hai. */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Hidden attribute CSS display se stronger banaya; result/panels reliably hide honge. */
+    [hidden] { display: none !important; }
+
+    /* Shared page width desktop par capped, mobile par 17px side breathing room. */
+    .wrap { width: min(var(--page-width),calc(100% - 34px)); margin-inline: auto; }
+
+    /*
+      ========================================================================
+      03 // HEADER
+      KYA: Brand, backend health aur theme toggle ek calm sticky bar me.
+      KYUN: User scroll karne ke baad bhi engine state dekh sakta hai.
+      ========================================================================
+    */
+    .site-header {
+      position: sticky;
+      top: 16px;
+      z-index: 80;
+      width: min(var(--page-width),calc(100% - 34px));
+      margin: 16px auto 0;
+      border: 1px solid var(--line);
+      border-radius: 24px 24px 58px 24px;
+      background: rgba(10,10,25,.84);
+      box-shadow: 0 22px 70px rgba(0,0,0,.36);
+      backdrop-filter: blur(26px);
+    }
+
+    /* Light header opaque-ish white hota hai taaki background text ke through na dikhe. */
+    :root[data-theme="light"] .site-header {
+      background: rgba(255,255,255,.91);
+      box-shadow: 0 22px 70px rgba(36,42,67,.13);
+    }
+
+    .header-inner {
+      min-height: 80px;
+      padding: 12px 20px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .brand-mark {
+      width: 50px;
+      height: 50px;
+      display: grid;
+      place-items: center;
+      color: #111326;
+      background: linear-gradient(145deg,var(--cyan),var(--violet) 58%,var(--copper));
+      border-radius: 50% 50% 12px 12px;
+      box-shadow: 0 0 28px rgba(100,228,244,.25);
+      font: italic 400 20px/1 "Instrument Serif",Georgia,serif;
+      transform: rotate(-3deg);
+    }
+
+    .brand-copy b {
+      display: block;
+      color: var(--text);
+      font: italic 400 29px/1 "Instrument Serif",Georgia,serif;
+      letter-spacing: -.025em;
+    }
+
+    .brand-copy small {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: .12em;
+    }
+
+    .header-promise {
+      justify-self: center;
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+
+    .engine-chip {
+      min-height: 40px;
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--surface-softer);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      white-space: nowrap;
+    }
+
+    /* Dot default checking/offline copper hai; online par JS class add karega. */
+    .engine-chip i {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--copper);
+      box-shadow: 0 0 0 4px rgba(212,125,84,.10);
+    }
+
+    .engine-chip.is-online { color: var(--cyan); }
+    .engine-chip.is-online i {
+      background: var(--cyan);
+      box-shadow: 0 0 0 4px rgba(100,228,244,.10),0 0 16px var(--cyan);
+    }
+
+    .theme-button {
+      min-width: 44px;
+      min-height: 40px;
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      color: var(--text);
+      background: var(--surface-softer);
+      box-shadow: 5px 6px 0 var(--shadow-violet);
+      font-size: 16px;
+    }
+
+    .theme-button:hover { border-color: var(--violet); transform: translateY(-2px); }
+
+    /*
+      ========================================================================
+      04 // HERO
+      KYA: Tool ka purpose aur two-way relation instantly explain hota hai.
+      KYUN: User ko technical endpoint names nahi padhne padte.
+      ========================================================================
+    */
+    .hero { padding: 82px 0 54px; }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: .86fr 1.14fr;
+      align-items: center;
+      gap: clamp(34px,5vw,72px);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 20px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .13em;
+    }
+
+    .eyebrow i {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 18px var(--cyan);
+    }
+
+    .hero h1 {
+      max-width: 680px;
+      margin: 0;
+      color: var(--text);
+      font: 600 clamp(50px,6vw,86px)/.92 Fraunces,Georgia,serif;
+      letter-spacing: -.055em;
+    }
+
+    .hero h1 span {
+      color: transparent;
+      background: linear-gradient(110deg,var(--cyan),var(--violet),var(--copper));
+      background-clip: text;
+      -webkit-background-clip: text;
+    }
+
+    .hero-copy > p {
+      max-width: 620px;
+      margin: 24px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.75;
+    }
+
+    .hero-actions {
+      margin-top: 30px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .primary-link,
+    .quiet-link {
+      min-height: 48px;
+      padding: 0 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-decoration: none;
+    }
+
+    .primary-link {
+      color: #111326;
+      background: var(--cyan);
+      box-shadow: 7px 8px 0 var(--shadow-violet);
+    }
+
+    .quiet-link { border: 1px solid var(--line); color: var(--text); background: var(--surface-softer); }
+    .primary-link:hover,
+    .quiet-link:hover { transform: translateY(-3px); }
+
+    .hero-visual {
+      position: relative;
+      min-height: 480px;
+      padding: 18px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 150px 150px 34px 34px;
+      background: linear-gradient(180deg,rgba(159,131,255,.10),rgba(16,17,38,.72));
+      box-shadow: 18px 22px 0 var(--shadow-copper),0 34px 90px rgba(0,0,0,.30);
+    }
+
+    :root[data-theme="light"] .hero-visual { background: linear-gradient(180deg,#f2f0f8,#e9edf4); }
+
+    /*
+      Hero illustration pure HTML/CSS hai — koi raster image/file load nahi hoti.
+      Isse final HTML genuinely single-file rehta aur offline layout bhi complete hota hai.
+    */
+    .journey-scene {
+      position: relative;
+      min-height: 444px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 132px 132px 22px 22px;
+      background:
+        linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px),
+        radial-gradient(circle at 50% 38%,rgba(100,228,244,.12),transparent 34%),
+        var(--surface-deep);
+      background-size: 28px 28px,28px 28px,auto,auto;
+    }
+
+    /* Two stacks center ke around balanced hain; arrows unka two-way relation dikhate hain. */
+    .paper-stack,
+    .photo-stack-visual {
+      position: absolute;
+      top: 50%;
+      width: 170px;
+      height: 205px;
+      transform: translateY(-50%);
+    }
+
+    .paper-stack { left: 11%; }
+    .photo-stack-visual { right: 10%; }
+
+    /* Common sheet/card absolute position se layered depth create hoti hai. */
+    .paper-sheet,
+    .photo-card-visual {
+      position: absolute;
+      inset: 0;
+      border: 1px solid rgba(23,25,43,.18);
+      background: var(--paper);
+      box-shadow: 0 18px 35px rgba(0,0,0,.20);
+    }
+
+    .paper-sheet { border-radius: 18px 18px 7px 7px; }
+    .paper-sheet:nth-child(1) { transform: translate(-20px,13px) rotate(-7deg); opacity: .72; }
+    .paper-sheet:nth-child(2) { transform: translate(18px,8px) rotate(6deg); opacity: .88; }
+    .paper-sheet:nth-child(3) { display: grid; place-items: center; transform: rotate(-1deg); }
+
+    /* CSS lines document content ka abstract signal hain; actual user text copy nahi. */
+    .paper-lines {
+      width: 68%;
+      height: 48%;
+      border-radius: 8px;
+      background:
+        linear-gradient(var(--copper),var(--copper)) 0 0 / 45% 18% no-repeat,
+        repeating-linear-gradient(180deg,rgba(23,25,43,.30) 0 5px,transparent 5px 18px);
+    }
+
+    .photo-card-visual { padding: 12px; border-radius: 12px; }
+    .photo-card-visual:nth-child(1) { transform: translate(-19px,10px) rotate(-7deg); }
+    .photo-card-visual:nth-child(2) { transform: translate(18px,6px) rotate(7deg); }
+    .photo-card-visual:nth-child(3) { transform: rotate(1deg); }
+
+    /* Each photo surface CSS gradient landscape hai; no external image dependency. */
+    .photo-card-visual::before {
+      content: "";
+      display: block;
+      width: 100%;
+      height: 75%;
+      border-radius: 7px;
+      background:
+        radial-gradient(circle at 72% 25%,#f5c696 0 9%,transparent 10%),
+        linear-gradient(145deg,transparent 54%,rgba(104,76,192,.72) 55% 72%,transparent 73%),
+        linear-gradient(35deg,rgba(0,125,143,.62) 0 42%,transparent 43%),
+        linear-gradient(180deg,#b9ccef,#efd2b5);
+    }
+
+    /* Arrows plain text symbols hain; controls nahi, isliye aria-hidden markup me hai. */
+    .journey-arrow {
+      position: absolute;
+      left: 50%;
+      width: 124px;
+      color: var(--cyan);
+      font: 500 58px/1 Fraunces,Georgia,serif;
+      text-align: center;
+      transform: translateX(-50%);
+      text-shadow: 0 0 24px rgba(100,228,244,.28);
+    }
+
+    .journey-arrow.is-forward { top: 28%; }
+    .journey-arrow.is-back { bottom: 25%; color: var(--violet); transform: translateX(-50%) rotate(180deg); }
+
+    /* Center badge main invariant dikhata: count remains equal. */
+    .same-count-badge {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      min-width: 96px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--text);
+      background: rgba(16,17,38,.88);
+      box-shadow: 6px 7px 0 var(--shadow-copper);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-align: center;
+      transform: translate(-50%,-50%);
+    }
+
+    :root[data-theme="light"] .same-count-badge { background: rgba(255,255,255,.92); }
+
+    .hero-visual-note {
+      position: absolute;
+      right: 28px;
+      bottom: 28px;
+      max-width: 230px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      color: var(--text);
+      background: rgba(16,17,38,.86);
+      box-shadow: 7px 8px 0 rgba(100,228,244,.18);
+      backdrop-filter: blur(16px);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    :root[data-theme="light"] .hero-visual-note { background: rgba(255,255,255,.88); }
+
+    /*
+      ========================================================================
+      05 // MAIN CONVERTER DESK
+      KYA: Direction, upload, options, status aur result ek focused workspace me.
+      KYUN: Separate pages/navigation ki zarurat nahi; user context lose nahi karta.
+      ========================================================================
+    */
+    .converter-section { padding: 58px 0 100px; }
+
+    .section-heading {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 28px;
+      margin-bottom: 24px;
+    }
+
+    .section-heading small {
+      color: var(--copper);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .13em;
+    }
+
+    .section-heading h2 {
+      margin: 8px 0 0;
+      font: 600 clamp(38px,4vw,60px)/.96 Fraunces,Georgia,serif;
+      letter-spacing: -.045em;
+    }
+
+    .section-heading p {
+      max-width: 420px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+      text-align: right;
+    }
+
+    .converter-desk {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 34px;
+      background: linear-gradient(145deg,rgba(24,26,56,.93),rgba(10,11,27,.97));
+      box-shadow: 18px 22px 0 var(--shadow-violet),0 38px 95px rgba(0,0,0,.27);
+    }
+
+    :root[data-theme="light"] .converter-desk { background: linear-gradient(145deg,#ffffff,#f2f0f8); }
+
+    /* Direction rail is UI ka first decision; selected button visually clear hai. */
+    .direction-rail {
+      padding: 18px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: stretch;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.025);
+    }
+
+    .direction-button {
+      min-height: 94px;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 14px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      color: var(--muted);
+      background: transparent;
+      text-align: left;
+      transition: transform .2s ease,border-color .2s ease,background .2s ease;
+    }
+
+    .direction-button:hover { transform: translateY(-2px); border-color: var(--line-strong); }
+
+    .direction-button[aria-pressed="true"] {
+      color: var(--text);
+      border-color: rgba(100,228,244,.42);
+      background: rgba(100,228,244,.075);
+      box-shadow: inset 0 -4px 0 var(--cyan),8px 9px 0 var(--shadow-cyan);
+    }
+
+    .direction-icon {
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      border-radius: 17px;
+      color: #111326;
+      background: var(--paper);
+      font: 600 17px/1 Fraunces,Georgia,serif;
+    }
+
+    .direction-button[aria-pressed="true"] .direction-icon { background: var(--cyan); }
+
+    .direction-button b { display: block; font-size: 15px; }
+    .direction-button small { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+
+    .direction-swap {
+      align-self: center;
+      color: var(--violet);
+      font: 500 30px/1 Fraunces,Georgia,serif;
+    }
+
+    .desk-body {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) 310px;
+      min-height: 600px;
+    }
+
+    .work-panel { min-width: 0; padding: clamp(24px,4vw,48px); }
+
+    .side-guide {
+      padding: 34px 26px;
+      border-left: 1px solid var(--line);
+      background: rgba(255,255,255,.025);
+    }
+
+    .side-guide > small {
+      color: var(--copper);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .13em;
+    }
+
+    .side-guide h3 {
+      margin: 9px 0 24px;
+      font: 600 28px/1 Fraunces,Georgia,serif;
+    }
+
+    .guide-step {
+      position: relative;
+      padding: 0 0 26px 48px;
+    }
+
+    .guide-step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: 17px;
+      top: 37px;
+      bottom: 4px;
+      width: 1px;
+      background: var(--line);
+    }
+
+    .guide-number {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      color: var(--cyan);
+      background: var(--surface-deep);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .guide-step b { display: block; font-size: 12px; }
+    .guide-step p { margin: 7px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+
+    .limit-note {
+      margin-top: 16px;
+      padding: 15px;
+      border: 1px solid rgba(212,125,84,.30);
+      border-radius: 16px;
+      color: var(--muted);
+      background: rgba(212,125,84,.06);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    /*
+      ========================================================================
+      06 // UPLOAD ZONES
+      KYA: Large tap/drop targets file selection ko simple banate hain.
+      CHANGE EFFECT: min-height kam karoge to mobile/touch use difficult ho sakta hai.
+      ========================================================================
+    */
+    .panel-kicker {
+      margin: 0 0 8px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .12em;
+    }
+
+    .panel-title {
+      margin: 0;
+      font: 600 clamp(30px,3.5vw,44px)/1 Fraunces,Georgia,serif;
+      letter-spacing: -.035em;
+    }
+
+    .panel-intro {
+      max-width: 700px;
+      margin: 12px 0 24px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .upload-zone {
+      min-height: 230px;
+      padding: 28px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 12px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 28px;
+      color: var(--text);
+      background:
+        linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px),
+        rgba(255,255,255,.025);
+      background-size: 24px 24px,24px 24px,auto;
+      text-align: center;
+      transition: border-color .2s ease,background .2s ease,transform .2s ease;
+    }
+
+    :root[data-theme="light"] .upload-zone {
+      background:
+        linear-gradient(rgba(23,25,43,.045) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(23,25,43,.045) 1px,transparent 1px),
+        rgba(23,25,43,.02);
+      background-size: 24px 24px,24px 24px,auto;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.is-dragging {
+      border-color: var(--cyan);
+      background-color: rgba(100,228,244,.055);
+      transform: translateY(-2px);
+    }
+
+    .upload-symbol {
+      width: 76px;
+      height: 76px;
+      display: grid;
+      place-items: center;
+      border-radius: 50% 50% 18px 18px;
+      color: #111326;
+      background: linear-gradient(145deg,var(--cyan),var(--violet));
+      box-shadow: 8px 9px 0 var(--shadow-copper);
+      font: 600 22px/1 Fraunces,Georgia,serif;
+      transform: rotate(-2deg);
+    }
+
+    .upload-zone b { font-size: 16px; }
+    .upload-zone span { color: var(--muted); font-size: 12px; }
+    .upload-zone em { color: var(--cyan); font-style: normal; font-weight: 700; }
+
+    /* Real file input visually hidden hai; label click aur keyboard focus usko activate karta hai. */
+    .file-input-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Selected PDF summary upload zone ke baad exact name/pages/size dikhata hai. */
+    .file-summary {
+      margin-top: 18px;
+      padding: 16px 18px;
+      display: grid;
+      grid-template-columns: auto minmax(0,1fr) auto;
+      align-items: center;
+      gap: 14px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface-softer);
+    }
+
+    .file-summary-icon {
+      width: 48px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px 12px 5px 5px;
+      color: var(--paper-ink);
+      background: var(--paper);
+      font: 600 13px/1 Fraunces,Georgia,serif;
+    }
+
+    .file-summary b,
+    .file-summary small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-summary b { font-size: 13px; }
+    .file-summary small { margin-top: 5px; color: var(--muted); font-size: 10px; }
+
+    .icon-button {
+      min-width: 38px;
+      min-height: 38px;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: var(--text);
+      background: transparent;
+      font-size: 13px;
+    }
+
+    .icon-button:hover { border-color: var(--copper); color: var(--copper); }
+
+    /*
+      ========================================================================
+      07 // FORM CONTROLS + ACTIONS
+      KYA: Format, DPI, quality aur name ko readable groups me arrange karta hai.
+      KYUN: Ek lambi confusing row ke bajaye labels aur help text close rehte hain.
+      ========================================================================
+    */
+    .settings-grid {
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: repeat(2,minmax(0,1fr));
+      gap: 16px;
+    }
+
+    .field-group {
+      min-width: 0;
+      padding: 16px;
+      border-block: 1px solid var(--line);
+    }
+
+    .field-group label,
+    .field-group legend {
+      display: block;
+      margin: 0 0 8px;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .field-group small {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .control,
+    .select-control {
+      width: 100%;
+      min-height: 46px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--text);
+      background: var(--surface-deep);
+    }
+
+    .range-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; }
+    .range-row output { min-width: 48px; color: var(--cyan); font-size: 12px; font-weight: 700; text-align: right; }
+    .range-control { width: 100%; accent-color: var(--cyan); }
+
+    .dpi-choices {
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      gap: 8px;
+    }
+
+    .dpi-choice { position: relative; }
+    .dpi-choice input { position: absolute; opacity: 0; pointer-events: none; }
+    .dpi-choice label {
+      min-height: 58px;
+      margin: 0;
+      padding: 10px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 4px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--muted);
+      background: transparent;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .dpi-choice label b { color: var(--text); font-size: 11px; }
+    .dpi-choice label span { font-size: 9px; }
+    .dpi-choice input:checked + label {
+      border-color: rgba(100,228,244,.42);
+      color: var(--cyan);
+      background: rgba(100,228,244,.075);
+      box-shadow: inset 0 -3px 0 var(--cyan);
+    }
+
+    .action-row {
+      margin-top: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .convert-button,
+    .download-button,
+    .secondary-button {
+      min-height: 50px;
+      padding: 0 20px;
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .055em;
+    }
+
+    .convert-button {
+      flex: 1 1 260px;
+      border: 0;
+      color: #111326;
+      background: linear-gradient(110deg,var(--cyan),#9debf4 55%,var(--violet));
+      box-shadow: 7px 8px 0 var(--shadow-copper);
+    }
+
+    .convert-button:hover:not(:disabled) { transform: translateY(-3px); }
+
+    .secondary-button {
+      border: 1px solid var(--line);
+      color: var(--text);
+      background: transparent;
+    }
+
+    .secondary-button:hover:not(:disabled) { border-color: var(--violet); }
+
+    /*
+      ========================================================================
+      08 // PHOTO QUEUE
+      KYA: Photos thumbnails upload order me dikhte; arrows/removal se PDF order edit.
+      KYUN: Backend input order ko PDF page order banata hai, so visible ordering essential hai.
+      ========================================================================
+    */
+    .queue-head {
+      margin-top: 22px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .queue-head b { font-size: 13px; }
+    .queue-count {
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--cyan);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .photo-queue {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3,minmax(0,1fr));
+      gap: 12px;
+    }
+
+    .photo-item {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface-softer);
+    }
+
+    .photo-thumb {
+      position: relative;
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      color: var(--paper-ink);
+      background: var(--paper);
+    }
+
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-thumb span { font: 600 18px/1 Fraunces,Georgia,serif; }
+
+    .photo-number {
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      min-width: 28px;
+      height: 28px;
+      padding: 0 7px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: #111326;
+      background: var(--cyan);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .photo-info { padding: 11px; }
+    .photo-info b,
+    .photo-info small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .photo-info b { font-size: 11px; }
+    .photo-info small { margin-top: 4px; color: var(--muted); font-size: 9px; }
+
+    .photo-actions {
+      margin-top: 9px;
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      gap: 5px;
+    }
+
+    .photo-actions button {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      color: var(--text);
+      background: transparent;
+      font-size: 11px;
+    }
+
+    .photo-actions button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+    .photo-actions button:last-child:hover { border-color: var(--danger); color: var(--danger); }
+
+    /*
+      ========================================================================
+      09 // STATUS, PROGRESS AUR RESULT
+      KYA: Backend working/error/success ko plain language me visible rakhta hai.
+      KYUN: Silent waiting user ko broken feeling deta; live region feedback essential hai.
+      ========================================================================
+    */
+    .status-panel {
+      margin-top: 24px;
+      padding: 16px 18px;
+      display: grid;
+      grid-template-columns: auto minmax(0,1fr);
+      gap: 13px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      color: var(--muted);
+      background: rgba(255,255,255,.025);
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      margin-top: 3px;
+      border-radius: 50%;
+      background: var(--violet);
+      box-shadow: 0 0 0 5px rgba(159,131,255,.10);
+    }
+
+    .status-panel.is-working .status-dot { background: var(--cyan); animation: statusPulse .8s ease-in-out infinite alternate; }
+    .status-panel.is-success .status-dot { background: var(--success); box-shadow: 0 0 0 5px rgba(109,225,186,.10); }
+    .status-panel.is-error .status-dot { background: var(--danger); box-shadow: 0 0 0 5px rgba(255,154,162,.10); }
+
+    .status-panel b { display: block; color: var(--text); font-size: 12px; }
+    .status-panel p { margin: 5px 0 0; font-size: 11px; line-height: 1.55; }
+
+    @keyframes statusPulse { to { transform: scale(.62); opacity: .55; } }
+
+    .result-panel {
+      margin-top: 16px;
+      padding: 18px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 16px;
+      border: 1px solid rgba(109,225,186,.28);
+      border-radius: 18px;
+      background: rgba(109,225,186,.06);
+    }
+
+    .result-panel b { display: block; color: var(--success); font-size: 13px; }
+    .result-panel p { margin: 6px 0 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+
+    .download-button {
+      border: 0;
+      color: #111326;
+      background: var(--success);
+      box-shadow: 6px 7px 0 var(--shadow-violet);
+    }
+
+    .download-button:hover { transform: translateY(-2px); }
+
+    /*
+      ========================================================================
+      10 // SIMPLE EXPLANATION + FOOTER
+      KYA: Converter ke neeche trust/limit reminders without clutter.
+      ========================================================================
+    */
+    .trust-strip {
+      padding: 34px 0 90px;
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      gap: 18px;
+    }
+
+    .trust-item {
+      padding: 24px 0;
+      border-block: 1px solid var(--line);
+    }
+
+    .trust-item span { color: var(--cyan); font: 500 28px/1 Fraunces,Georgia,serif; }
+    .trust-item b { display: block; margin-top: 13px; font-size: 13px; }
+    .trust-item p { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+
+    .site-footer {
+      padding: 26px 0 34px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .footer-inner { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; }
+    .footer-inner b { color: var(--text); font: italic 400 22px/1 "Instrument Serif",Georgia,serif; }
+
+    /*
+      ========================================================================
+      11 // RESPONSIVE + REDUCED MOTION
+      KYA: Tablet/mobile par columns stack aur touch controls roomy rehte hain.
+      CHANGE EFFECT: Breakpoints badalne se kis width par stack hoga woh badlega.
+      ========================================================================
+    */
+    @media (max-width: 980px) {
+      .header-promise { display: none; }
+      .hero-grid { grid-template-columns: 1fr; }
+      .hero-visual { min-height: 420px; }
+      .journey-scene { min-height: 384px; }
+      .desk-body { grid-template-columns: 1fr; }
+      .side-guide { border-left: 0; border-top: 1px solid var(--line); }
+      .photo-queue { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    }
+
+    @media (max-width: 680px) {
+      html { scroll-padding-top: 92px; }
+      .site-header { top: 8px; width: calc(100% - 18px); margin-top: 8px; border-radius: 18px 18px 38px 18px; }
+      .header-inner { min-height: 68px; padding: 9px 12px; grid-template-columns: 1fr auto; gap: 10px; }
+      .brand-mark { width: 44px; height: 44px; }
+      .brand-copy b { font-size: 24px; }
+      .brand-copy small { display: none; }
+      .engine-chip { display: none; }
+      .hero { padding: 58px 0 36px; }
+      .hero h1 { font-size: clamp(45px,14vw,66px); }
+      .hero-visual { min-height: 330px; padding: 10px; border-radius: 90px 90px 26px 26px; }
+      .journey-scene { min-height: 308px; border-radius: 80px 80px 18px 18px; }
+      .paper-stack,.photo-stack-visual { width: 110px; height: 140px; }
+      .paper-stack { left: 10%; }
+      .photo-stack-visual { right: 9%; }
+      .journey-arrow { width: 82px; font-size: 40px; }
+      .hero-visual-note { right: 18px; bottom: 18px; left: 18px; max-width: none; }
+      .section-heading { grid-template-columns: 1fr; }
+      .section-heading p { text-align: left; }
+      .converter-desk { border-radius: 24px; }
+      .direction-rail { grid-template-columns: 1fr; }
+      .direction-swap { justify-self: center; transform: rotate(90deg); }
+      .work-panel { padding: 24px 18px; }
+      .settings-grid { grid-template-columns: 1fr; }
+      .dpi-choices { grid-template-columns: 1fr; }
+      .dpi-choice label { min-height: 50px; grid-template-columns: auto auto; justify-content: center; }
+      .photo-queue { grid-template-columns: 1fr; }
+      .result-panel { grid-template-columns: 1fr; }
+      .download-button { width: 100%; }
+      .trust-strip { grid-template-columns: 1fr; }
+    }
+
+    /* Motion sensitivity setting par loops/transitions nearly instant ho jaate hain. */
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+    }
+
+    /*
+      ========================================================================
+      14 // SIMPLE UI REVISION — USER FEEDBACK UPDATE
+      ========================================================================
+
+      KYA BADLA:
+          Neeche ke rules working layout ko simpler hierarchy dete hain. Backend
+          IDs, form fields, routes aur JavaScript same hain, isliye Python
+          conversion par koi effect nahi padega.
+
+      KYA PRESERVE HUA:
+          Original project ke midnight navy, cyan, violet, copper, warm paper,
+          Aurora background aur Fraunces/Manrope typography exactly visual base
+          rehte hain. Sirf unnecessary complexity remove hui hai.
+
+      FUTURE CHANGE:
+          Theme colors top variables me hain. In values ko change karne se poore
+          project ki identity badlegi, isliye normal UI edits ke time inhe same
+          rehne dein.
+      ========================================================================
+    */
+    :root,
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --night: #080814;
+      --surface: #17172d;
+      --surface-deep: #101126;
+      --surface-soft: rgba(27,29,63,.76);
+      --surface-softer: rgba(255,255,255,.045);
+      --text: #f8f6f2;
+      --muted: #b7bdd6;
+      --line: rgba(255,255,255,.16);
+      --line-strong: rgba(255,255,255,.28);
+      --cyan: #64e4f4;
+      --violet: #9f83ff;
+      --copper: #d47d54;
+      --paper: #f5eee3;
+      --paper-ink: #17192b;
+      --danger: #ff8d95;
+      --success: #6de1ba;
+      --shadow-cyan: rgba(100,228,244,.15);
+      --shadow-violet: rgba(159,131,255,.16);
+      --shadow-copper: rgba(212,125,84,.17);
+      --page-width: 1040px;
+    }
+
+    /*
+      Optional light mode original project ke official light values use karta hai.
+      First visit dark hi hoti hai; theme button user preference save karta hai.
+    */
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --night: #f5f2ea;
+      --surface: #ffffff;
+      --surface-deep: #f2f0f8;
+      --surface-soft: rgba(255,255,255,.90);
+      --surface-softer: rgba(23,25,43,.045);
+      --text: #17192b;
+      --muted: #586178;
+      --line: rgba(28,34,57,.18);
+      --line-strong: rgba(28,34,57,.31);
+      --cyan: #007d8f;
+      --violet: #684cc0;
+      --copper: #ad4827;
+      --paper: #ffffff;
+      --paper-ink: #17192b;
+      --danger: #b4232d;
+      --success: #087a5d;
+      --shadow-cyan: #d5e8ea;
+      --shadow-violet: #ddd6ef;
+      --shadow-copper: #ecd7ce;
+    }
+
+    /*
+      Body par original soft Aurora clouds preserve hain. Low opacity colors
+      theme ko recognizable rakhte hain without text readability reduce kiye.
+    */
+    body,
+    :root[data-theme="dark"] body {
+      background:
+        radial-gradient(circle at 16% 7%,rgba(100,228,244,.14),transparent 28%),
+        radial-gradient(circle at 86% 19%,rgba(159,131,255,.20),transparent 30%),
+        var(--night);
+      font-family: Manrope, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    :root[data-theme="light"] body {
+      background:
+        radial-gradient(circle at 16% 7%,rgba(0,125,143,.10),transparent 28%),
+        radial-gradient(circle at 86% 19%,rgba(104,76,192,.10),transparent 30%),
+        var(--night);
+    }
+
+    /*
+      Header original floating glass style use karta hai. Controls kam hain,
+      isliye theme strong rehti hai without navigation complex bane.
+    */
+    .site-header,
+    :root[data-theme="dark"] .site-header {
+      top: 16px;
+      width: min(var(--page-width), calc(100% - 34px));
+      margin: 16px auto 0;
+      border: 1px solid var(--line);
+      border-radius: 24px 24px 54px 24px;
+      background: rgba(10,10,25,.84);
+      box-shadow: 0 22px 70px rgba(0,0,0,.34);
+      backdrop-filter: blur(24px);
+    }
+
+    :root[data-theme="light"] .site-header {
+      background: rgba(255,255,255,.91);
+      box-shadow: 0 22px 70px rgba(36,42,67,.14);
+    }
+
+    /* Header contents converter width ke saath align rehte hain. */
+    .header-inner {
+      width: min(var(--page-width), calc(100% - 34px));
+      min-height: 72px;
+      margin-inline: auto;
+      padding: 10px 0;
+    }
+
+    /* Original three-color brand mark project identity preserve karta hai. */
+    .brand-mark {
+      width: 46px;
+      height: 46px;
+      border: 0;
+      border-radius: 50% 50% 13px 13px;
+      color: #111326;
+      background: linear-gradient(145deg,var(--cyan),var(--violet) 58%,var(--copper));
+      box-shadow: 6px 7px 0 var(--shadow-cyan);
+      transform: rotate(-2deg);
+      font: 700 15px/1 Manrope, Arial, sans-serif;
+    }
+
+    .brand-copy b {
+      color: var(--text);
+      font: 600 22px/1.1 Fraunces, Georgia, serif;
+      letter-spacing: -.02em;
+    }
+
+    .brand-copy small {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: .04em;
+    }
+
+    /* Header sentence short aur normal case me hai; all-caps reading load hata diya. */
+    .header-promise {
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .engine-chip {
+      border-color: var(--line);
+      color: var(--muted);
+      background: rgba(255,255,255,.045);
+      font-size: 11px;
+      letter-spacing: 0;
+    }
+
+    .engine-chip.is-online { color: var(--success); }
+
+    .theme-button {
+      width: 40px;
+      height: 40px;
+      border-color: var(--line);
+      border-radius: 12px;
+      color: var(--text);
+      background: rgba(255,255,255,.045);
+      box-shadow: none;
+    }
+
+    .theme-button:hover { border-color: var(--violet); transform: translateY(-2px); }
+
+    /*
+      Hero sirf direct outcome batata hai. Large artistic illustration aur extra
+      links hide hain, taaki first screen par upload tool jaldi dikhe.
+    */
+    .hero { padding: 54px 0 26px; }
+
+    .hero-grid {
+      display: block;
+      max-width: 820px;
+    }
+
+    .hero-visual,
+    .hero-actions { display: none; }
+
+    .eyebrow {
+      gap: 8px;
+      margin-bottom: 14px;
+      color: var(--cyan);
+      font-size: 12px;
+      letter-spacing: .04em;
+    }
+
+    .eyebrow i { background: var(--cyan); box-shadow: none; }
+
+    .hero h1 {
+      max-width: 780px;
+      margin: 0;
+      color: var(--text);
+      font: 600 clamp(38px, 5.4vw, 56px)/1.08 Fraunces, Georgia, serif;
+      letter-spacing: -.035em;
+    }
+
+    .hero h1 span {
+      display: inline;
+      color: transparent;
+      background: linear-gradient(110deg,var(--cyan),var(--violet),var(--copper));
+      background-clip: text;
+      font-style: normal;
+    }
+
+    .hero-copy > p {
+      max-width: 700px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.65;
+    }
+
+    /* Converter hero ke immediately baad start hota hai; unnecessary gap removed. */
+    .converter-section { padding: 12px 0 64px; }
+
+    .section-heading {
+      display: block;
+      max-width: 760px;
+      margin-bottom: 18px;
+    }
+
+    .section-heading small,
+    .panel-kicker {
+      color: var(--cyan);
+      font-size: 11px;
+      letter-spacing: .06em;
+    }
+
+    .section-heading h2 {
+      margin: 5px 0 0;
+      color: var(--text);
+      font: 600 clamp(27px, 4vw, 34px)/1.2 Fraunces, Georgia, serif;
+      letter-spacing: -.03em;
+    }
+
+    .section-heading p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+      text-align: left;
+    }
+
+    /* One calm desk surface replaces multiple competing visual cards. */
+    .converter-desk {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: linear-gradient(145deg,rgba(18,20,43,.96),rgba(9,10,24,.98));
+      box-shadow: 12px 14px 0 var(--shadow-cyan),0 30px 68px rgba(0,0,0,.26);
+    }
+
+    :root[data-theme="light"] .converter-desk {
+      background: linear-gradient(145deg,#ffffff,#f0f4f5);
+      box-shadow: 12px 14px 0 var(--shadow-cyan),0 28px 55px rgba(36,42,67,.11);
+    }
+
+    /*
+      Direction buttons ek familiar two-option switch jaise dikhte hain.
+      Same blue active border + words dono selection communicate karte hain.
+    */
+    .direction-rail {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-softer);
+    }
+
+    .direction-swap { display: none; }
+
+    .direction-button {
+      min-height: 72px;
+      padding: 12px 14px;
+      border-color: transparent;
+      border-radius: 12px;
+      color: var(--text);
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .direction-button:hover { border-color: var(--line-strong); transform: none; }
+
+    .direction-button[aria-pressed="true"] {
+      border-color: var(--violet);
+      background: rgba(159,131,255,.13);
+      box-shadow: inset 0 -4px 0 var(--cyan);
+    }
+
+    .direction-icon,
+    .direction-button[aria-pressed="true"] .direction-icon {
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      color: #111326;
+      background: linear-gradient(145deg,var(--paper),#cfd4e6);
+      box-shadow: 4px 5px 0 var(--shadow-violet);
+    }
+
+    .direction-button b { font-size: 15px; }
+    .direction-button small { margin-top: 2px; color: var(--muted); font-size: 12px; }
+
+    /*
+      Three-step strip user ko poori journey ek nazar me batata hai.
+      Numbers neutral hain; blue sirf current action buttons ke liye bachta hai.
+    */
+    .simple-steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      margin: 0;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--line);
+      list-style: none;
+      background: var(--surface);
+    }
+
+    .simple-steps li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .simple-steps li + li::before {
+      content: "→";
+      margin-right: clamp(4px, 2vw, 20px);
+      color: var(--line-strong);
+    }
+
+    .simple-steps span {
+      display: inline-grid;
+      flex: 0 0 28px;
+      width: 28px;
+      height: 28px;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      color: var(--text);
+      background: var(--surface-softer);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .simple-steps b { color: var(--text); font-size: 13px; }
+
+    /* One-column work area means eyes move naturally from file to button. */
+    .desk-body { grid-template-columns: minmax(0, 1fr); }
+
+    .work-panel { padding: clamp(24px, 5vw, 48px); }
+
+    .side-guide { display: none; }
+
+    .panel-title {
+      margin-top: 5px;
+      color: var(--text);
+      font: 600 clamp(25px, 3vw, 31px)/1.2 Fraunces, Georgia, serif;
+      letter-spacing: -.025em;
+    }
+
+    .panel-intro {
+      max-width: 690px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    /*
+      Upload area is the largest control because choosing a file is the main job.
+      Dotted border drag/drop suggest karta hai; text tap/click option bhi bolta hai.
+    */
+    .upload-zone {
+      min-height: 184px;
+      margin-top: 22px;
+      padding: 28px 20px;
+      border: 2px dashed var(--line-strong);
+      border-radius: 16px;
+      color: var(--text);
+      background:
+        linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px),
+        var(--surface-deep);
+      background-size: 24px 24px;
+      box-shadow: none;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.is-dragging {
+      border-color: var(--cyan);
+      background:
+        linear-gradient(rgba(100,228,244,.06) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(100,228,244,.06) 1px,transparent 1px),
+        var(--surface-deep);
+      background-size: 24px 24px;
+      transform: none;
+    }
+
+    .upload-symbol {
+      width: 58px;
+      height: 46px;
+      border: 1px solid rgba(255,255,255,.64);
+      border-radius: 50% 50% 12px 12px;
+      color: #111326;
+      background: var(--paper);
+      box-shadow: 7px 8px 0 var(--shadow-cyan);
+      transform: rotate(-2deg);
+    }
+
+    .upload-zone b { font-size: 17px; }
+    .upload-zone span { color: var(--muted); font-size: 13px; }
+    .upload-zone em { color: var(--cyan); font-weight: 700; }
+
+    /* Trust note upload ke paas rakhi hai, jahan user ko safety doubt hota hai. */
+    .quick-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin: 14px 0 0;
+      padding: 0;
+      color: var(--muted);
+      font-size: 12px;
+      list-style: none;
+    }
+
+    .quick-facts li::before {
+      content: "✓";
+      margin-right: 6px;
+      color: var(--success);
+      font-weight: 700;
+    }
+
+    /* Selected file summary is readable and compact, without decorative gradients. */
+    .file-summary {
+      border-color: var(--line);
+      border-radius: 12px;
+      background: var(--surface-softer);
+    }
+
+    .file-summary-icon {
+      border-radius: 9px;
+      color: #111326;
+      background: var(--paper);
+      box-shadow: 4px 5px 0 var(--shadow-violet);
+    }
+
+    .file-summary b { font-size: 14px; }
+    .file-summary small { color: var(--muted); font-size: 12px; }
+
+    /*
+      Advanced settings closed by default hain. New user ko sirf upload aur
+      create button dikhte hain; experienced user summary khol sakta hai.
+    */
+    .advanced-settings {
+      margin-top: 20px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .advanced-settings summary {
+      padding: 15px 2px;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .advanced-settings summary small {
+      margin-left: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .advanced-settings[open] { padding-bottom: 18px; }
+
+    .settings-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 4px;
+    }
+
+    .field-group {
+      border-color: var(--line);
+      border-radius: 12px;
+      background: var(--surface-softer);
+    }
+
+    .field-group label,
+    .field-group legend { color: var(--text); font-size: 13px; letter-spacing: 0; }
+    .field-group small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+    .control,
+    .select-control {
+      border-color: var(--line-strong);
+      border-radius: 9px;
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    .dpi-choice label { border-color: var(--line); background: var(--surface); }
+    .dpi-choice input:checked + label { border-color: var(--cyan); color: var(--cyan); background: color-mix(in srgb, var(--cyan) 7%, var(--surface)); }
+    .dpi-choice label b { color: var(--text); font-size: 11px; }
+    .dpi-choice label span { color: var(--muted); font-size: 10px; }
+    .range-row output { color: var(--text); }
+
+    /*
+      One solid blue main button creates a clear next step.
+      Reset button lower emphasis me rehta hai to accidental reset kam hoga.
+    */
+    .action-row {
+      margin-top: 22px;
+      padding-top: 0;
+      border-top: 0;
+    }
+
+    .convert-button,
+    .download-button,
+    .secondary-button {
+      min-height: 48px;
+      border-radius: 11px;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .convert-button {
+      color: #ffffff;
+      background: linear-gradient(110deg,var(--violet),var(--copper));
+      box-shadow: 6px 7px 0 var(--shadow-cyan);
+    }
+
+    .convert-button:hover:not(:disabled) { filter: brightness(1.06); transform: translateY(-2px); }
+
+    .secondary-button {
+      border-color: var(--line);
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    .secondary-button:hover:not(:disabled) { border-color: var(--line-strong); }
+
+    /* Photo order cards remain functional but use neutral structure. */
+    .queue-head { border-color: var(--line); background: var(--surface-softer); }
+    .queue-head b { font-size: 14px; }
+    .queue-count { color: var(--muted); }
+    .photo-item { border-color: var(--line); border-radius: 12px; background: var(--surface); }
+    .photo-number { color: #ffffff; background: var(--cyan); }
+    .photo-info b { font-size: 12px; }
+    .photo-info small { color: var(--muted); font-size: 10px; }
+    .photo-actions button { border-color: var(--line); color: var(--text); background: var(--surface-softer); }
+
+    /* Status sits directly after the working panel with semantic colors only. */
+    .status-panel {
+      border-color: var(--line);
+      border-left: 4px solid var(--cyan);
+      border-radius: 12px;
+      color: var(--muted);
+      background: var(--surface-softer);
+    }
+
+    .status-panel b { color: var(--text); font-size: 13px; }
+    .status-panel p { color: var(--muted); font-size: 12px; }
+
+    .result-panel {
+      border-color: color-mix(in srgb, var(--success) 45%, var(--line));
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--success) 7%, var(--surface));
+      box-shadow: none;
+    }
+
+    .result-panel b { color: var(--success); font-size: 14px; }
+    .result-panel p { color: var(--muted); font-size: 12px; }
+
+    .download-button { color: #111326; background: var(--cyan); box-shadow: 6px 7px 0 var(--shadow-violet); }
+    .download-button:hover { filter: brightness(1.05); transform: translateY(-2px); }
+
+    /* Bottom facts become one quiet information row, not three equal hero cards. */
+    .trust-strip {
+      gap: 0;
+      margin-top: 0;
+      padding: 0 0 58px;
+      border-top: 0;
+    }
+
+    .trust-item {
+      min-height: auto;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-right: 0;
+      background: var(--surface);
+    }
+
+    .trust-item:first-child { border-radius: 14px 0 0 14px; }
+    .trust-item:last-child { border-right: 1px solid var(--line); border-radius: 0 14px 14px 0; }
+    .trust-item span { color: var(--muted); font: 700 14px/1 Manrope, Arial, sans-serif; }
+    .trust-item b { margin-top: 8px; font-size: 13px; }
+    .trust-item p { color: var(--muted); font-size: 12px; line-height: 1.55; }
+
+    .site-footer { border-color: var(--line); background: var(--surface); }
+    .footer-inner b { color: var(--text); font: 700 16px/1.2 Manrope, Arial, sans-serif; }
+    .footer-inner span { color: var(--muted); font-size: 12px; }
+
+    /*
+      Tablet: settings one column, directions still side-by-side for quick choice.
+      Small screens: buttons and steps stack so text never clips.
+    */
+    @media (max-width: 760px) {
+      .header-promise { display: none; }
+      .hero { padding: 38px 0 20px; }
+      .settings-grid { grid-template-columns: 1fr; }
+      .simple-steps { padding-inline: 18px; }
+      .simple-steps li + li::before { margin-right: 8px; }
+      .trust-strip { grid-template-columns: 1fr; gap: 10px; }
+      .trust-item,
+      .trust-item:first-child,
+      .trust-item:last-child { border: 1px solid var(--line); border-radius: 12px; }
+    }
+
+    @media (max-width: 560px) {
+      .site-header { top: 8px; width: calc(100% - 18px); margin: 8px auto 0; border-radius: 18px 18px 38px 18px; }
+      .header-inner { width: calc(100% - 28px); min-height: 64px; padding: 8px 0; }
+      .brand-mark { width: 38px; height: 38px; }
+      .brand-copy b { font-size: 17px; }
+      .brand-copy small { display: block; font-size: 9px; }
+      .engine-chip { display: none; }
+      .hero h1 { font-size: 34px; letter-spacing: -.04em; }
+      .hero-copy > p { font-size: 15px; }
+      .direction-rail { grid-template-columns: 1fr; }
+      .direction-button { min-height: 64px; }
+      .simple-steps { grid-template-columns: 1fr; gap: 10px; }
+      .simple-steps li + li::before { content: none; }
+      .work-panel { padding: 24px 18px; }
+      .panel-title { font-size: 23px; }
+      .upload-zone { min-height: 168px; padding: 24px 15px; }
+      .action-row { grid-template-columns: 1fr; }
+      .convert-button,
+      .secondary-button { width: 100%; }
+      .quick-facts { display: grid; gap: 5px; }
+    }
+
+    /*
+      ========================================================================
+      15 // CALM, EASY MODE — AUGUST 2026 UX REFRESH
+      ========================================================================
+
+      The original midnight/cyan/violet/copper theme is intentionally kept.
+      This last layer removes novelty shapes, offset shadows and repeated cards,
+      then adds a clearer reading order and beginner-friendly help controls.
+      Backend routes, field IDs and conversion behavior remain unchanged.
+      ========================================================================
+    */
+    :root {
+      --page-width: 1080px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 10px;
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 14% 0%, rgba(100,228,244,.11), transparent 30%),
+        radial-gradient(circle at 88% 8%, rgba(159,131,255,.13), transparent 28%),
+        var(--night);
+    }
+
+    .wrap { width: min(var(--page-width), calc(100% - 40px)); }
+
+    .site-header,
+    :root[data-theme="dark"] .site-header,
+    :root[data-theme="light"] .site-header {
+      position: relative;
+      top: auto;
+      width: min(var(--page-width), calc(100% - 40px));
+      margin: 20px auto 0;
+      border-radius: var(--radius-md);
+      box-shadow: 0 12px 36px rgba(0,0,0,.16);
+    }
+
+    .header-inner {
+      width: auto;
+      min-height: 68px;
+      padding: 10px 14px;
+      gap: 16px;
+    }
+
+    .brand { gap: 10px; }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      box-shadow: none;
+      transform: none;
+      font: 700 13px/1 Manrope, Arial, sans-serif;
+    }
+
+    .brand-copy b { font: 600 19px/1.1 Manrope, Arial, sans-serif; }
+    .brand-copy small { margin-top: 3px; font-size: 10px; letter-spacing: .08em; }
+    .header-promise { font-size: 12px; }
+    .header-actions { gap: 8px; }
+
+    .engine-chip {
+      min-height: 38px;
+      padding: 0 11px;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+    .accessibility-button,
+    .theme-button {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: var(--text);
+      background: var(--surface-softer);
+      box-shadow: none;
+    }
+
+    .accessibility-button {
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .accessibility-button:hover,
+    .theme-button:hover { border-color: var(--cyan); transform: none; }
+
+    .accessibility-button[aria-pressed="true"] {
+      border-color: var(--cyan);
+      color: var(--cyan);
+      background: color-mix(in srgb, var(--cyan) 8%, transparent);
+    }
+
+    .hero { padding: 64px 0 30px; }
+    .hero-grid { max-width: 800px; }
+    .eyebrow { margin-bottom: 12px; font-size: 11px; }
+    .eyebrow i { width: 7px; height: 7px; }
+
+    .hero h1 {
+      max-width: 760px;
+      font: 600 clamp(36px, 5.2vw, 54px)/1.08 Manrope, Arial, sans-serif;
+      letter-spacing: -.045em;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(105deg, var(--cyan), var(--violet) 58%, var(--copper));
+      background-clip: text;
+      -webkit-background-clip: text;
+    }
+
+    .hero-copy > p {
+      max-width: 680px;
+      margin-top: 16px;
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .converter-section { padding: 4px 0 46px; }
+    .section-heading { margin-bottom: 16px; }
+    .section-heading small,
+    .panel-kicker { font-size: 11px; letter-spacing: .08em; }
+
+    .section-heading h2 {
+      margin-top: 4px;
+      font: 600 clamp(25px, 4vw, 32px)/1.25 Manrope, Arial, sans-serif;
+      letter-spacing: -.025em;
+    }
+
+    .section-heading p { margin-top: 6px; font-size: 14px; }
+
+    .converter-desk,
+    :root[data-theme="light"] .converter-desk {
+      border-radius: var(--radius-lg);
+      background: color-mix(in srgb, var(--surface-deep) 94%, transparent);
+      box-shadow: 0 24px 64px rgba(0,0,0,.22);
+    }
+
+    .direction-rail {
+      gap: 10px;
+      padding: 14px;
+      background: transparent;
+    }
+
+    .direction-button {
+      min-height: 82px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface-softer);
+    }
+
+    .direction-button:hover { border-color: var(--line-strong); background: color-mix(in srgb, var(--surface) 72%, transparent); }
+
+    .direction-button[aria-pressed="true"] {
+      border-color: var(--cyan);
+      background: color-mix(in srgb, var(--cyan) 8%, var(--surface-deep));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--cyan) 28%, transparent);
+    }
+
+    .direction-icon,
+    .direction-button[aria-pressed="true"] .direction-icon {
+      width: 44px;
+      height: 44px;
+      border: 0;
+      border-radius: 11px;
+      color: var(--paper-ink);
+      background: var(--paper);
+      box-shadow: none;
+    }
+
+    .direction-button[aria-pressed="true"] .direction-icon { background: var(--cyan); }
+    .direction-button b { font-size: 15px; }
+    .direction-button small { margin-top: 3px; font-size: 12px; line-height: 1.45; }
+
+    .choice-help {
+      margin: 0 14px 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface-softer);
+    }
+
+    .choice-help summary {
+      padding: 13px 15px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .example-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 0 12px 12px;
+    }
+
+    .example-choice {
+      min-height: 82px;
+      padding: 12px;
+      display: grid;
+      gap: 3px;
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      background: var(--surface-deep);
+    }
+
+    .example-choice:hover { border-color: var(--cyan); }
+    .example-choice b { font-size: 12px; }
+    .example-choice span { color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .example-choice em { margin-top: 3px; color: var(--cyan); font-size: 11px; font-style: normal; font-weight: 700; }
+
+    .hinglish-tip {
+      margin: 0;
+      padding: 0 14px 14px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .simple-steps {
+      padding: 12px 20px;
+      background: var(--surface-softer);
+    }
+
+    .simple-steps li { gap: 8px; font-size: 12px; }
+    .simple-steps span { flex-basis: 24px; width: 24px; height: 24px; font-size: 11px; }
+    .simple-steps li:first-child span { border-color: var(--cyan); color: var(--cyan); }
+    .simple-steps b { font-size: 12px; }
+
+    .work-panel { padding: clamp(24px, 5vw, 44px); }
+    .panel-title { font: 600 clamp(24px, 3vw, 29px)/1.25 Manrope, Arial, sans-serif; }
+    .panel-intro { max-width: 720px; margin-top: 8px; font-size: 14px; }
+
+    .upload-zone {
+      min-height: 172px;
+      margin-top: 20px;
+      border: 1.5px dashed var(--line-strong);
+      border-radius: var(--radius-md);
+      background: color-mix(in srgb, var(--surface) 64%, transparent);
+    }
+
+    .upload-zone:hover,
+    .upload-zone.is-dragging {
+      border-color: var(--cyan);
+      background: color-mix(in srgb, var(--cyan) 6%, var(--surface-deep));
+    }
+
+    .upload-symbol {
+      width: 54px;
+      height: 42px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--paper);
+      box-shadow: none;
+      transform: none;
+    }
+
+    .upload-zone b { font-size: 16px; }
+    .upload-zone span { font-size: 12px; }
+    .quick-facts { margin-top: 12px; }
+
+    .outcome-preview {
+      margin-top: 18px;
+      padding: 14px 15px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 10px 14px;
+      border-left: 3px solid var(--violet);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      color: var(--text);
+      background: color-mix(in srgb, var(--violet) 8%, var(--surface));
+    }
+
+    .outcome-preview span {
+      color: var(--violet);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+
+    .outcome-preview b { font-size: 13px; font-weight: 600; }
+
+    .advanced-settings {
+      margin-top: 18px;
+      border-top: 1px solid var(--line);
+      border-bottom: 0;
+    }
+
+    .advanced-settings summary { padding: 14px 0; font-size: 13px; }
+    .advanced-settings summary small { font-size: 11px; }
+
+    .field-group {
+      padding: 14px;
+      border: 1px solid var(--line);
+      background: transparent;
+    }
+
+    .action-row {
+      grid-template-columns: minmax(180px, 1fr) auto;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .convert-button,
+    .download-button {
+      color: var(--paper-ink);
+      background: var(--cyan);
+      box-shadow: none;
+    }
+
+    .convert-button:hover:not(:disabled),
+    .download-button:hover { filter: brightness(1.05); transform: none; }
+    .secondary-button { padding-inline: 20px; background: transparent; }
+
+    .feedback-panel {
+      padding-top: 0;
+      border-top: 1px solid var(--line);
+      background: color-mix(in srgb, var(--surface) 40%, transparent);
+    }
+
+    .status-panel {
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: transparent;
+    }
+
+    .result-panel { margin-top: 10px; }
+
+    .trust-strip {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      padding-bottom: 40px;
+    }
+
+    .trust-item,
+    .trust-item:first-child,
+    .trust-item:last-child {
+      padding: 4px 14px;
+      border: 0;
+      border-left: 1px solid var(--line);
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .trust-item span { display: none; }
+    .trust-item b { margin: 0; font-size: 12px; }
+    .trust-item p { margin-top: 4px; font-size: 11px; }
+
+    .site-footer { background: transparent; }
+
+    @media (max-width: 760px) {
+      .wrap { width: min(var(--page-width), calc(100% - 28px)); }
+      .site-header,
+      :root[data-theme="dark"] .site-header,
+      :root[data-theme="light"] .site-header { width: calc(100% - 28px); margin-top: 14px; }
+      .header-inner { grid-template-columns: 1fr auto; }
+      .header-promise { display: none; }
+      .engine-chip { display: none; }
+      .hero { padding: 44px 0 24px; }
+      .example-grid { grid-template-columns: 1fr; }
+      .trust-strip { grid-template-columns: 1fr; gap: 12px; }
+      .trust-item,
+      .trust-item:first-child,
+      .trust-item:last-child { border-left: 2px solid var(--line); }
+    }
+
+    @media (max-width: 560px) {
+      .site-header,
+      :root[data-theme="dark"] .site-header,
+      :root[data-theme="light"] .site-header { top: auto; border-radius: 12px; }
+      .header-inner { width: auto; min-height: 60px; padding: 8px 10px; }
+      .brand-copy small { display: none; }
+      .accessibility-button { padding: 0 10px; }
+      .accessibility-button span { display: none; }
+      .theme-button { width: 38px; height: 38px; }
+      .hero h1 { font-size: 34px; }
+      .hero-copy > p { font-size: 14px; }
+      .direction-rail { grid-template-columns: 1fr; }
+      .direction-button { min-height: 72px; }
+      .simple-steps { grid-template-columns: repeat(3, 1fr); padding: 10px 12px; }
+      .simple-steps li { display: grid; justify-items: center; gap: 4px; text-align: center; }
+      .simple-steps li + li::before { content: none; }
+      .simple-steps b { font-size: 10px; }
+      .work-panel { padding: 22px 16px; }
+      .upload-zone { min-height: 158px; }
+      .outcome-preview { grid-template-columns: 1fr; gap: 4px; }
+      .action-row { grid-template-columns: 1fr; }
+      .secondary-button { width: 100%; }
+      .advanced-settings summary small { display: block; margin: 3px 0 0; }
+    }
+  </style>
 </head>
+
 <body>
-    
+  <!-- Header current backend health batata hai; logo click top par le jaata hai. -->
+  <header class="site-header" aria-label="Paper Loop header">
+    <div class="header-inner">
+      <a class="brand" href="#top" aria-label="Paper Loop home">
+        <span class="brand-mark" aria-hidden="true">PL</span>
+        <span class="brand-copy">
+          <b>Paper Loop</b>
+          <small>SIMPLE FILE CONVERTER</small>
+        </span>
+      </a>
+
+      <p class="header-promise">Private, local conversion in three clear steps.</p>
+
+      <div class="header-actions">
+        <span class="engine-chip" id="engineChip" aria-live="polite">
+          <i aria-hidden="true"></i>
+          <span id="engineText">Checking server</span>
+        </span>
+        <button class="accessibility-button" id="readPageButton" type="button" aria-pressed="false">
+          Listen
+        </button>
+        <button class="theme-button" id="themeButton" type="button" aria-label="Switch to light theme">
+          <span id="themeIcon" aria-hidden="true">☼</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <!--
+      Simple hero direct kaam batata hai. Decorative artwork intentionally hidden
+      hai, taaki user ka focus file choose karne par rahe. Python par zero effect.
+    -->
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow"><i aria-hidden="true"></i>EASY MODE · NO SIGN-UP</span>
+          <h1>Turn your files into <span>exactly what you need.</span></h1>
+          <p>
+            Have a PDF? Make one image per page. Have photos? Put them into one PDF.
+            Choose what you have below—we will show only the next step you need.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main converter starts here; direction buttons one active panel show karte hain. -->
+    <section class="converter-section" id="converter">
+      <div class="wrap">
+        <div class="section-heading">
+          <div>
+            <small>1 OF 3 · CHOOSE</small>
+            <h2>What do you have right now?</h2>
+          </div>
+          <p>Pick the file type already saved on your device.</p>
+        </div>
+
+        <div class="converter-desk">
+          <!-- aria-pressed makes selected direction explicit for screen readers. -->
+          <div class="direction-rail" role="group" aria-label="Conversion direction">
+            <button class="direction-button" id="pdfModeButton" type="button" aria-pressed="true">
+              <span class="direction-icon" aria-hidden="true">PDF</span>
+              <span>
+                <b>I have a PDF</b>
+                <small>I want a separate image for every page</small>
+              </span>
+            </button>
+
+            <span class="direction-swap" aria-hidden="true">⇄</span>
+
+            <button class="direction-button" id="photosModeButton" type="button" aria-pressed="false">
+              <span class="direction-icon" aria-hidden="true">IMG</span>
+              <span>
+                <b>I have photos</b>
+                <small>I want one PDF containing all of them</small>
+              </span>
+            </button>
+          </div>
+
+          <details class="choice-help">
+            <summary>Not sure which option to choose? See examples</summary>
+            <div class="example-grid">
+              <button class="example-choice" id="examplePdfChoice" type="button">
+                <b>PDF pages become images</b>
+                <span>Example: a 5-page PDF gives you 5 PNG images inside one ZIP.</span>
+                <em>Choose “I have a PDF”</em>
+              </button>
+              <button class="example-choice" id="examplePhotosChoice" type="button">
+                <b>Photos become one document</b>
+                <span>Example: 5 phone photos become one 5-page PDF.</span>
+                <em>Choose “I have photos”</em>
+              </button>
+            </div>
+            <p class="hinglish-tip" lang="hi-Latn">Easy check: PDF hai toh pehla option. Photos hain toh doosra option.</p>
+          </details>
+
+          <!--
+            KYA: Common three-step path dono directions ke liye same hai.
+            KYUN: User ko shuru karne se pehle poora process ek line me samajh aata hai.
+            CHANGE EFFECT: Sirf words badalne se guidance badlegi; API working same rahegi.
+          -->
+          <ol class="simple-steps" aria-label="Three simple steps">
+            <li><span>1</span><b>Choose type</b></li>
+            <li><span>2</span><b>Add files</b></li>
+            <li><span>3</span><b>Download</b></li>
+          </ol>
+
+          <div class="desk-body">
+            <!-- PDF → PHOTOS PANEL. It remains in DOM but hidden when reverse mode is selected. -->
+            <section class="work-panel" id="pdfPanel" aria-labelledby="pdfPanelTitle">
+              <p class="panel-kicker">2 OF 3 · ADD YOUR FILE</p>
+              <h3 class="panel-title" id="pdfPanelTitle">Choose one PDF</h3>
+              <p class="panel-intro">We count the pages first, so you can check exactly how many images will be created.</p>
+
+              <!-- Label is the large clickable area; real input is visually hidden. -->
+              <label class="upload-zone" id="pdfDropZone" for="pdfInput">
+                <span class="upload-symbol" aria-hidden="true">PDF</span>
+                <b>Drag your PDF here</b>
+                <span>or <em>click to choose it</em></span>
+                <span>.PDF only · up to 30 pages · up to 25 MB</span>
+              </label>
+              <input class="file-input-hidden" id="pdfInput" type="file" accept="application/pdf,.pdf">
+
+              <!-- Safety facts file button ke paas hain, jahan user ko inki zaroorat hoti hai. -->
+              <ul class="quick-facts" aria-label="PDF conversion facts">
+                <li>Your original stays unchanged</li>
+                <li>1 page always makes 1 image</li>
+              </ul>
+
+              <!-- Selected file details are populated by JavaScript after validation/inspection. -->
+              <div class="file-summary" id="pdfSummary" hidden>
+                <span class="file-summary-icon" aria-hidden="true">PDF</span>
+                <span>
+                  <b id="pdfFileName">document.pdf</b>
+                  <small id="pdfFileMeta">Checking pages…</small>
+                </span>
+                <button class="icon-button" id="removePdfButton" type="button" aria-label="Remove selected PDF">✕</button>
+              </div>
+
+              <!--
+                Optional settings default me band rehti hain. Beginner ko technical
+                DPI/quality decide nahi karni; balanced defaults automatically work.
+              -->
+              <div class="outcome-preview" aria-live="polite">
+                <span>Result check</span>
+                <b id="pdfOutcomePreview">Choose a PDF to see exactly what you will receive.</b>
+              </div>
+
+              <details class="advanced-settings">
+                <summary>Change format or clarity <small>Optional — recommended settings are already selected</small></summary>
+                <div class="settings-grid">
+                <div class="field-group">
+                  <label for="imageFormat">Image format</label>
+                  <select class="select-control" id="imageFormat">
+                    <option value="PNG" selected>PNG — best for text</option>
+                    <option value="JPG">JPG — smaller file</option>
+                    <option value="JPEG">JPEG — smaller file</option>
+                    <option value="WEBP">WEBP — modern small file</option>
+                    <option value="TIF">TIF — for print</option>
+                    <option value="GIF">GIF — basic colors</option>
+                    <option value="BMP">BMP — very large file</option>
+                  </select>
+                  <small>Not sure? Keep PNG selected.</small>
+                </div>
+
+                <fieldset class="field-group">
+                  <legend>Image clarity</legend>
+                  <div class="dpi-choices">
+                    <span class="dpi-choice">
+                      <input id="pdfDpi72" name="pdfDpi" type="radio" value="72">
+                      <label for="pdfDpi72"><b>Small</b><span>72 DPI</span></label>
+                    </span>
+                    <span class="dpi-choice">
+                      <input id="pdfDpi144" name="pdfDpi" type="radio" value="144" checked>
+                      <label for="pdfDpi144"><b>Recommended</b><span>144 DPI</span></label>
+                    </span>
+                    <span class="dpi-choice">
+                      <input id="pdfDpi200" name="pdfDpi" type="radio" value="200">
+                      <label for="pdfDpi200"><b>Sharp</b><span>200 DPI</span></label>
+                    </span>
+                  </div>
+                  <small>Sharp makes larger files. Recommended works for most PDFs.</small>
+                </fieldset>
+
+                <div class="field-group" id="qualityGroup">
+                  <label for="imageQuality">JPG / WEBP quality</label>
+                  <div class="range-row">
+                    <input class="range-control" id="imageQuality" type="range" min="1" max="100" value="92">
+                    <output id="qualityOutput" for="imageQuality">92%</output>
+                  </div>
+                  <small id="qualityHelp">Used mainly by JPG, JPEG and WEBP.</small>
+                </div>
+                </div>
+              </details>
+
+              <div class="action-row">
+                <button class="convert-button" id="convertPdfButton" type="button" disabled>Create images</button>
+                <button class="secondary-button" id="resetPdfButton" type="button">Remove file</button>
+              </div>
+            </section>
+
+            <!-- PHOTOS → PDF PANEL. Default hidden; JS direction switch makes it visible. -->
+            <section class="work-panel" id="photosPanel" aria-labelledby="photosPanelTitle" hidden>
+              <p class="panel-kicker">2 OF 3 · ADD YOUR FILES</p>
+              <h3 class="panel-title" id="photosPanelTitle">Choose your photos</h3>
+              <p class="panel-intro">You will see every photo and its page number before the PDF is created.</p>
+
+              <label class="upload-zone" id="photosDropZone" for="photosInput">
+                <span class="upload-symbol" aria-hidden="true">IMG</span>
+                <b>Drag your photos here</b>
+                <span>or <em>click to choose one or more</em></span>
+                <span>JPG, PNG, WEBP and more · up to 30 photos</span>
+              </label>
+              <input class="file-input-hidden" id="photosInput" type="file" accept="image/*,.svg" multiple>
+
+              <!-- Reverse conversion ke short facts; input ki file order preserve hoti hai. -->
+              <ul class="quick-facts" aria-label="Image to PDF facts">
+                <li>Your originals stay unchanged</li>
+                <li>1 photo always makes 1 PDF page</li>
+              </ul>
+
+              <div class="queue-head" id="queueHead" hidden>
+                <b>PDF page order</b>
+                <span class="queue-count" id="queueCount">0 / 30 images</span>
+              </div>
+              <div class="photo-queue" id="photoQueue" aria-live="polite"></div>
+
+              <!-- File name/detail technical choices optional section me rakhe gaye hain. -->
+              <div class="outcome-preview" aria-live="polite">
+                <span>Result check</span>
+                <b id="photosOutcomePreview">Choose photos to see exactly how many PDF pages you will get.</b>
+              </div>
+
+              <details class="advanced-settings">
+                <summary>Change PDF name or clarity <small>Optional — recommended settings are already selected</small></summary>
+                <div class="settings-grid">
+                <div class="field-group">
+                  <label for="pdfOutputName">PDF name</label>
+                  <input class="control" id="pdfOutputName" type="text" value="my_photos" maxlength="80" autocomplete="off">
+                  <small>“.pdf” is added automatically.</small>
+                </div>
+
+                <fieldset class="field-group">
+                  <legend>PDF image detail</legend>
+                  <div class="dpi-choices">
+                    <span class="dpi-choice">
+                      <input id="photoDpi72" name="photoDpi" type="radio" value="72">
+                      <label for="photoDpi72"><b>Small</b><span>72 DPI</span></label>
+                    </span>
+                    <span class="dpi-choice">
+                      <input id="photoDpi144" name="photoDpi" type="radio" value="144" checked>
+                      <label for="photoDpi144"><b>Recommended</b><span>144 DPI</span></label>
+                    </span>
+                    <span class="dpi-choice">
+                      <input id="photoDpi200" name="photoDpi" type="radio" value="200">
+                      <label for="photoDpi200"><b>Sharp</b><span>200 DPI</span></label>
+                    </span>
+                  </div>
+                  <small>Not sure? Keep Recommended selected.</small>
+                </fieldset>
+                </div>
+              </details>
+
+              <div class="action-row">
+                <button class="convert-button" id="convertPhotosButton" type="button" disabled>Create PDF</button>
+                <button class="secondary-button" id="resetPhotosButton" type="button">Remove all</button>
+              </div>
+            </section>
+
+            <!-- Side guide stays simple and changes copy when direction changes. -->
+            <aside class="side-guide" id="simple-guide" aria-labelledby="guideTitle">
+              <small>ONLY THREE STEPS</small>
+              <h3 id="guideTitle">From PDF to photos</h3>
+
+              <div class="guide-step">
+                <span class="guide-number">1</span>
+                <b id="guideStepOneTitle">Choose one PDF</b>
+                <p id="guideStepOneText">We check its real page count before conversion.</p>
+              </div>
+
+              <div class="guide-step">
+                <span class="guide-number">2</span>
+                <b id="guideStepTwoTitle">Choose photo type</b>
+                <p id="guideStepTwoText">PNG is clearest; JPG and WEBP are smaller.</p>
+              </div>
+
+              <div class="guide-step">
+                <span class="guide-number">3</span>
+                <b id="guideStepThreeTitle">Create and download</b>
+                <p id="guideStepThreeText">All page images arrive together inside one ZIP.</p>
+              </div>
+
+              <p class="limit-note" id="limitNote"><b>30-page safety limit.</b><br>A 10-page PDF makes exactly 10 photos. Page count cannot be increased or reduced.</p>
+            </aside>
+          </div>
+
+          <!-- Shared status/result sits below both mode panels, so feedback stays in one place. -->
+          <div class="work-panel feedback-panel">
+            <div class="status-panel" id="statusPanel" role="status" aria-live="polite">
+              <span class="status-dot" aria-hidden="true"></span>
+              <span>
+                <b id="statusTitle">Ready</b>
+                <p id="statusMessage">Choose a file above. Conversion starts only when you press the main button.</p>
+              </span>
+            </div>
+
+            <div class="result-panel" id="resultPanel" hidden>
+              <span>
+                <b id="resultTitle">Download ready</b>
+                <p id="resultMessage">Your new file is ready to download.</p>
+              </span>
+              <button class="download-button" id="downloadButton" type="button">Download file</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Three quiet trust facts; no fake statistics or unnecessary cards. -->
+    <section class="wrap trust-strip" aria-label="Important converter facts">
+      <article class="trust-item">
+        <span aria-hidden="true">01</span>
+        <b>Originals stay safe</b>
+        <p>Your files are never overwritten.</p>
+      </article>
+      <article class="trust-item">
+        <span aria-hidden="true">02</span>
+        <b>You can check first</b>
+        <p>The exact result count appears before conversion.</p>
+      </article>
+      <article class="trust-item">
+        <span aria-hidden="true">03</span>
+        <b>Nothing technical required</b>
+        <p>Recommended settings are already selected.</p>
+      </article>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <b>Paper Loop</b>
+      <span>Simple PDF and image conversion · powered by your local converter</span>
+    </div>
+  </footer>
+
+  <script>
+    /*
+      ========================================================================
+      01 // FRONTEND CONSTANTS
+      KYA: Backend address, route names aur UI hard limits ek jagah.
+      KYUN: Port/limit/route future me change ho to code search kam karni pade.
+      PYTHON EFFECT: Constants sirf requests control karte; Python source edit nahi.
+      ========================================================================
+    */
+    "use strict";
+
+    const API_BASE = "http://127.0.0.1:5000";
+    const ROUTE_INFO = "/document-converter-info";
+    const ROUTE_INSPECT_DOCUMENT = "/inspect-document";
+    const ROUTE_DOCUMENT_TO_IMAGES = "/document-to-images";
+    const ROUTE_IMAGES_TO_PDF = "/images-to-pdf";
+    const MAX_PDF_PAGES = 30;
+    const MAX_PHOTOS = 30;
+
+    /* Formats where quality slider directly matters most. Other encoders safely ignore it. */
+    const LOSSY_FORMATS = new Set(["JPG", "JPEG", "WEBP"]);
+
+    /*
+      Shared state DOM se separate rakha hai. Isse selected files/result ka one
+      reliable source rehta hai aur multiple event handlers inconsistent nahi hote.
+    */
+    const state = {
+      mode: "pdf-to-photos",
+      pdfFile: null,
+      pdfPages: null,
+      photoFiles: [],
+      previewUrls: [],
+      resultBlob: null,
+      resultFilename: "",
+      busy: false
+    };
+
+    /*
+      ========================================================================
+      02 // DOM REFERENCES
+      KYA: Frequently used elements ek baar find hote hain.
+      KYUN: Har click par repeated document.getElementById calls avoid hoti hain.
+      ========================================================================
+    */
+    const dom = {
+      engineChip: document.getElementById("engineChip"),
+      engineText: document.getElementById("engineText"),
+      themeButton: document.getElementById("themeButton"),
+      themeIcon: document.getElementById("themeIcon"),
+      readPageButton: document.getElementById("readPageButton"),
+      pdfModeButton: document.getElementById("pdfModeButton"),
+      photosModeButton: document.getElementById("photosModeButton"),
+      examplePdfChoice: document.getElementById("examplePdfChoice"),
+      examplePhotosChoice: document.getElementById("examplePhotosChoice"),
+      pdfPanel: document.getElementById("pdfPanel"),
+      photosPanel: document.getElementById("photosPanel"),
+      pdfInput: document.getElementById("pdfInput"),
+      photosInput: document.getElementById("photosInput"),
+      pdfDropZone: document.getElementById("pdfDropZone"),
+      photosDropZone: document.getElementById("photosDropZone"),
+      pdfSummary: document.getElementById("pdfSummary"),
+      pdfFileName: document.getElementById("pdfFileName"),
+      pdfFileMeta: document.getElementById("pdfFileMeta"),
+      removePdfButton: document.getElementById("removePdfButton"),
+      imageFormat: document.getElementById("imageFormat"),
+      imageQuality: document.getElementById("imageQuality"),
+      qualityOutput: document.getElementById("qualityOutput"),
+      qualityGroup: document.getElementById("qualityGroup"),
+      qualityHelp: document.getElementById("qualityHelp"),
+      pdfOutcomePreview: document.getElementById("pdfOutcomePreview"),
+      convertPdfButton: document.getElementById("convertPdfButton"),
+      resetPdfButton: document.getElementById("resetPdfButton"),
+      queueHead: document.getElementById("queueHead"),
+      queueCount: document.getElementById("queueCount"),
+      photoQueue: document.getElementById("photoQueue"),
+      pdfOutputName: document.getElementById("pdfOutputName"),
+      photosOutcomePreview: document.getElementById("photosOutcomePreview"),
+      convertPhotosButton: document.getElementById("convertPhotosButton"),
+      resetPhotosButton: document.getElementById("resetPhotosButton"),
+      guideTitle: document.getElementById("guideTitle"),
+      guideStepOneTitle: document.getElementById("guideStepOneTitle"),
+      guideStepOneText: document.getElementById("guideStepOneText"),
+      guideStepTwoTitle: document.getElementById("guideStepTwoTitle"),
+      guideStepTwoText: document.getElementById("guideStepTwoText"),
+      guideStepThreeTitle: document.getElementById("guideStepThreeTitle"),
+      guideStepThreeText: document.getElementById("guideStepThreeText"),
+      limitNote: document.getElementById("limitNote"),
+      statusPanel: document.getElementById("statusPanel"),
+      statusTitle: document.getElementById("statusTitle"),
+      statusMessage: document.getElementById("statusMessage"),
+      resultPanel: document.getElementById("resultPanel"),
+      resultTitle: document.getElementById("resultTitle"),
+      resultMessage: document.getElementById("resultMessage"),
+      downloadButton: document.getElementById("downloadButton")
+    };
+
+    /*
+      ========================================================================
+      03 // SMALL DISPLAY HELPERS
+      ========================================================================
+    */
+
+    /** Bytes ko B/KB/MB friendly text me badalta hai; backend values change nahi karta. */
+    function humanFileSize(bytes) {
+      if (bytes < 1024) {
+        return bytes + " B";
+      }
+
+      if (bytes < 1024 * 1024) {
+        return (bytes / 1024).toFixed(1) + " KB";
+      }
+
+      return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+    }
+
+    /** Filename se final extension hata kar safe-looking base name return karta hai. */
+    function baseName(filename) {
+      const withoutPath = String(filename || "file").replace(/\\/g, "/").split("/").pop();
+      return withoutPath.replace(/\.[^.]+$/, "") || "file";
+    }
+
+    /** Current radio group ka selected numeric DPI string return karta hai. */
+    function selectedRadioValue(groupName, fallback) {
+      const selected = document.querySelector('input[name="' + groupName + '"]:checked');
+
+      if (selected) {
+        return selected.value;
+      }
+
+      return fallback;
+    }
+
+    /** Status panel ko neutral/working/success/error state me update karta hai. */
+    function setStatus(title, message, type) {
+      dom.statusTitle.textContent = title;
+      dom.statusMessage.textContent = message;
+      dom.statusPanel.classList.remove("is-working", "is-success", "is-error");
+
+      if (type === "working") {
+        dom.statusPanel.classList.add("is-working");
+      } else if (type === "success") {
+        dom.statusPanel.classList.add("is-success");
+      } else if (type === "error") {
+        dom.statusPanel.classList.add("is-error");
+      }
+    }
+
+    /** Backend online/offline label update karta; conversion ko silently block nahi karta. */
+    function setEngineOnline(isOnline) {
+      dom.engineChip.classList.toggle("is-online", isOnline);
+      dom.engineText.textContent = isOnline ? "Converter ready" : "Converter offline";
+    }
+
+    /**
+     * A live, plain-language result check prevents surprises before conversion.
+     * It mirrors file/page state and never changes backend values.
+     */
+    function updateOutcomePreview() {
+      const format = dom.imageFormat.value;
+
+      if (!state.pdfFile) {
+        dom.pdfOutcomePreview.textContent = "Choose a PDF to see exactly what you will receive.";
+      } else if (state.pdfPages === null) {
+        dom.pdfOutcomePreview.textContent = "Checking the PDF page count before showing your result…";
+      } else {
+        dom.pdfOutcomePreview.textContent = "Checked: " + state.pdfPages + " PDF page" + (state.pdfPages === 1 ? "" : "s") + " will create " + state.pdfPages + " " + format + " image" + (state.pdfPages === 1 ? "" : "s") + " inside one ZIP.";
+      }
+
+      const photoCount = state.photoFiles.length;
+      dom.photosOutcomePreview.textContent = photoCount === 0
+        ? "Choose photos to see exactly how many PDF pages you will get."
+        : "Checked: " + photoCount + " photo" + (photoCount === 1 ? "" : "s") + " will create one PDF with " + photoCount + " page" + (photoCount === 1 ? "" : "s") + ".";
+
+      syncActionAvailability();
+    }
+
+    /** Keep the next button honest: it becomes available only after files exist. */
+    function syncActionAvailability() {
+      dom.convertPdfButton.disabled = state.busy || !state.pdfFile;
+      dom.convertPhotosButton.disabled = state.busy || state.photoFiles.length === 0;
+    }
+
+    /** Busy state double-click requests rokta aur correct button text dikhata hai. */
+    function setBusy(isBusy) {
+      state.busy = isBusy;
+      dom.resetPdfButton.disabled = isBusy;
+      dom.resetPhotosButton.disabled = isBusy;
+
+      if (isBusy) {
+        dom.convertPdfButton.textContent = "Please wait…";
+        dom.convertPhotosButton.textContent = "Please wait…";
+      } else {
+        dom.convertPdfButton.textContent = "Create images";
+        dom.convertPhotosButton.textContent = "Create PDF";
+      }
+
+      syncActionAvailability();
+    }
+
+    /** Previous result blob remove karta so old settings ka file accidentally download na ho. */
+    function clearResult() {
+      state.resultBlob = null;
+      state.resultFilename = "";
+      dom.resultPanel.hidden = true;
+    }
+
+    /** Successful response ko visible download panel me prepare karta hai. */
+    function showResult(blob, filename, message) {
+      state.resultBlob = blob;
+      state.resultFilename = filename;
+      dom.resultMessage.textContent = message;
+      dom.resultPanel.hidden = false;
+      dom.resultPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    /** JSON backend error prefer karta; non-JSON response me safe text/status fallback. */
+    async function responseErrorMessage(response) {
+      const contentType = response.headers.get("Content-Type") || "";
+
+      if (contentType.includes("application/json")) {
+        const payload = await response.json();
+        return payload.error || payload.message || "The backend could not finish this request.";
+      }
+
+      const text = await response.text();
+
+      if (text.trim()) {
+        return text.trim();
+      }
+
+      return "Request failed with HTTP " + response.status + ".";
+    }
+
+    /** Fetch network errors me user ko Python start karne ka exact next step deta hai. */
+    function friendlyNetworkError(error) {
+      const detail = error && error.message ? " " + error.message : "";
+      return "The converter is not running yet. Start the Python converter on port 5000, then press the button again." + detail;
+    }
+
+    /*
+      ========================================================================
+      04 // THEME + DIRECTION SWITCHING
+      ========================================================================
+    */
+
+    /** Current theme ke according icon aur accessible action label sync karta hai. */
+    function updateThemeButton() {
+      const isLight = document.documentElement.dataset.theme === "light";
+      dom.themeIcon.textContent = isLight ? "☾" : "☼";
+      dom.themeButton.setAttribute("aria-label", isLight ? "Switch to dark theme" : "Switch to light theme");
+    }
+
+    /** Dark/light theme toggle localStorage me save karta; storage failure non-fatal hai. */
+    function toggleTheme() {
+      const nextTheme = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+      document.documentElement.dataset.theme = nextTheme;
+
+      try {
+        localStorage.setItem("imageReducerTheme", nextTheme);
+      } catch (error) {
+        /* Storage disabled ho to current page theme still works; only reload persistence lost. */
+      }
+
+      updateThemeButton();
+    }
+
+    /** Read the currently selected path aloud for users who prefer audio guidance. */
+    function readCurrentInstructions() {
+      if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
+        setStatus("Audio not available", "This browser cannot read instructions aloud. The same steps are written on screen.", "error");
+        return;
+      }
+
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        dom.readPageButton.textContent = "Listen";
+        dom.readPageButton.setAttribute("aria-pressed", "false");
+        return;
+      }
+
+      const isPdfMode = state.mode === "pdf-to-photos";
+      const instruction = isPdfMode
+        ? "You chose: I have a PDF. Add one PDF. We will count its pages. Then press Create images. One PDF page always becomes one image."
+        : "You chose: I have photos. Add your photos. Check their order. Then press Create PDF. One photo always becomes one PDF page.";
+      const resultCheck = isPdfMode ? dom.pdfOutcomePreview.textContent : dom.photosOutcomePreview.textContent;
+      const utterance = new SpeechSynthesisUtterance(instruction + " " + resultCheck);
+      utterance.rate = 0.94;
+      utterance.pitch = 1;
+      utterance.onend = function () {
+        dom.readPageButton.textContent = "Listen";
+        dom.readPageButton.setAttribute("aria-pressed", "false");
+      };
+      utterance.onerror = utterance.onend;
+      dom.readPageButton.textContent = "Stop audio";
+      dom.readPageButton.setAttribute("aria-pressed", "true");
+      window.speechSynthesis.speak(utterance);
+    }
+
+    /** Direction choose karte hi one panel, guide copy aur button states update hote hain. */
+    function chooseMode(nextMode) {
+      if (state.busy) {
+        setStatus("Please wait", "Change direction after the current conversion is complete.", "working");
+        return;
+      }
+
+      state.mode = nextMode;
+      const pdfSelected = nextMode === "pdf-to-photos";
+      dom.pdfModeButton.setAttribute("aria-pressed", String(pdfSelected));
+      dom.photosModeButton.setAttribute("aria-pressed", String(!pdfSelected));
+      dom.pdfPanel.hidden = !pdfSelected;
+      dom.photosPanel.hidden = pdfSelected;
+      clearResult();
+      updateOutcomePreview();
+
+      if (pdfSelected) {
+        dom.guideTitle.textContent = "From PDF to photos";
+        dom.guideStepOneTitle.textContent = "Choose one PDF";
+        dom.guideStepOneText.textContent = "We check its real page count before conversion.";
+        dom.guideStepTwoTitle.textContent = "Choose photo type";
+        dom.guideStepTwoText.textContent = "PNG is clearest; JPG and WEBP are smaller.";
+        dom.guideStepThreeTitle.textContent = "Create and download";
+        dom.guideStepThreeText.textContent = "All page images arrive together inside one ZIP.";
+        dom.limitNote.innerHTML = "<b>30-page safety limit.</b><br>A 10-page PDF makes exactly 10 photos. Page count cannot be increased or reduced.";
+        setStatus("PDF to images", "Choose one PDF. Its page count will be checked first.", "neutral");
+      } else {
+        dom.guideTitle.textContent = "From photos to PDF";
+        dom.guideStepOneTitle.textContent = "Choose your photos";
+        dom.guideStepOneText.textContent = "You can select one or many images, up to 30.";
+        dom.guideStepTwoTitle.textContent = "Put them in order";
+        dom.guideStepTwoText.textContent = "Use the arrow buttons; first photo becomes page one.";
+        dom.guideStepThreeTitle.textContent = "Create and download";
+        dom.guideStepThreeText.textContent = "One new PDF contains every photo in the shown order.";
+        dom.limitNote.innerHTML = "<b>30-photo safety limit.</b><br>10 chosen photos make exactly a 10-page PDF. No photo is silently dropped.";
+        setStatus("Images to PDF", "Add images, check their order, then create the PDF.", "neutral");
+      }
+    }
+
+    /*
+      ========================================================================
+      05 // PDF SELECTION + BACKEND INSPECTION
+      ========================================================================
+    */
+
+    /** Selected PDF remove/reset karta without affecting photos mode state. */
+    function resetPdfSelection() {
+      state.pdfFile = null;
+      state.pdfPages = null;
+      dom.pdfInput.value = "";
+      dom.pdfSummary.hidden = true;
+      dom.pdfFileName.textContent = "document.pdf";
+      dom.pdfFileMeta.textContent = "Checking pages…";
+      clearResult();
+      updateOutcomePreview();
+    }
+
+    /** Filename/MIME se basic PDF check; backend later real %PDF header verify karega. */
+    function looksLikePdf(file) {
+      const lowerName = file.name.toLowerCase();
+      return file.type === "application/pdf" || lowerName.endsWith(".pdf");
+    }
+
+    /** /inspect-document actual page count aur maximum rule backend se laata hai. */
+    async function inspectPdf(file) {
+      const formData = new FormData();
+      formData.append("document", file, file.name);
+      setStatus("Checking PDF", "Counting pages. This usually takes a moment.", "working");
+
+      try {
+        const response = await fetch(API_BASE + ROUTE_INSPECT_DOCUMENT, {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error(await responseErrorMessage(response));
+        }
+
+        const payload = await response.json();
+        state.pdfPages = Number(payload.actual_rendered_pages);
+        dom.pdfFileMeta.textContent = state.pdfPages + " page" + (state.pdfPages === 1 ? "" : "s") + " → " + state.pdfPages + " photo" + (state.pdfPages === 1 ? "" : "s") + " · " + humanFileSize(file.size);
+        setEngineOnline(true);
+        setStatus(
+          "PDF ready",
+          state.pdfPages + " page" + (state.pdfPages === 1 ? "" : "s") + " found. " + state.pdfPages + " image" + (state.pdfPages === 1 ? "" : "s") + " will be created.",
+          "success"
+        );
+        updateOutcomePreview();
+      } catch (error) {
+        state.pdfPages = null;
+        dom.pdfFileMeta.textContent = "Could not verify pages · " + humanFileSize(file.size);
+        setStatus("PDF check failed", error.message || friendlyNetworkError(error), "error");
+        updateOutcomePreview();
+      }
+    }
+
+    /** User-selected file validate, summary show aur async backend inspection start karta hai. */
+    function acceptPdfFile(file) {
+      if (!file) {
+        return;
+      }
+
+      if (!looksLikePdf(file)) {
+        resetPdfSelection();
+        setStatus("Choose a PDF", "This file does not appear to be a PDF. Select a .pdf file.", "error");
+        return;
+      }
+
+      state.pdfFile = file;
+      state.pdfPages = null;
+      dom.pdfSummary.hidden = false;
+      dom.pdfFileName.textContent = file.name;
+      dom.pdfFileMeta.textContent = "Checking pages… · " + humanFileSize(file.size);
+      clearResult();
+      updateOutcomePreview();
+      inspectPdf(file);
+    }
+
+    /*
+      ========================================================================
+      06 // PHOTO QUEUE, PREVIEWS AUR ORDER
+      ========================================================================
+    */
+
+    /** Old preview blob URLs revoke karta to repeated reordering memory leak na kare. */
+    function revokePhotoPreviewUrls() {
+      state.previewUrls.forEach(function (url) {
+        URL.revokeObjectURL(url);
+      });
+      state.previewUrls = [];
+    }
+
+    /** Browser-friendly image check; backend final bytes/Pillow support separately validate karega. */
+    function looksLikeImage(file) {
+      return file.type.startsWith("image/") || file.name.toLowerCase().endsWith(".svg");
+    }
+
+    /** Queue DOM current state order se fresh build hota hai. */
+    function renderPhotoQueue() {
+      revokePhotoPreviewUrls();
+      dom.photoQueue.replaceChildren();
+      dom.queueHead.hidden = state.photoFiles.length === 0;
+      dom.queueCount.textContent = state.photoFiles.length + " / " + MAX_PHOTOS + " images";
+      updateOutcomePreview();
+
+      state.photoFiles.forEach(function (file, index) {
+        const article = document.createElement("article");
+        article.className = "photo-item";
+
+        const thumb = document.createElement("div");
+        thumb.className = "photo-thumb";
+
+        const previewUrl = URL.createObjectURL(file);
+        state.previewUrls.push(previewUrl);
+        const image = document.createElement("img");
+        image.src = previewUrl;
+        image.alt = "Preview of " + file.name;
+        image.loading = "lazy";
+
+        /* Browser preview fail ho to filename still visible; backend may still support file. */
+        image.addEventListener("error", function () {
+          image.remove();
+          const fallback = document.createElement("span");
+          fallback.textContent = "IMG";
+          thumb.appendChild(fallback);
+        }, { once: true });
+
+        const number = document.createElement("span");
+        number.className = "photo-number";
+        number.textContent = String(index + 1);
+        thumb.append(image, number);
+
+        const info = document.createElement("div");
+        info.className = "photo-info";
+        const name = document.createElement("b");
+        name.textContent = file.name;
+        const size = document.createElement("small");
+        size.textContent = humanFileSize(file.size) + " · PDF page " + (index + 1);
+
+        const actions = document.createElement("div");
+        actions.className = "photo-actions";
+        const upButton = document.createElement("button");
+        upButton.type = "button";
+        upButton.textContent = "↑";
+        upButton.setAttribute("aria-label", "Move " + file.name + " one page earlier");
+        upButton.disabled = index === 0;
+        upButton.addEventListener("click", function () { movePhoto(index, -1); });
+
+        const downButton = document.createElement("button");
+        downButton.type = "button";
+        downButton.textContent = "↓";
+        downButton.setAttribute("aria-label", "Move " + file.name + " one page later");
+        downButton.disabled = index === state.photoFiles.length - 1;
+        downButton.addEventListener("click", function () { movePhoto(index, 1); });
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.textContent = "✕";
+        removeButton.setAttribute("aria-label", "Remove " + file.name);
+        removeButton.addEventListener("click", function () { removePhoto(index); });
+
+        actions.append(upButton, downButton, removeButton);
+        info.append(name, size, actions);
+        article.append(thumb, info);
+        dom.photoQueue.appendChild(article);
+      });
+    }
+
+    /** One file ko earlier/later swap karta; array order backend append order banega. */
+    function movePhoto(index, direction) {
+      const targetIndex = index + direction;
+
+      if (targetIndex < 0 || targetIndex >= state.photoFiles.length) {
+        return;
+      }
+
+      const temporary = state.photoFiles[index];
+      state.photoFiles[index] = state.photoFiles[targetIndex];
+      state.photoFiles[targetIndex] = temporary;
+      clearResult();
+      renderPhotoQueue();
+      setStatus("Order changed", state.photoFiles[targetIndex].name + " is now page " + (targetIndex + 1) + ".", "success");
+    }
+
+    /** Exact index photo remove karta aur remaining page numbers automatically rebuild hote hain. */
+    function removePhoto(index) {
+      const removed = state.photoFiles.splice(index, 1)[0];
+      clearResult();
+      renderPhotoQueue();
+
+      if (state.photoFiles.length === 0) {
+        setStatus("Add images", "The list is empty. Choose up to 30 images.", "neutral");
+      } else {
+        setStatus("Image removed", removed.name + " was removed. The PDF will have " + state.photoFiles.length + " page" + (state.photoFiles.length === 1 ? "" : "s") + ".", "success");
+      }
+    }
+
+    /** Multiple picker/drop files validate karke existing queue ke end me add karta hai. */
+    function addPhotoFiles(fileList) {
+      const incoming = Array.from(fileList || []);
+
+      if (incoming.length === 0) {
+        return;
+      }
+
+      const validImages = incoming.filter(looksLikeImage);
+      const rejectedCount = incoming.length - validImages.length;
+      const availableSlots = MAX_PHOTOS - state.photoFiles.length;
+
+      if (availableSlots <= 0) {
+        setStatus("30-image limit", "Remove an image before adding another one.", "error");
+        return;
+      }
+
+      const accepted = validImages.slice(0, availableSlots);
+      state.photoFiles.push.apply(state.photoFiles, accepted);
+      dom.photosInput.value = "";
+      clearResult();
+      renderPhotoQueue();
+
+      if (accepted.length === 0) {
+        setStatus("No image found", "Choose a JPG, PNG, WEBP, TIFF, BMP, or SVG image.", "error");
+      } else if (validImages.length > availableSlots) {
+        setStatus("Only " + availableSlots + " images added", "Extra files were not added after the 30-image limit.", "error");
+      } else if (rejectedCount > 0) {
+        setStatus("Images ready", accepted.length + " image file(s) added. " + rejectedCount + " non-image file(s) skipped.", "success");
+      } else {
+        setStatus("Images ready", state.photoFiles.length + " image" + (state.photoFiles.length === 1 ? "" : "s") + " will create a " + state.photoFiles.length + "-page PDF.", "success");
+      }
+    }
+
+    /** Photos mode full reset; preview URLs revoke aur name/defaults restore. */
+    function resetPhotoSelection() {
+      revokePhotoPreviewUrls();
+      state.photoFiles = [];
+      dom.photosInput.value = "";
+      dom.photoQueue.replaceChildren();
+      dom.queueHead.hidden = true;
+      dom.queueCount.textContent = "0 / " + MAX_PHOTOS + " images";
+      dom.pdfOutputName.value = "my_photos";
+      clearResult();
+      updateOutcomePreview();
+    }
+
+    /*
+      ========================================================================
+      07 // PDF → PHOTOS CONVERSION
+      ========================================================================
+    */
+
+    /** Current PDF/settings FormData me pack karke backend ZIP response banata hai. */
+    async function convertPdfToPhotos() {
+      if (state.busy) {
+        return;
+      }
+
+      if (!state.pdfFile) {
+        setStatus("PDF needed", "Choose a PDF before creating images.", "error");
+        return;
+      }
+
+      if (state.pdfPages !== null && state.pdfPages > MAX_PDF_PAGES) {
+        setStatus("Too many pages", "The maximum is " + MAX_PDF_PAGES + " pages.", "error");
+        return;
+      }
+
+      clearResult();
+      setBusy(true);
+      setStatus("Creating images", "Each PDF page is being converted and added to one ZIP file.", "working");
+
+      const outputFormat = dom.imageFormat.value;
+      const formData = new FormData();
+      formData.append("document", state.pdfFile, state.pdfFile.name);
+      formData.append("output_format", outputFormat);
+      formData.append("dpi", selectedRadioValue("pdfDpi", "144"));
+      formData.append("quality", dom.imageQuality.value);
+
+      try {
+        const response = await fetch(API_BASE + ROUTE_DOCUMENT_TO_IMAGES, {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error(await responseErrorMessage(response));
+        }
+
+        const blob = await response.blob();
+        const countText = state.pdfPages === null ? "all PDF pages" : state.pdfPages + " image" + (state.pdfPages === 1 ? "" : "s");
+        const filename = baseName(state.pdfFile.name) + "_" + outputFormat.toLowerCase() + "_images.zip";
+        showResult(blob, filename, countText + " are inside this ZIP · " + humanFileSize(blob.size));
+        setEngineOnline(true);
+        setStatus("Images ready", "The original PDF was not changed. Use Download to save the ZIP.", "success");
+      } catch (error) {
+        setStatus("Conversion failed", error.message || friendlyNetworkError(error), "error");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    /*
+      ========================================================================
+      08 // PHOTOS → PDF CONVERSION
+      ========================================================================
+    */
+
+    /** Ordered photo array repeated `images` fields me append hoti; backend same order preserves. */
+    async function convertPhotosToPdf() {
+      if (state.busy) {
+        return;
+      }
+
+      if (state.photoFiles.length === 0) {
+        setStatus("Images needed", "Choose at least one image before creating the PDF.", "error");
+        return;
+      }
+
+      if (state.photoFiles.length > MAX_PHOTOS) {
+        setStatus("Too many images", "The maximum is " + MAX_PHOTOS + " images.", "error");
+        return;
+      }
+
+      clearResult();
+      setBusy(true);
+      setStatus("Creating PDF", "Images are being added as PDF pages in the order shown.", "working");
+
+      const formData = new FormData();
+      state.photoFiles.forEach(function (file) {
+        formData.append("images", file, file.name);
+      });
+      formData.append("dpi", selectedRadioValue("photoDpi", "144"));
+      formData.append("output_name", dom.pdfOutputName.value || "converted_images");
+
+      try {
+        const response = await fetch(API_BASE + ROUTE_IMAGES_TO_PDF, {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error(await responseErrorMessage(response));
+        }
+
+        const blob = await response.blob();
+        const cleanedName = baseName(dom.pdfOutputName.value || "converted_images");
+        const filename = cleanedName + ".pdf";
+        showResult(blob, filename, state.photoFiles.length + " photo" + (state.photoFiles.length === 1 ? "" : "s") + " → " + state.photoFiles.length + " PDF page" + (state.photoFiles.length === 1 ? "" : "s") + " · " + humanFileSize(blob.size));
+        setEngineOnline(true);
+        setStatus("PDF ready", "The page order matches the images above. Use Download to save it.", "success");
+      } catch (error) {
+        setStatus("PDF nahi bani", error.message || friendlyNetworkError(error), "error");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    /*
+      ========================================================================
+      09 // DOWNLOAD + BACKEND HEALTH
+      ========================================================================
+    */
+
+    /** Result blob temporary object URL se browser downloads folder me bhejta hai. */
+    function downloadResult() {
+      if (!state.resultBlob) {
+        setStatus("Nothing to download", "Create the images or PDF first.", "error");
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(state.resultBlob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = state.resultFilename || "paper-loop-download";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      /* Browser ko download read start karne ke liye time dene ke baad URL memory release. */
+      window.setTimeout(function () {
+        URL.revokeObjectURL(objectUrl);
+      }, 1000);
+
+      setStatus("Download started", "Find " + link.download + " in your browser Downloads folder.", "success");
+    }
+
+    /** Small GET request backend availability/route registration check karta hai. */
+    async function checkBackend() {
+      try {
+        const response = await fetch(API_BASE + ROUTE_INFO, { cache: "no-store" });
+
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+
+        const payload = await response.json();
+
+        if (payload && payload.limits) {
+          setEngineOnline(true);
+          return;
+        }
+
+        setEngineOnline(false);
+      } catch (error) {
+        setEngineOnline(false);
+      }
+    }
+
+    /*
+      ========================================================================
+      10 // DRAG/DROP HELPERS + EVENT BINDING
+      ========================================================================
+    */
+
+    /** Browser default file-open navigation block karta aur visual highlight add karta hai. */
+    function prepareDropZone(zone, onFiles) {
+      ["dragenter", "dragover"].forEach(function (eventName) {
+        zone.addEventListener(eventName, function (event) {
+          event.preventDefault();
+          zone.classList.add("is-dragging");
+        });
+      });
+
+      ["dragleave", "drop"].forEach(function (eventName) {
+        zone.addEventListener(eventName, function (event) {
+          event.preventDefault();
+          zone.classList.remove("is-dragging");
+        });
+      });
+
+      zone.addEventListener("drop", function (event) {
+        const files = event.dataTransfer ? event.dataTransfer.files : null;
+        onFiles(files);
+      });
+    }
+
+    /** Format change par quality control ka help/disabled state honest rakhta hai. */
+    function updateQualityAvailability() {
+      const isLossy = LOSSY_FORMATS.has(dom.imageFormat.value);
+      dom.imageQuality.disabled = !isLossy;
+      dom.qualityGroup.style.opacity = isLossy ? "1" : ".62";
+
+      if (isLossy) {
+        dom.qualityHelp.textContent = "Higher quality makes a larger JPG/JPEG/WEBP file.";
+      } else {
+        dom.qualityHelp.textContent = "This format uses its own lossless/palette settings; quality slider is not needed.";
+      }
+    }
+
+    /** All static handlers one place bind hote, future debugging easy rahe. */
+    function bindEvents() {
+      dom.themeButton.addEventListener("click", toggleTheme);
+      dom.readPageButton.addEventListener("click", readCurrentInstructions);
+      dom.pdfModeButton.addEventListener("click", function () { chooseMode("pdf-to-photos"); });
+      dom.photosModeButton.addEventListener("click", function () { chooseMode("photos-to-pdf"); });
+
+      dom.examplePdfChoice.addEventListener("click", function () {
+        chooseMode("pdf-to-photos");
+        dom.examplePdfChoice.closest("details").open = false;
+        dom.pdfPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+
+      dom.examplePhotosChoice.addEventListener("click", function () {
+        chooseMode("photos-to-pdf");
+        dom.examplePhotosChoice.closest("details").open = false;
+        dom.photosPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+
+      dom.pdfInput.addEventListener("change", function () {
+        acceptPdfFile(dom.pdfInput.files[0]);
+      });
+      dom.photosInput.addEventListener("change", function () {
+        addPhotoFiles(dom.photosInput.files);
+      });
+
+      dom.removePdfButton.addEventListener("click", function () {
+        resetPdfSelection();
+        setStatus("PDF removed", "You can now choose another PDF.", "neutral");
+      });
+
+      dom.resetPdfButton.addEventListener("click", function () {
+        resetPdfSelection();
+        setStatus("Cleared", "The PDF selection is empty. Your original file was not changed.", "neutral");
+      });
+
+      dom.resetPhotosButton.addEventListener("click", function () {
+        resetPhotoSelection();
+        setStatus("Cleared", "The image list is empty. Choose new images when ready.", "neutral");
+      });
+
+      dom.imageQuality.addEventListener("input", function () {
+        dom.qualityOutput.value = dom.imageQuality.value + "%";
+        clearResult();
+      });
+
+      dom.imageFormat.addEventListener("change", function () {
+        updateQualityAvailability();
+        updateOutcomePreview();
+        clearResult();
+      });
+
+      dom.convertPdfButton.addEventListener("click", convertPdfToPhotos);
+      dom.convertPhotosButton.addEventListener("click", convertPhotosToPdf);
+      dom.downloadButton.addEventListener("click", downloadResult);
+
+      /* Any option change makes an old result stale; user should create again. */
+      document.querySelectorAll('input[name="pdfDpi"],input[name="photoDpi"],#pdfOutputName').forEach(function (control) {
+        control.addEventListener("change", clearResult);
+      });
+
+      prepareDropZone(dom.pdfDropZone, function (files) {
+        acceptPdfFile(files && files[0]);
+      });
+      prepareDropZone(dom.photosDropZone, addPhotoFiles);
+
+      /* Page close par photo preview URLs release; browser memory clean rehti hai. */
+      window.addEventListener("beforeunload", function () {
+        revokePhotoPreviewUrls();
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
+      });
+    }
+
+    /*
+      ========================================================================
+      11 // FIRST PAGE INITIALIZATION
+      KYA: Theme label, controls, handlers aur backend check first load par run.
+      ========================================================================
+    */
+    function initializePage() {
+      updateThemeButton();
+      updateQualityAvailability();
+      updateOutcomePreview();
+      bindEvents();
+      checkBackend();
+      chooseMode("pdf-to-photos");
+    }
+
+    /* Script body end me hai, so DOM ready hota; direct initialization safe hai. */
+    initializePage();
+  </script>
 </body>
 </html>
